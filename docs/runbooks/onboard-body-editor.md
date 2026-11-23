@@ -48,7 +48,7 @@ Ask the editor to open **News** and choose **Add New**. The **Body** field shoul
 | An editor with a body grant can                                  | An editor cannot                                                    |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------- |
 | Create, edit, publish, schedule and trash their body's officers, events and news | Create, edit, move, publish, schedule, trash or restore another body's content |
-| Edit their body's own page (description, schedule note, tag list) | Add a new body, or use the MCP endpoint                             |
+| Edit their body's own page (description, schedule note, tag list) | Add a new body, trash, unpublish or schedule a body's page, or use the MCP endpoint |
 | Upload images, and edit or delete the files they uploaded        | Change or delete files another person uploaded                      |
 
 Two gaps are accepted on purpose and need the lodge's sign-off before launch (PLAN Q14). Editors can **read** other bodies' unpublished drafts in the admin. Editors can **edit** the site-wide menus, widgets, sections, bylines and static pages. ADR-002 records both.
@@ -61,6 +61,10 @@ Two gaps are accepted on purpose and need the lodge's sign-off before launch (PL
 | "has no grant for Findlay Chapter No. 58" (or another body) | They are working on another body's entry, or the wrong body is ticked.          |
 | "is not on the officer title list"                         | The title belongs to another kind of body. Pick a title from their body's list. |
 | "These tags are not in the … tag list"                     | Add the tag to the body's tag list first (the body's page, **Tag vocabulary**). |
+| "cannot trash, unpublish or schedule a body's page"        | Only an Admin takes a body's page offline. Ask a Temple administrator.          |
+| "did not upload this file", for a file they uploaded       | The library already held an identical file, so it kept the first uploader's copy. They can still use it; an Admin can change its alt text. |
+| "looks like an entry id"                                   | The slug is 26 capital letters and digits. Use words, such as `spring-banquet`. |
+| "A translation belongs to the body of the entry it translates" | Choose the body the original entry belongs to.                             |
 | Google sign-in returns to the login page                   | The Google account's address is not the invited one, or it is not verified.    |
 | Microsoft sign-in is missing or fails                      | `MICROSOFT_TENANT_ID` is not set, or their account is a guest in that directory. |
 
