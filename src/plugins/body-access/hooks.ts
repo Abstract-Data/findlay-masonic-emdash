@@ -1,10 +1,13 @@
 import { actorStore, type RequestActor } from "@adapters/emdash/actor-context";
 import {
+	overlayDraft,
 	saveOperation,
 	scopeOf,
+	stateChangeOperation,
 	storedBodies,
 	targetBody,
-	type StoredEntry,
+	type EntryRow,
+	type ReadEntry,
 } from "@adapters/emdash/entries";
 import { grantsOf, principalFor, type Directory, type GrantRows } from "@adapters/emdash/grants";
 import {
@@ -16,7 +19,12 @@ import {
 	toStoredInstant,
 	type BodyRecord,
 } from "@adapters/emdash/parse";
-import { checkOfficerTitle, checkTags, type RuleViolation } from "@core/acl/content-rules";
+import {
+	checkOfficerTitle,
+	checkTags,
+	checkTranslationBody,
+	type RuleViolation,
+} from "@core/acl/content-rules";
 import {
 	authorize,
 	denialText,
@@ -31,18 +39,38 @@ import {
 	type ContentHookEvent,
 	type ContentPolicyEvent,
 	type MediaUploadEvent,
-	type PluginContext,
 } from "emdash";
 
 const UNIDENTIFIED = "The signed-in account could not be identified, so the change was refused.";
+const UNREADABLE_DRAFT =
+	"The entry's pending draft could not be read, so the change was refused. Try again, or ask a Temple administrator.";
+const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
 
-export function grantRows(ctx: PluginContext): GrantRows {
+/** The slice of EmDash's plugin context the hooks and routes read; PluginContext fits it. */
+export interface HookContext {
+	readonly content?: {
+		get(collection: string, id: string): Promise<EntryRow | null>;
+		list(
+			collection: string,
+			options: { limit: number },
+		): Promise<{ readonly items: readonly { readonly id: string; readonly data: unknown }[] }>;
+		getRevision?(
+			collection: string,
+			id: string,
+			revisionId: string,
+		): Promise<{ readonly data: Record<string, unknown> } | null>;
+	};
+	readonly storage: { readonly grants?: GrantRows };
+	readonly users?: { get(id: string): Promise<{ readonly role: number } | null> };
+}
+
+export function grantRows(ctx: HookContext): GrantRows {
 	const rows = ctx.storage.grants;
 	if (rows === undefined) throw new Error("body-access: the grants storage collection is missing");
 	return rows;
 }
 
-function directory(ctx: PluginContext): Directory {
+function directory(ctx: HookContext): Directory {
 	const rows = grantRows(ctx);
 	return {
 		grantsOf: async (user) => grantsOf(rows, user),
@@ -50,47 +78,53 @@ function directory(ctx: PluginContext): Directory {
 	};
 }
 
+/**
+ * Who a write acts for: the event's actor, else the signed-in user of the request it runs in,
+ * so a plugin writing on a user's behalf is held to that user's grants. Null only outside any
+ * signed-in request: a scheduled publish, a seed or a system write (policy D2).
+ */
+function actorOf(eventActor?: RequestActor): RequestActor | null {
+	return eventActor ?? actorStore.getStore() ?? null;
+}
+
 async function principalOf(
-	ctx: PluginContext,
-	actor: RequestActor | undefined | null,
+	ctx: HookContext,
+	actor: RequestActor | null,
 	editedBy: readonly string[] = [],
 ): Promise<Principal | null> {
-	// No actor: a scheduled publish, a plugin or a system write (policy D2).
-	if (!actor) return { kind: "internal", origin: "system" };
+	if (actor === null) return { kind: "internal", origin: "system" };
 	return principalFor(actor, editedBy, directory(ctx));
 }
 
 /** An entry with its draft's values over the live ones, as EmDash's own routes read it. */
 export async function readEntry(
-	ctx: PluginContext,
+	ctx: HookContext,
 	collection: string,
 	id: string,
-): Promise<(StoredEntry & { readonly data: Record<string, unknown> }) | null> {
+): Promise<ReadEntry | null> {
 	const live = await ctx.content?.get(collection, id);
 	if (!live) return null;
 	const draftId = live.draftRevisionId;
-	const draft = draftId ? await ctx.content?.getRevision?.(collection, live.id, draftId) : null;
-	if (!draft) return { id: live.id, data: live.data };
-	const staged = Object.entries(draft.data).filter(([key]) => !key.startsWith("_"));
-	return {
-		id: live.id,
-		data: { ...live.data, ...Object.fromEntries(staged) },
-		liveData: live.data,
-	};
+	const draft = draftId
+		? ((await ctx.content?.getRevision?.(collection, live.id, draftId)) ?? null)
+		: null;
+	const entry = overlayDraft(live, draft);
+	if (entry === null) throw new ContentSaveRejectedError(UNREADABLE_DRAFT);
+	return entry;
 }
 
-export async function bodyRecords(ctx: PluginContext): Promise<BodyRecord[]> {
+export async function bodyRecords(ctx: HookContext): Promise<BodyRecord[]> {
 	const page = await ctx.content?.list("bodies", { limit: 100 });
 	return (page?.items ?? []).flatMap((item) => parseBodyRecord(item) ?? []);
 }
 
-async function denial(ctx: PluginContext, reason: DenyReason | RuleViolation): Promise<string> {
+async function denial(ctx: HookContext, reason: DenyReason | RuleViolation): Promise<string> {
 	const names = new Map((await bodyRecords(ctx)).map((body) => [body.id, body.displayName]));
 	return denialText(reason, names);
 }
 
 async function refusal(
-	ctx: PluginContext,
+	ctx: HookContext,
 	principal: Principal | null,
 	op: Operation,
 ): Promise<string | null> {
@@ -105,11 +139,11 @@ async function refusal(
  */
 export async function beforeSave(
 	event: ContentHookEvent,
-	ctx: PluginContext,
+	ctx: HookContext,
 ): Promise<Record<string, unknown> | void> {
 	const scope = scopeOf(event.collection);
 	if (scope === "site") return;
-	const principal = await principalOf(ctx, event.actor, event.editedBy);
+	const principal = await principalOf(ctx, actorOf(event.actor), event.editedBy);
 	if (principal === null) throw new ContentSaveRejectedError(UNIDENTIFIED);
 	const existing =
 		event.isNew || event.id === undefined ? null : await readEntry(ctx, event.collection, event.id);
@@ -119,38 +153,41 @@ export async function beforeSave(
 	if (decision?.outcome === "deny") {
 		throw new ContentSaveRejectedError(await denial(ctx, decision.reason));
 	}
-	await guardTranslationSource(event, principal, ctx);
+	const body = decision?.outcome === "assign" ? decision.body : parseBodyId(saved.body);
+	await guardTranslationSource(event, principal, scope === "body-field" ? body : null, ctx);
 	if (scope !== "body-field") return;
 
-	const body = decision?.outcome === "assign" ? decision.body : parseBodyId(saved.body);
 	if (body !== null) await checkContentRules(event.collection, saved, body, ctx);
 	return decision?.outcome === "assign" ? { ...event.content, body } : undefined;
 }
 
-/** A translation joins its source's group, so it needs the grants the source does. */
+/**
+ * A translation joins its source's group, so it needs the grants the source does, and it
+ * belongs to the source's body.
+ */
 async function guardTranslationSource(
 	event: ContentHookEvent,
 	principal: Principal,
-	ctx: PluginContext,
+	body: BodyId | null,
+	ctx: HookContext,
 ): Promise<void> {
 	const scope = scopeOf(event.collection);
 	if (event.translationOf === undefined || (scope !== "body-field" && scope !== "self")) return;
 	const source = await readEntry(ctx, event.collection, event.translationOf);
 	if (source === null) return;
-	const op: Operation = {
-		kind: "update",
-		from: storedBodies(scope, source),
-		to: targetBody(scope, source),
-	};
+	const sourceBody = targetBody(scope, source);
+	const op: Operation = { kind: "update", from: storedBodies(scope, source), to: sourceBody };
 	const text = await refusal(ctx, principal, op);
 	if (text !== null) throw new ContentSaveRejectedError(text);
+	const same = body === null || sourceBody === null ? null : checkTranslationBody(body, sourceBody);
+	if (same?.ok === false) throw new ContentSaveRejectedError(await denial(ctx, same.error));
 }
 
 async function checkContentRules(
 	collection: string,
 	saved: Readonly<Record<string, unknown>>,
 	body: BodyId,
-	ctx: PluginContext,
+	ctx: HookContext,
 ): Promise<void> {
 	const entry = await readEntry(ctx, "bodies", body);
 	const record = entry === null ? null : parseBodyRecord(entry);
@@ -192,6 +229,19 @@ function contentRuleViolation(
 	return null;
 }
 
+/** The operation a state change performs on the entry as it is stored now; null on a site page. */
+async function stateChange(
+	ctx: HookContext,
+	change: "delete" | "publish" | "unpublish" | "schedule",
+	collection: string,
+	id: string,
+): Promise<Operation | null> {
+	const scope = scopeOf(collection);
+	if (scope === "site") return null;
+	if (scope === "unlisted") return UNLISTED;
+	return stateChangeOperation(change, scope, (await readEntry(ctx, collection, id)) ?? { id });
+}
+
 /**
  * FR-5.4 trash. A backstop: src/middleware.ts refuses an API trash first, with a readable
  * reason, because EmDash turns `false` here into a bare DELETE_BLOCKED. The event carries no
@@ -199,41 +249,37 @@ function contentRuleViolation(
  */
 export async function beforeDelete(
 	event: ContentDeleteEvent,
-	ctx: PluginContext,
+	ctx: HookContext,
 ): Promise<boolean | void> {
-	const actor = actorStore.getStore();
-	const scope = scopeOf(event.collection);
-	if (!actor || scope === "site") return;
-	const entry = scope === "unlisted" ? null : await readEntry(ctx, event.collection, event.id);
-	const op: Operation =
-		scope === "unlisted"
-			? { kind: "admin-only", action: "unlisted" }
-			: { kind: "delete", bodies: entry === null ? [] : storedBodies(scope, entry) };
+	const actor = actorOf();
+	const op = actor === null ? null : await stateChange(ctx, "delete", event.collection, event.id);
+	if (op === null) return;
 	return (await refusal(ctx, await principalOf(ctx, actor), op)) === null ? undefined : false;
 }
 
-/** FR-5.4 publish, unpublish and schedule. Publish and schedule check the live and draft body. */
-export function policyHook(kind: "publish" | "unpublish" | "schedule") {
+/**
+ * FR-5.4 publish, unpublish and schedule, against the live and the draft body. EmDash hands
+ * beforeUnpublish the live entry only, so each hook reads the entry itself.
+ */
+export function policyHook(change: "publish" | "unpublish" | "schedule") {
 	return async (
 		event: ContentPolicyEvent,
-		ctx: PluginContext,
+		ctx: HookContext,
 	): Promise<{ cancel: true; reason: string } | void> => {
-		const scope = scopeOf(event.collection);
-		if (!event.actor || scope === "site") return;
-		const { id, data, liveData } = event.content;
-		const op: Operation =
-			scope === "unlisted"
-				? { kind: "admin-only", action: "unlisted" }
-				: { kind, bodies: storedBodies(scope, { id, data, liveData }) };
-		const text = await refusal(ctx, await principalOf(ctx, event.actor), op);
+		const { source } = event.origin;
+		const actor = source === "scheduler" || source === "system" ? null : actorOf(event.actor);
+		const id = typeof event.content.id === "string" ? event.content.id : "";
+		const op = actor === null ? null : await stateChange(ctx, change, event.collection, id);
+		if (op === null) return;
+		const text = await refusal(ctx, await principalOf(ctx, actor), op);
 		return text === null ? undefined : { cancel: true, reason: text };
 	};
 }
 
 /** ADR-002 O1 backstop: the middleware refuses an upload by a user with no grant first. */
-export async function beforeUpload(_event: MediaUploadEvent, ctx: PluginContext): Promise<void> {
-	const actor = actorStore.getStore();
-	if (!actor) return;
+export async function beforeUpload(_event: MediaUploadEvent, ctx: HookContext): Promise<void> {
+	const actor = actorOf();
+	if (actor === null) return;
 	const text = await refusal(ctx, await principalOf(ctx, actor), { kind: "upload" });
 	if (text !== null) throw new Error(text);
 }
