@@ -54,12 +54,15 @@ pnpm dev
 
 ## Deploying
 
+Deploys are run by a human, never by an agent. `wrangler.jsonc` has a local-only top level and two environments, `staging` and `production`, each with its own Worker, D1, R2 and KV.
+
 ```bash
 pnpm wrangler login
-pnpm deploy
+pnpm run deploy:staging      # CLOUDFLARE_ENV=staging astro build && wrangler deploy
+pnpm run deploy:production
 ```
 
-The first deployment provisions the named D1 database and R2 bucket from `wrangler.jsonc`. See [Deploy to Cloudflare](https://docs.emdashcms.com/deployment/cloudflare/) for production setup, or use the deploy button above.
+The Cloudflare adapter picks the environment at build time from `CLOUDFLARE_ENV` and writes a flattened config to `dist/server/wrangler.json`. `wrangler deploy --env staging` after a plain `astro build` silently deploys the local top-level bindings, so always deploy through these scripts.
 
 ## See Also
 

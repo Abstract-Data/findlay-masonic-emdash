@@ -1,3 +1,7 @@
+// Top level is local dev only (astro dev, wrangler --local); its IDs never
+// reach Cloudflare. Deploy with an env: CLOUDFLARE_ENV=staging pnpm astro build
+// && pnpm wrangler deploy. Environments never share D1, R2 or KV (constitution
+// amendment 1). Placeholder IDs are filled in by a human (T0.12).
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "findlay-masonic-emdash",
@@ -5,19 +9,12 @@
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "findlay-masonic-site",
-			"database_id": "e973aaf5-ee02-44d0-b8e9-ca291cbd35f9",
-		},
+		{ "binding": "DB", "database_name": "findlay-masonic-local", "database_id": "local" },
 	],
-	"r2_buckets": [
-		{
-			"binding": "MEDIA",
-			"bucket_name": "findlay-masonic-media",
-			"preview_bucket_name": "findlay-masonic-media",
-		},
-	],
+	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-local" }],
+	// Astro sessions (EmDash stores signed-in users here). The Cloudflare adapter
+	// expects the SESSION binding name.
+	"kv_namespaces": [{ "binding": "SESSION", "id": "local" }],
 	// Co-editing rooms, one Durable Object per entry being edited
 	"durable_objects": {
 		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
@@ -30,5 +27,69 @@
 	// General maintenance cron trigger
 	"triggers": {
 		"crons": ["* * * * *"],
+	},
+	"env": {
+		"staging": {
+			"name": "findlay-masonic-emdash-staging",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "findlay-masonic-staging",
+					"database_id": "<set by human: T0.12>",
+				},
+			],
+			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-staging" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "<set by human: T0.12>" }],
+			"durable_objects": {
+				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+			},
+			"triggers": {
+				"crons": ["* * * * *"],
+			},
+			"observability": {
+				"enabled": true,
+				"logs": {
+					"enabled": true,
+					"invocation_logs": true,
+					"destinations": ["axiom-staging-logs"],
+				},
+				"traces": {
+					"enabled": true,
+					"destinations": ["axiom-staging-traces"],
+				},
+			},
+		},
+		"production": {
+			"name": "findlay-masonic-emdash-production",
+			// Open human decision (T0.11): reuse the existing D1 findlay-masonic-site
+			// (e973aaf5-ee02-44d0-b8e9-ca291cbd35f9) here, or retire it.
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "findlay-masonic-production",
+					"database_id": "<set by human: T0.12>",
+				},
+			],
+			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-production" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "<set by human: T0.12>" }],
+			"durable_objects": {
+				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+			},
+			"triggers": {
+				"crons": ["* * * * *"],
+			},
+			"observability": {
+				"enabled": true,
+				"logs": {
+					"enabled": true,
+					"invocation_logs": true,
+					"destinations": ["axiom-production-logs"],
+				},
+				"traces": {
+					"enabled": true,
+					"destinations": ["axiom-production-traces"],
+				},
+			},
+		},
 	},
 }

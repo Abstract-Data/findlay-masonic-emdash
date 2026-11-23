@@ -7,13 +7,14 @@
 		"dev": "portless run astro dev",
 		"build": "astro build",
 		"preview": "astro preview",
-		"deploy": "astro build && wrangler deploy",
 		"typecheck": "astro check",
 		"lint": "oxlint --deny-warnings && eslint .",
 		"format": "oxfmt && prettier --write \"**/*.astro\"",
 		"format:check": "oxfmt --check && prettier --check \"**/*.astro\"",
 		"test": "vitest run",
-		"e2e": "playwright test"
+		"e2e": "playwright test",
+		"deploy:staging": "CLOUDFLARE_ENV=staging astro build && wrangler deploy",
+		"deploy:production": "CLOUDFLARE_ENV=production astro build && wrangler deploy"
 	},
 	"dependencies": {
 		"@astrojs/cloudflare": "^14.3.1",
