@@ -1,11 +1,6 @@
 ---
 import { getMenuWithCacheHint, getSiteSettingsWithCacheHint } from "emdash";
-import {
-	WidgetArea,
-	EmDashHead,
-	EmDashBodyStart,
-	EmDashBodyEnd,
-} from "emdash/ui";
+import { WidgetArea, EmDashHead, EmDashBodyStart, EmDashBodyEnd } from "emdash/ui";
 import { createPublicPageContext } from "emdash/page";
 import LiveSearch from "emdash/ui/search";
 import { Font } from "astro:assets";
@@ -51,13 +46,9 @@ if (Astro.cache?.enabled) {
 	Astro.cache.set(menuResult.cacheHint);
 }
 
-const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(
-	settingsResult.data,
-);
+const { siteTitle, siteTagline, siteLogo } = resolveBlogSiteIdentity(settingsResult.data);
 const titleIncludesSiteName =
-	title === siteTitle ||
-	title.endsWith(` | ${siteTitle}`) ||
-	title.endsWith(` — ${siteTitle}`);
+	title === siteTitle || title.endsWith(` | ${siteTitle}`) || title.endsWith(` — ${siteTitle}`);
 const fullTitle = titleIncludesSiteName ? title : `${title} — ${siteTitle}`;
 
 const menu = menuResult.data;
@@ -122,69 +113,47 @@ const year = new Date().getFullYear();
 			title={`${siteTitle} RSS Feed`}
 			href="/rss.xml"
 		/>
-		<script is:inline>
-			// Apply an explicit theme choice immediately to prevent flash.
-			// With no cookie, color-scheme: light dark follows the OS.
-			(function () {
-				var row = document.cookie.split("; ").find(function (item) {
-					return item.startsWith("theme=");
-				});
-				var theme = row ? row.slice(6) : null;
-				if (theme === "dark" || theme === "light") {
-					document.documentElement.classList.add(theme);
-				}
-			})();
-		</script>
+		<script is:inline src="/scripts/theme-init.js"></script>
 	</head>
 	<body>
 		<EmDashBodyStart page={pageCtx} />
-		<a href="#main" class="skip-link">Skip to content</a>
+		<a href="#main" class="skip-link">
+			Skip to content
+		</a>
 		<header class="site-header">
 			<div class="frame site-header__inner">
 				<a href="/" class="brand">
-					{
-						siteLogo ? (
-							<img
-								src={siteLogo.url}
-								alt={siteLogo.alt || siteTitle}
-								class="brand__logo"
-							/>
-						) : (
-							<>
-								{monogram && (
-									<span class="brand__mark" aria-hidden="true">
-										{monogram}
-									</span>
-								)}
-								<span class="brand__name">{siteTitle}</span>
-							</>
-						)
-					}
+					{siteLogo ? (
+						<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="brand__logo" />
+					) : (
+						<>
+							{monogram && (
+								<span class="brand__mark" aria-hidden="true">
+									{monogram}
+								</span>
+							)}
+							<span class="brand__name">{siteTitle}</span>
+						</>
+					)}
 				</a>
-				{
-					menuItems.length > 0 && (
-						<nav class="site-nav" aria-label="Main">
-							<ul>
-								{menuItems.map((item) => (
-									<li>
-										<a
-											href={item.url}
-											target={item.target}
-											rel={
-												item.target === "_blank"
-													? "noopener noreferrer"
-													: undefined
-											}
-											aria-current={navCurrent(item.url)}
-										>
-											{item.label}
-										</a>
-									</li>
-								))}
-							</ul>
-						</nav>
-					)
-				}
+				{menuItems.length > 0 && (
+					<nav class="site-nav" aria-label="Main">
+						<ul>
+							{menuItems.map((item) => (
+								<li>
+									<a
+										href={item.url}
+										target={item.target}
+										rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+										aria-current={navCurrent(item.url)}
+									>
+										{item.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				)}
 				<div class="site-header__actions">
 					<div class="site-search" role="search" aria-label="Site">
 						<svg
@@ -196,9 +165,10 @@ const year = new Date().getFullYear();
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
 						>
+							<circle cx="11" cy="11" r="7"></circle>
+							<path d="m20 20-3.5-3.5"></path>
+						</svg>
 						<LiveSearch
 							placeholder="Search"
 							class="site-search__field"
@@ -207,15 +177,11 @@ const year = new Date().getFullYear();
 							resultClass="site-search-result"
 							collections={["posts", "pages"]}
 						/>
-						<kbd class="site-search__kbd" aria-hidden="true"
-							><span dir="ltr">⌘K</span></kbd
-						>
+						<kbd class="site-search__kbd" aria-hidden="true">
+							<span dir="ltr">⌘K</span>
+						</kbd>
 					</div>
-					<a
-						href="/search"
-						class="icon-btn site-search-link"
-						aria-label="Search"
-					>
+					<a href="/search" class="icon-btn site-search-link" aria-label="Search">
 						<svg
 							viewBox="0 0 24 24"
 							fill="none"
@@ -224,34 +190,20 @@ const year = new Date().getFullYear();
 							stroke-linecap="round"
 							stroke-linejoin="round"
 							aria-hidden="true"
-							><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-							></path></svg
 						>
+							<circle cx="11" cy="11" r="7"></circle>
+							<path d="m20 20-3.5-3.5"></path>
+						</svg>
 					</a>
-					{
-						isLoggedIn && (
-							<a href="/_emdash/admin" class="btn btn--ghost btn--sm nav-admin">
-								Admin
-							</a>
-						)
-					}
+					{isLoggedIn && (
+						<a href="/_emdash/admin" class="btn btn--ghost btn--sm nav-admin">
+							Admin
+						</a>
+					)}
 				</div>
 			</div>
 		</header>
-		<script is:inline>
-			// Inline, so the height is set before the browser scrolls to a URL fragment
-			(function () {
-				var header = document.querySelector(".site-header");
-				function setHeight() {
-					document.documentElement.style.setProperty(
-						"--header-height",
-						header.offsetHeight + "px",
-					);
-				}
-				setHeight();
-				new ResizeObserver(setHeight).observe(header);
-			})();
-		</script>
+		<script is:inline src="/scripts/header-height.js"></script>
 
 		<main id="main" tabindex="-1">
 			<slot />
@@ -261,53 +213,41 @@ const year = new Date().getFullYear();
 			<div class="frame site-footer__grid">
 				<div class="site-footer__brand">
 					<a href="/" class="brand">
-						{
-							siteLogo ? (
-								<img
-									src={siteLogo.url}
-									alt={siteLogo.alt || siteTitle}
-									class="brand__logo"
-								/>
-							) : (
-								<>
-									{monogram && (
-										<span class="brand__mark" aria-hidden="true">
-											{monogram}
-										</span>
-									)}
-									<span class="brand__name">{siteTitle}</span>
-								</>
-							)
-						}
+						{siteLogo ? (
+							<img src={siteLogo.url} alt={siteLogo.alt || siteTitle} class="brand__logo" />
+						) : (
+							<>
+								{monogram && (
+									<span class="brand__mark" aria-hidden="true">
+										{monogram}
+									</span>
+								)}
+								<span class="brand__name">{siteTitle}</span>
+							</>
+						)}
 					</a>
 					{siteTagline && <p class="site-footer__tagline">{siteTagline}</p>}
 				</div>
-				{
-					menuItems.length > 0 && (
-						<nav class="site-footer__col" aria-labelledby="footer-navigate">
-							<h2 id="footer-navigate" class="eyebrow">
-								Navigate
-							</h2>
-							<ul class="site-footer__links">
-								{menuItems.map((item) => (
-									<li>
-										<a
-											href={item.url}
-											target={item.target}
-											rel={
-												item.target === "_blank"
-													? "noopener noreferrer"
-													: undefined
-											}
-										>
-											{item.label}
-										</a>
-									</li>
-								))}
-							</ul>
-						</nav>
-					)
-				}
+				{menuItems.length > 0 && (
+					<nav class="site-footer__col" aria-labelledby="footer-navigate">
+						<h2 id="footer-navigate" class="eyebrow">
+							Navigate
+						</h2>
+						<ul class="site-footer__links">
+							{menuItems.map((item) => (
+								<li>
+									<a
+										href={item.url}
+										target={item.target}
+										rel={item.target === "_blank" ? "noopener noreferrer" : undefined}
+									>
+										{item.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					</nav>
+				)}
 				<div class="site-footer__col">
 					<h2 class="eyebrow">Connect</h2>
 					<ul class="site-footer__links">
@@ -321,12 +261,11 @@ const year = new Date().getFullYear();
 									stroke-linecap="round"
 									stroke-linejoin="round"
 									aria-hidden="true"
-									><path d="M4 11a9 9 0 0 1 9 9"></path><path
-										d="M4 4a16 16 0 0 1 16 16"></path><circle
-										cx="5"
-										cy="19"
-										r="1"></circle></svg
 								>
+									<path d="M4 11a9 9 0 0 1 9 9"></path>
+									<path d="M4 4a16 16 0 0 1 16 16"></path>
+									<circle cx="5" cy="19" r="1"></circle>
+								</svg>
 								RSS feed
 							</a>
 						</li>
@@ -339,16 +278,10 @@ const year = new Date().getFullYear();
 			<div class="band site-footer__bottom">
 				<div class="frame site-footer__bottom-inner">
 					<p class="site-footer__meta">
-						{`© ${year} ${siteTitle}.`} Powered by{" "}
-						<a href="https://emdashcms.com">EmDash</a>
+						{`© ${year} ${siteTitle}.`} Powered by <a href="https://emdashcms.com">EmDash</a>
 					</p>
 					<div class="theme-switcher" role="group" aria-label="Color theme">
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="light"
-							aria-label="Light"
-						>
+						<button type="button" class="theme-btn" data-theme="light" aria-label="Light">
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -357,17 +290,12 @@ const year = new Date().getFullYear();
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								aria-hidden="true"
-								><circle cx="12" cy="12" r="4"></circle><path
-									d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"
-								></path></svg
 							>
+								<circle cx="12" cy="12" r="4"></circle>
+								<path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path>
+							</svg>
 						</button>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="dark"
-							aria-label="Dark"
-						>
+						<button type="button" class="theme-btn" data-theme="dark" aria-label="Dark">
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -376,17 +304,11 @@ const year = new Date().getFullYear();
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								aria-hidden="true"
-								><path
-									d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"
-								></path></svg
 							>
+								<path d="M20.985 12.486a9 9 0 1 1-9.473-9.472c.405-.022.617.46.402.803a6 6 0 0 0 8.268 8.268c.344-.215.825-.004.803.401"></path>
+							</svg>
 						</button>
-						<button
-							type="button"
-							class="theme-btn"
-							data-theme="system"
-							aria-label="System"
-						>
+						<button type="button" class="theme-btn" data-theme="system" aria-label="System">
 							<svg
 								viewBox="0 0 24 24"
 								fill="none"
@@ -395,71 +317,17 @@ const year = new Date().getFullYear();
 								stroke-linecap="round"
 								stroke-linejoin="round"
 								aria-hidden="true"
-								><rect x="2" y="3" width="20" height="14" rx="2"></rect><path
-									d="M8 21h8M12 17v4"></path></svg
 							>
+								<rect x="2" y="3" width="20" height="14" rx="2"></rect>
+								<path d="M8 21h8M12 17v4"></path>
+							</svg>
 						</button>
 					</div>
 				</div>
 			</div>
 		</footer>
 
-		<script>
-			// Theme switcher
-			const themeBtns =
-				document.querySelectorAll<HTMLButtonElement>(".theme-btn");
-			const root = document.documentElement;
-
-			function setCookie(
-				name: string,
-				value: string,
-				maxAge: number = 31536000,
-			) {
-				const secure = location.protocol === "https:" ? "; Secure" : "";
-				if (value === "") {
-					document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax${secure}`;
-				} else {
-					document.cookie = `${name}=${value}; path=/; max-age=${maxAge}; SameSite=Lax${secure}`;
-				}
-			}
-
-			function setTheme(theme: string) {
-				if (theme === "system") {
-					setCookie("theme", "");
-					root.classList.remove("light", "dark");
-				} else {
-					setCookie("theme", theme);
-					root.classList.remove("light", "dark");
-					root.classList.add(theme);
-				}
-				updateActiveBtn(theme);
-			}
-
-			function updateActiveBtn(theme: string) {
-				themeBtns.forEach((btn) => {
-					const active = btn.dataset.theme === theme;
-					btn.classList.toggle("active", active);
-					btn.setAttribute("aria-pressed", String(active));
-				});
-			}
-
-			function getStoredTheme(): string {
-				const row = document.cookie
-					.split("; ")
-					.find((item) => item.startsWith("theme="));
-				return row?.slice(6) || "system";
-			}
-
-			// Initialize
-			const storedTheme = getStoredTheme();
-			setTheme(storedTheme);
-
-			themeBtns.forEach((btn) => {
-				btn.addEventListener("click", () => {
-					setTheme(btn.dataset.theme || "system");
-				});
-			});
-		</script>
+		<script src="../scripts/theme-switcher.ts"></script>
 
 		<style is:global>
 			/*
@@ -701,16 +569,10 @@ const year = new Date().getFullYear();
 					width: 9px;
 					height: 9px;
 					background:
-						linear-gradient(
-								var(--color-border-strong),
-								var(--color-border-strong)
-							)
-							center / 1px 100% no-repeat,
-						linear-gradient(
-								var(--color-border-strong),
-								var(--color-border-strong)
-							)
-							center / 100% 1px no-repeat;
+						linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 1px
+							100% no-repeat,
+						linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 100%
+							1px no-repeat;
 					pointer-events: none;
 				}
 
@@ -738,8 +600,7 @@ const year = new Date().getFullYear();
 
 				/* Page intro: eyebrow, display title, optional lead */
 				.intro {
-					padding-block: clamp(3rem, 2rem + 4vw, 5.5rem)
-						clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem);
+					padding-block: clamp(3rem, 2rem + 4vw, 5.5rem) clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem);
 				}
 
 				.intro__title {
@@ -959,10 +820,7 @@ const year = new Date().getFullYear();
 				/* Responsive card grid */
 				.post-grid {
 					display: grid;
-					grid-template-columns: repeat(
-						auto-fill,
-						minmax(min(100%, 300px), 1fr)
-					);
+					grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
 					gap: var(--spacing-6);
 				}
 
@@ -1015,16 +873,10 @@ const year = new Date().getFullYear();
 				width: 9px;
 				height: 9px;
 				background:
-					linear-gradient(
-							var(--color-border-strong),
-							var(--color-border-strong)
-						)
-						center / 1px 100% no-repeat,
-					linear-gradient(
-							var(--color-border-strong),
-							var(--color-border-strong)
-						)
-						center / 100% 1px no-repeat;
+					linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 1px 100%
+						no-repeat,
+					linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 100% 1px
+						no-repeat;
 				pointer-events: none;
 			}
 
@@ -1477,22 +1329,7 @@ const year = new Date().getFullYear();
 			}
 		</style>
 
-		<script>
-			// ⌘K / Ctrl+K focuses the header search
-			const searchInput =
-				document.querySelector<HTMLInputElement>(".site-search-input");
-			const kbd = document.querySelector(".site-search__kbd span");
-			if (kbd && !/Mac|iPhone|iPad|iPod/.test(navigator.platform)) {
-				kbd.textContent = "Ctrl K";
-			}
-			document.addEventListener("keydown", (e) => {
-				if (!(e.metaKey || e.ctrlKey) || e.key.toLowerCase() !== "k") return;
-				// The header search is hidden on small screens; leave the shortcut to the browser there
-				if (!searchInput || searchInput.getClientRects().length === 0) return;
-				e.preventDefault();
-				searchInput.focus();
-			});
-		</script>
+		<script src="../scripts/search-shortcut.ts"></script>
 		<EmDashBodyEnd page={pageCtx} />
 	</body>
 </html>

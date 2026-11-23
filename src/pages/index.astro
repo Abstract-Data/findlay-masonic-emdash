@@ -1,9 +1,5 @@
 ---
-import {
-	getEmDashCollection,
-	getTermsForEntries,
-	getSiteSettings,
-} from "emdash";
+import { getEmDashCollection, getTermsForEntries, getSiteSettings } from "emdash";
 import Base from "../layouts/Base.astro";
 import PostCard from "../components/PostCard.astro";
 import { resolveBlogSiteIdentity } from "../utils/site-identity";
@@ -32,9 +28,7 @@ const featuredPost = visiblePosts.find((p) => p.data.featured_image);
 const featuredIndex = featuredPost ? visiblePosts.indexOf(featuredPost) : -1;
 
 // Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = visiblePosts
-	.filter((_, i) => i !== featuredIndex)
-	.slice(0, 6);
+const gridPosts = visiblePosts.filter((_, i) => i !== featuredIndex).slice(0, 6);
 
 // Single batched query for tags across the featured post + grid posts.
 // Avoids the N+1 pattern of calling getEntryTerms() per entry.
@@ -69,11 +63,7 @@ const gridPostsWithTags = gridPosts.map((post) => ({
 				<h1 class="intro__title">{siteTitle}</h1>
 				{siteTagline && <p class="intro__subtitle">{siteTagline}</p>}
 			</div>
-			<a
-				href="/rss.xml"
-				type="application/rss+xml"
-				class="btn btn--ghost btn--sm home-intro__rss"
-			>
+			<a href="/rss.xml" type="application/rss+xml" class="btn btn--ghost btn--sm home-intro__rss">
 				<svg
 					viewBox="0 0 24 24"
 					fill="none"
@@ -92,80 +82,71 @@ const gridPostsWithTags = gridPosts.map((post) => ({
 		</div>
 	</header>
 
-	{
-		posts.length === 0 ? (
-			<section class="band section">
-				<div class="frame">
-					<div class="empty-state">
-						<h2 class="empty-state__title">No posts yet</h2>
-						<p class="empty-state__text">
-							Create your first post in the admin panel.
-						</p>
-						<div class="empty-state__actions">
-							<a href="/_emdash/admin/content/posts/new" class="btn">
-								Create a post
-							</a>
-						</div>
+	{posts.length === 0 ? (
+		<section class="band section">
+			<div class="frame">
+				<div class="empty-state">
+					<h2 class="empty-state__title">No posts yet</h2>
+					<p class="empty-state__text">Create your first post in the admin panel.</p>
+					<div class="empty-state__actions">
+						<a href="/_emdash/admin/content/posts/new" class="btn">
+							Create a post
+						</a>
 					</div>
 				</div>
-			</section>
-		) : (
-			<>
-				{featuredPost && (
-					<section class="band section">
-						<div class="frame">
-							<PostCard
-								post={featuredPost}
-								tags={featuredTags}
-								variant="feature"
-								headingLevel={2}
-								priority
-							/>
-						</div>
-					</section>
-				)}
+			</div>
+		</section>
+	) : (
+		<>
+			{featuredPost && (
+				<section class="band section">
+					<div class="frame">
+						<PostCard
+							post={featuredPost}
+							tags={featuredTags}
+							variant="feature"
+							headingLevel={2}
+							priority
+						/>
+					</div>
+				</section>
+			)}
 
-				{gridPostsWithTags.length > 0 && (
-					<section class="band section" aria-labelledby="latest-posts">
-						<div class="frame">
-							<div class="section-head">
-								<h2 id="latest-posts" class="section-head__title">
-									Latest posts
-								</h2>
-								{hasMorePosts && (
-									<a href="/posts" class="arrow-link">
-										View all<span class="sr-only"> posts</span>
-										<svg
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.75"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											aria-hidden="true"
-										>
-											<path d="M5 12h14" />
-											<path d="m12 5 7 7-7 7" />
-										</svg>
-									</a>
-								)}
-							</div>
-							<div class="post-grid">
-								{gridPostsWithTags.map(({ post, tags }) => (
-									<PostCard
-										post={post}
-										tags={tags}
-										variant="card"
-										headingLevel={3}
-									/>
-								))}
-							</div>
+			{gridPostsWithTags.length > 0 && (
+				<section class="band section" aria-labelledby="latest-posts">
+					<div class="frame">
+						<div class="section-head">
+							<h2 id="latest-posts" class="section-head__title">
+								Latest posts
+							</h2>
+							{hasMorePosts && (
+								<a href="/posts" class="arrow-link">
+									View all<span class="sr-only"> posts</span>
+									<svg
+										viewBox="0 0 24 24"
+										fill="none"
+										stroke="currentColor"
+										stroke-width="1.75"
+										stroke-linecap="round"
+										stroke-linejoin="round"
+										aria-hidden="true"
+									>
+										<path d="M5 12h14" />
+										<path d="m12 5 7 7-7 7" />
+									</svg>
+								</a>
+							)}
 						</div>
-					</section>
-				)}
-			</>
-		)
-	}
+						<div class="post-grid">
+							{gridPostsWithTags.map(({ post, tags }) => (
+								<PostCard post={post} tags={tags} variant="card" headingLevel={3} />
+							))}
+						</div>
+					</div>
+				</section>
+			)}
+		</>
+	)}
 </Base>
 
 <style>

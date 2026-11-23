@@ -38,9 +38,7 @@ function getImageUrl(img: unknown): string | undefined {
 	const image = img as Record<string, unknown>;
 	// Check for direct src
 	if (typeof image.src === "string" && image.src) {
-		return image.src.startsWith("http")
-			? image.src
-			: `${Astro.url.origin}${image.src}`;
+		return image.src.startsWith("http") ? image.src : `${Astro.url.origin}${image.src}`;
 	}
 	// Build from storageKey for local images
 	const meta = image.meta as Record<string, unknown> | undefined;
@@ -74,11 +72,13 @@ const readingTime = getReadingTime(post.data.content);
 const tags = post.data.terms?.tag ?? [];
 
 // Fetch a few extra recent posts in case the current post is among them.
-const { entries: recentPosts, cacheHint: recentPostsCacheHint } =
-	await getEmDashCollection("posts", {
+const { entries: recentPosts, cacheHint: recentPostsCacheHint } = await getEmDashCollection(
+	"posts",
+	{
 		orderBy: { published_at: "desc" },
 		limit: 4,
-	});
+	},
+);
 if (Astro.cache?.enabled) Astro.cache.set(recentPostsCacheHint);
 const otherPosts = recentPosts.filter((p) => p.id !== post.id).slice(0, 3);
 
@@ -104,9 +104,7 @@ const publishDate = publishedAt ? formatDate(publishedAt, "long") : null;
 // guess keeps the sidebar from shifting when the page loads.
 const hasHeadings = (post.data.content ?? []).some(
 	(block) =>
-		block._type === "block" &&
-		"style" in block &&
-		(block.style === "h2" || block.style === "h3"),
+		block._type === "block" && "style" in block && (block.style === "h2" || block.style === "h3"),
 );
 ---
 
@@ -141,39 +139,29 @@ const hasHeadings = (post.data.content ?? []).some(
 						</svg>
 						All posts
 					</a>
-					{
-						tags.length > 0 && (
-							<ul class="chips post-header__tags" aria-label="Tags">
-								{tags.map((t) => (
-									<li>
-										<a href={`/tag/${t.slug}`} class="chip">
-											{t.label}
-										</a>
-									</li>
-								))}
-							</ul>
-						)
-					}
+					{tags.length > 0 && (
+						<ul class="chips post-header__tags" aria-label="Tags">
+							{tags.map((t) => (
+								<li>
+									<a href={`/tag/${t.slug}`} class="chip">
+										{t.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					)}
 					<h1 class="intro__title post-header__title" {...post.edit.title}>
 						{post.data.title}
 					</h1>
-					{
-						post.data.excerpt && (
-							<p class="intro__lead post-header__lead" {...post.edit.excerpt}>
-								{post.data.excerpt}
-							</p>
-						)
-					}
+					{post.data.excerpt && (
+						<p class="intro__lead post-header__lead" {...post.edit.excerpt}>
+							{post.data.excerpt}
+						</p>
+					)}
 					<div class="post-header__meta">
 						<Byline bylines={bylines} layout="inline" max={2} size="md" />
 						<p class="post-header__dateline">
-							{
-								publishedAt && (
-									<time datetime={publishedAt.toISOString()}>
-										{publishDate}
-									</time>
-								)
-							}
+							{publishedAt && <time datetime={publishedAt.toISOString()}>{publishDate}</time>}
 							<span>{readingTime} min read</span>
 						</p>
 					</div>
@@ -181,50 +169,40 @@ const hasHeadings = (post.data.content ?? []).some(
 			</div>
 		</header>
 
-		{
-			post.data.featured_image && (
-				<div class="band post-hero">
-					<div class="frame">
-						<div class="post-hero__media" {...post.edit.featured_image}>
-							<Image
-								image={post.data.featured_image}
-								sizes="(min-width: 1264px) 1136px, 92vw"
-								priority
-							/>
-						</div>
+		{post.data.featured_image && (
+			<div class="band post-hero">
+				<div class="frame">
+					<div class="post-hero__media" {...post.edit.featured_image}>
+						<Image
+							image={post.data.featured_image}
+							sizes="(min-width: 1264px) 1136px, 92vw"
+							priority
+						/>
 					</div>
 				</div>
-			)
-		}
+			</div>
+		)}
 
 		<div class="band section">
 			<div class="frame post-layout">
 				<div class="post-meta">
 					<dl class="post-facts">
-						{
-							bylines.length > 0 && (
-								<div class="post-fact">
-									<dt class="eyebrow">
-										{bylines.length === 1 ? "Author" : "Authors"}
-									</dt>
-									<dd>
-										<Byline bylines={bylines} layout="list" />
-									</dd>
-								</div>
-							)
-						}
-						{
-							publishedAt && (
-								<div class="post-fact">
-									<dt class="eyebrow">Published</dt>
-									<dd>
-										<time datetime={publishedAt.toISOString()}>
-											{publishDate}
-										</time>
-									</dd>
-								</div>
-							)
-						}
+						{bylines.length > 0 && (
+							<div class="post-fact">
+								<dt class="eyebrow">{bylines.length === 1 ? "Author" : "Authors"}</dt>
+								<dd>
+									<Byline bylines={bylines} layout="list" />
+								</dd>
+							</div>
+						)}
+						{publishedAt && (
+							<div class="post-fact">
+								<dt class="eyebrow">Published</dt>
+								<dd>
+									<time datetime={publishedAt.toISOString()}>{publishDate}</time>
+								</dd>
+							</div>
+						)}
 						<div class="post-fact">
 							<dt class="eyebrow">Reading time</dt>
 							<dd>{readingTime} min</dd>
@@ -238,25 +216,26 @@ const hasHeadings = (post.data.content ?? []).some(
 					</div>
 
 					<section class="post-comments" aria-labelledby="comments-title">
-						<h2 id="comments-title" class="eyebrow">Discussion</h2>
+						<h2 id="comments-title" class="eyebrow">
+							Discussion
+						</h2>
 						<Comments collection="posts" contentId={post.data.id} threaded />
 						<CommentForm collection="posts" contentId={post.data.id} />
 					</section>
 				</div>
 
 				<div class="post-rail">
-					<nav
-						class="toc"
-						aria-labelledby="toc-title"
-						hidden={!hasHeadings}
-						data-toc
-					>
-						<h2 id="toc-title" class="eyebrow">On this page</h2>
+					<nav class="toc" aria-labelledby="toc-title" hidden={!hasHeadings} data-toc>
+						<h2 id="toc-title" class="eyebrow">
+							On this page
+						</h2>
 						<ol class="toc__list" data-toc-list></ol>
 					</nav>
 
 					<aside class="post-widgets" aria-labelledby="widgets-title">
-						<h2 id="widgets-title" class="sr-only">More from the blog</h2>
+						<h2 id="widgets-title" class="sr-only">
+							More from the blog
+						</h2>
 						<WidgetArea name="sidebar" />
 					</aside>
 				</div>
@@ -264,113 +243,45 @@ const hasHeadings = (post.data.content ?? []).some(
 		</div>
 	</article>
 
-	{
-		otherPostsWithTags.length > 0 && (
-			<section class="band section" aria-labelledby="continue-reading">
-				<div class="frame related">
-					<div class="section-head">
-						<h2 id="continue-reading" class="section-head__title">
-							Continue reading
-						</h2>
-						<a href="/posts" class="arrow-link">
-							All posts
-							<svg
-								viewBox="0 0 24 24"
-								fill="none"
-								stroke="currentColor"
-								stroke-width="1.75"
-								stroke-linecap="round"
-								stroke-linejoin="round"
-								aria-hidden="true"
-							>
-								<path d="M5 12h14" />
-								<path d="m12 5 7 7-7 7" />
-							</svg>
-						</a>
-					</div>
-					<div class="post-grid">
-						{otherPostsWithTags.map(({ post: p, tags: postTags }) => (
-							<PostCard
-								post={p}
-								tags={postTags}
-								variant="card"
-								headingLevel={3}
-							/>
-						))}
-					</div>
+	{otherPostsWithTags.length > 0 && (
+		<section class="band section" aria-labelledby="continue-reading">
+			<div class="frame related">
+				<div class="section-head">
+					<h2 id="continue-reading" class="section-head__title">
+						Continue reading
+					</h2>
+					<a href="/posts" class="arrow-link">
+						All posts
+						<svg
+							viewBox="0 0 24 24"
+							fill="none"
+							stroke="currentColor"
+							stroke-width="1.75"
+							stroke-linecap="round"
+							stroke-linejoin="round"
+							aria-hidden="true"
+						>
+							<path d="M5 12h14" />
+							<path d="m12 5 7 7-7 7" />
+						</svg>
+					</a>
 				</div>
-			</section>
-		)
-	}
+				<div class="post-grid">
+					{otherPostsWithTags.map(({ post: p, tags: postTags }) => (
+						<PostCard post={p} tags={postTags} variant="card" headingLevel={3} />
+					))}
+				</div>
+			</div>
+		</section>
+	)}
 
-	<script>
-		// Build the table of contents from the body's h2/h3 headings
-		function buildToc() {
-			const content = document.querySelector("[data-post-content]");
-			const toc = document.querySelector<HTMLElement>("[data-toc]");
-			const list = document.querySelector("[data-toc-list]");
-			if (!content || !toc || !list) return;
-
-			const headings = [
-				...content.querySelectorAll<HTMLHeadingElement>("h2, h3"),
-			];
-			toc.hidden = headings.length === 0;
-			if (headings.length === 0) return;
-
-			const links = new Map<Element, HTMLAnchorElement>();
-			headings.forEach((heading, index) => {
-				if (!heading.id) {
-					heading.id = `heading-${index}`;
-				}
-
-				const item = document.createElement("li");
-				item.className =
-					heading.tagName === "H3"
-						? "toc__item toc__item--nested"
-						: "toc__item";
-
-				const link = document.createElement("a");
-				link.href = `#${heading.id}`;
-				link.className = "toc__link";
-				link.textContent = heading.textContent;
-
-				item.appendChild(link);
-				list.appendChild(item);
-				links.set(heading, link);
-			});
-
-			// Mark the section currently in view
-			const setCurrent = (link: HTMLAnchorElement) => {
-				for (const other of links.values()) {
-					other.removeAttribute("aria-current");
-				}
-				link.setAttribute("aria-current", "true");
-			};
-			const first = links.values().next().value;
-			if (first) setCurrent(first);
-
-			const observer = new IntersectionObserver(
-				(entries) => {
-					for (const entry of entries) {
-						const link = links.get(entry.target);
-						if (link && entry.isIntersecting) setCurrent(link);
-					}
-				},
-				{ rootMargin: "-80px 0px -80% 0px" },
-			);
-
-			headings.forEach((heading) => observer.observe(heading));
-		}
-
-		buildToc();
-	</script>
+	<script src="../../scripts/toc.ts"></script>
 </Base>
 
 <style>
 	/* Header */
 	.post-header {
-		padding-block: clamp(2rem, 1.25rem + 3vw, 4rem)
-			clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem);
+		padding-block: clamp(2rem, 1.25rem + 3vw, 4rem) clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem);
 	}
 
 	.post-header__inner {
@@ -685,17 +596,11 @@ const hasHeadings = (post.data.content ?? []).some(
 		resize: vertical;
 	}
 
-	.post-comments
-		:global(
-			.ec-comment-form .ec-comment-form-field :is(input, textarea):hover
-		) {
+	.post-comments :global(.ec-comment-form .ec-comment-form-field :is(input, textarea):hover) {
 		border-color: var(--color-border-strong);
 	}
 
-	.post-comments
-		:global(
-			.ec-comment-form .ec-comment-form-field :is(input, textarea):focus
-		) {
+	.post-comments :global(.ec-comment-form .ec-comment-form-field :is(input, textarea):focus) {
 		outline: 2px solid transparent;
 		border-color: var(--color-muted);
 		box-shadow: 0 0 0 3px var(--color-brand-ring);
@@ -802,15 +707,13 @@ const hasHeadings = (post.data.content ?? []).some(
 		gap: var(--spacing-2);
 	}
 
-	.post-widgets
-		:global(:is(.widget__menu, .widget-categories, .widget-archives) a) {
+	.post-widgets :global(:is(.widget__menu, .widget-categories, .widget-archives) a) {
 		color: var(--color-text-secondary);
 		text-decoration: none;
 		transition: color var(--transition-fast);
 	}
 
-	.post-widgets
-		:global(:is(.widget__menu, .widget-categories, .widget-archives) a:hover) {
+	.post-widgets :global(:is(.widget__menu, .widget-categories, .widget-archives) a:hover) {
 		color: var(--color-text);
 	}
 
@@ -885,8 +788,7 @@ const hasHeadings = (post.data.content ?? []).some(
 		padding-block: 3px;
 	}
 
-	.post-widgets
-		:global(:is(.widget-categories__count, .widget-archives__count)),
+	.post-widgets :global(:is(.widget-categories__count, .widget-archives__count)),
 	.post-widgets :global(.widget-tags__count) {
 		font-family: var(--font-mono);
 		font-size: var(--font-size-label);
@@ -943,8 +845,7 @@ const hasHeadings = (post.data.content ?? []).some(
 		gap: 2px;
 	}
 
-	.post-widgets
-		:global(.widget-recent-posts li:has(> .widget-recent-posts__thumbnail)) {
+	.post-widgets :global(.widget-recent-posts li:has(> .widget-recent-posts__thumbnail)) {
 		grid-template-columns: 40px minmax(0, 1fr);
 		align-items: center;
 		column-gap: var(--spacing-3);

@@ -3,6 +3,7 @@ export const prerender = false;
 
 import { search, SearchUnavailableError, type SearchResponse } from "emdash";
 import Base from "../layouts/Base.astro";
+import { parseSnippet, segmentsText } from "../utils/search-snippet";
 
 const query = Astro.url.searchParams.get("q")?.trim() || "";
 
@@ -22,28 +23,18 @@ if (query) {
 }
 const { items: results, nextCursor } = searchResponse;
 
-function escapeHtml(text: string) {
-	return text
-		.replaceAll("&", "&amp;")
-		.replaceAll("<", "&lt;")
-		.replaceAll(">", "&gt;")
-		.replaceAll('"', "&quot;")
-		.replaceAll("'", "&#39;");
-}
-
 // The snippet is cut from the first indexed field, which for posts is the
 // title. When it is the whole title, show its highlights in the heading
 // instead of repeating the title underneath.
 const rows = results.map((result) => {
 	const title = result.title ?? "Untitled";
-	const snippetIsTitle =
-		result.snippet?.replaceAll("<mark>", "").replaceAll("</mark>", "") ===
-		escapeHtml(title);
+	const snippet = result.snippet ? parseSnippet(result.snippet) : undefined;
+	const snippetIsTitle = snippet !== undefined && segmentsText(snippet) === title;
 	return {
 		path: `/posts/${result.slug ?? result.id}`,
 		title,
-		titleHtml: snippetIsTitle ? result.snippet : undefined,
-		snippet: snippetIsTitle ? undefined : result.snippet,
+		titleSegments: snippetIsTitle ? snippet : undefined,
+		snippet: snippetIsTitle ? undefined : snippet,
 	};
 });
 
@@ -52,22 +43,15 @@ const countLabel = nextCursor
 	: `${rows.length} ${rows.length === 1 ? "result" : "results"}`;
 ---
 
-<Base
-	title={query ? `Search: ${query}` : "Search"}
-	description="Search blog posts"
->
+<Base title={query ? `Search: ${query}` : "Search"} description="Search blog posts">
 	<header class="band intro">
 		<div class="frame">
 			<p class="eyebrow">Search</p>
 			<h1 class="intro__title">What are you looking for?</h1>
-			<form
-				method="get"
-				action="/search"
-				role="search"
-				aria-label="Posts"
-				class="search-form"
-			>
-				<label for="search-query" class="sr-only">Search posts</label>
+			<form method="get" action="/search" role="search" aria-label="Posts" class="search-form">
+				<label for="search-query" class="sr-only">
+					Search posts
+				</label>
 				<div class="search-field">
 					<svg
 						class="search-field__icon"
@@ -78,9 +62,10 @@ const countLabel = nextCursor
 						stroke-linecap="round"
 						stroke-linejoin="round"
 						aria-hidden="true"
-						><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"
-						></path></svg
 					>
+						<circle cx="11" cy="11" r="7"></circle>
+						<path d="m20 20-3.5-3.5"></path>
+					</svg>
 					<input
 						id="search-query"
 						class="search-field__input"
@@ -90,38 +75,76 @@ const countLabel = nextCursor
 						placeholder="Search posts"
 						autofocus={!query}
 					/>
-					<button type="submit" class="btn search-field__submit">Search</button>
+					<button type="submit" class="btn search-field__submit">
+						Search
+					</button>
 				</div>
 			</form>
-			{
-				!query && (
-					<p class="search-hint">
-						Searches post titles and full text. Not sure where to start?{" "}
-						<a href="/posts">Browse all posts</a>.
-					</p>
-				)
-			}
+			{!query && (
+				<p class="search-hint">
+					Searches post titles and full text. Not sure where to start?{" "}
+					<a href="/posts">Browse all posts</a>.
+				</p>
+			)}
 		</div>
 	</header>
 
-	{
-		query && (
-			<section class="band section">
-				<div class="frame">
-					{searchUnavailable ? (
-						<div class="empty-state">
-							<h2 class="empty-state__title">Search isn't available right now</h2>
-							<p class="empty-state__text">Please try again later.</p>
+	{query && (
+		<section class="band section">
+			<div class="frame">
+				{searchUnavailable ? (
+					<div class="empty-state">
+						<h2 class="empty-state__title">Search isn't available right now</h2>
+						<p class="empty-state__text">Please try again later.</p>
+					</div>
+				) : rows.length > 0 ? (
+					<>
+						<div class="section-head">
+							<p class="search-summary">
+								<strong>{countLabel}</strong> for “{query}”
+							</p>
+							<a href="/posts" class="arrow-link">
+								All posts
+								<svg
+									viewBox="0 0 24 24"
+									fill="none"
+									stroke="currentColor"
+									stroke-width="1.75"
+									stroke-linecap="round"
+									stroke-linejoin="round"
+									aria-hidden="true"
+								>
+									<path d="M5 12h14" />
+									<path d="m12 5 7 7-7 7" />
+								</svg>
+							</a>
 						</div>
-					) : rows.length > 0 ? (
-						<>
-							<div class="section-head">
-								<p class="search-summary">
-									<strong>{countLabel}</strong> for “{query}”
-								</p>
-								<a href="/posts" class="arrow-link">
-									All posts
+						<ol class="results" role="list">
+							{rows.map((row) => (
+								<li class="result">
+									<div class="result__body">
+										<h2 class="result__title">
+											<a href={row.path} class="result__link">
+												{row.titleSegments
+													? row.titleSegments.map((segment) =>
+															segment.marked ? <mark>{segment.text}</mark> : segment.text,
+														)
+													: row.title}
+											</a>
+										</h2>
+										{row.snippet && (
+											<p class="result__snippet">
+												{row.snippet.map((segment) =>
+													segment.marked ? <mark>{segment.text}</mark> : segment.text,
+												)}
+											</p>
+										)}
+										<p class="result__path">
+											<span dir="ltr">{row.path}</span>
+										</p>
+									</div>
 									<svg
+										class="result__arrow"
 										viewBox="0 0 24 24"
 										fill="none"
 										stroke="currentColor"
@@ -133,63 +156,26 @@ const countLabel = nextCursor
 										<path d="M5 12h14" />
 										<path d="m12 5 7 7-7 7" />
 									</svg>
-								</a>
-							</div>
-							<ol class="results" role="list">
-								{rows.map((row) => (
-									<li class="result">
-										<div class="result__body">
-											<h2 class="result__title">
-												<a href={row.path} class="result__link">
-													{row.titleHtml ? (
-														<Fragment set:html={row.titleHtml} />
-													) : (
-														row.title
-													)}
-												</a>
-											</h2>
-											{row.snippet && (
-												<p class="result__snippet" set:html={row.snippet} />
-											)}
-											<p class="result__path">
-												<span dir="ltr">{row.path}</span>
-											</p>
-										</div>
-										<svg
-											class="result__arrow"
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.75"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											aria-hidden="true"
-										>
-											<path d="M5 12h14" />
-											<path d="m12 5 7 7-7 7" />
-										</svg>
-									</li>
-								))}
-							</ol>
-						</>
-					) : (
-						<div class="empty-state">
-							<h2 class="empty-state__title">No results for “{query}”</h2>
-							<p class="empty-state__text">
-								Check the spelling, try fewer or different words, or browse
-								every post instead.
-							</p>
-							<div class="empty-state__actions">
-								<a href="/posts" class="btn btn--ghost">
-									Browse all posts
-								</a>
-							</div>
+								</li>
+							))}
+						</ol>
+					</>
+				) : (
+					<div class="empty-state">
+						<h2 class="empty-state__title">No results for “{query}”</h2>
+						<p class="empty-state__text">
+							Check the spelling, try fewer or different words, or browse every post instead.
+						</p>
+						<div class="empty-state__actions">
+							<a href="/posts" class="btn btn--ghost">
+								Browse all posts
+							</a>
 						</div>
-					)}
-				</div>
-			</section>
-		)
-	}
+					</div>
+				)}
+			</div>
+		</section>
+	)}
 </Base>
 
 <style>
