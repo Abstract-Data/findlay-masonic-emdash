@@ -1,4 +1,5 @@
 import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
+import { displayName } from "@core/bodies/label";
 import type { Editor } from "@core/acl/policy";
 import {
 	err,
@@ -82,6 +83,17 @@ export function parseTagVocabulary(rows: unknown): Result<ReadonlySet<TagSlug>, 
 	return values === null
 		? invalid("tag_vocabulary")
 		: ok(new Set(values.flatMap((v) => parseTag(v) ?? [])));
+}
+
+/**
+ * `bodies.contact_recipients` is a repeater of `{ email }` rows: the addresses a body's contact
+ * form sends to (spec Q12), never rendered publicly. Blank or malformed rows are dropped.
+ */
+export function parseRecipients(rows: unknown): string[] {
+	return (rowValues(rows, "email") ?? []).flatMap((value) => {
+		const email = value.trim();
+		return email === "" ? [] : [email];
+	});
 }
 
 /** EmDash stores datetimes as UTC instants; core works in SITE_TZ wall time. */
@@ -212,7 +224,7 @@ export function parseBodyRecord(entry: {
 	const order: unknown = Reflect.get(data, "display_order");
 	return {
 		id,
-		displayName: typeof number === "number" ? `${name} No. ${number}` : name,
+		displayName: displayName(name, typeof number === "number" ? number : null),
 		bodyType: isBodyType(bodyType) ? bodyType : null,
 		vocabulary: vocabulary.ok ? vocabulary.value : new Set(),
 		order: typeof order === "number" ? order : Number.MAX_SAFE_INTEGER,
