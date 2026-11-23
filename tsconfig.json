@@ -4,7 +4,12 @@
 		"types": ["node"],
 		"noUncheckedIndexedAccess": true,
 		"noImplicitOverride": true,
-		"noFallthroughCasesInSwitch": true
+		"noFallthroughCasesInSwitch": true,
+		"paths": {
+			"@core/*": ["./src/lib/core/*"],
+			"@adapters/*": ["./src/lib/adapters/*"],
+			"@plugins/*": ["./plugins/*"]
+		}
 	},
 	"include": ["src", ".astro/types.d.ts", "emdash-env.d.ts", "worker-configuration.d.ts"]
 }
