@@ -13,6 +13,9 @@ const ulid = (prefix: string, n: number) => `01J${prefix}${String(n).padStart(22
 export const bodyId = (n: number) => ulid("B", n) as BodyId;
 export const entryId = (n: number) => ulid("E", n) as EntryId;
 export const issueId = (n: number) => ulid("N", n) as IssueId;
+/** Stored issues have UUID ids (crypto.randomUUID in the plugin). */
+export const issueUuid = (n: number) =>
+	`00000000-0000-4000-8000-${String(n).padStart(12, "0")}` as IssueId;
 export const userId = (name: string) => name as UserId;
 export const tag = (slug: string) => slug as TagSlug;
 export const url = (href: string) => href as AbsoluteUrl;

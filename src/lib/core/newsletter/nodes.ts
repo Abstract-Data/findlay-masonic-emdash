@@ -6,7 +6,39 @@ import type { AbsoluteUrl, BodyId, EntryId } from "../ids";
  */
 export const NODE = { section: "bodySection", card: "articleCard" } as const;
 
-export interface ArticleCardAttrs {
+/** The level-3 heading that opens a section's event list, which approve re-reads (R13). */
+export const UPCOMING_EVENTS_HEADING = "Upcoming events";
+
+/** Every attribute of each custom node with its default, so the editor declares exactly these. */
+export const SECTION_ATTR_DEFAULTS = { bodyId: "", heading: "" } as const satisfies Record<
+	keyof BodySectionNode["attrs"],
+	string
+>;
+
+export const CARD_ATTR_DEFAULTS = {
+	newsId: "",
+	title: "",
+	excerpt: "",
+	href: "",
+	imageSrc: null,
+	imageAlt: "",
+	publishedOn: "",
+} as const satisfies Record<keyof ArticleCardAttrs, string | null>;
+
+/**
+ * Any node of a saved issue. The editor adds attributes (style, alignment) on load and the
+ * Admin may add any node it offers, so a saved document is read through this shape.
+ */
+export interface DocNode {
+	readonly type: string;
+	readonly attrs?: Readonly<Record<string, unknown>>;
+	readonly content?: readonly DocNode[];
+	readonly text?: string;
+	readonly marks?: readonly unknown[];
+}
+
+// A type alias, not an interface, so a card is also a DocNode (its attrs a plain record).
+export type ArticleCardAttrs = {
 	readonly newsId: EntryId;
 	readonly title: string;
 	readonly excerpt: string;
@@ -15,7 +47,7 @@ export interface ArticleCardAttrs {
 	readonly imageAlt: string;
 	/** "Mar 9, 2027" in SITE_TZ. */
 	readonly publishedOn: string;
-}
+};
 
 export interface TextNode {
 	readonly type: "text";

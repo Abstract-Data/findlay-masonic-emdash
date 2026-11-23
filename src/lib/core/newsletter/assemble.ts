@@ -6,6 +6,7 @@ import { SITE_TZ, formatDate } from "../time";
 import { excerpt, type PortableTextBlock } from "./excerpt";
 import {
 	NODE,
+	UPCOMING_EVENTS_HEADING,
 	type ArticleCardNode,
 	type BodySectionNode,
 	type EventListNode,
@@ -110,7 +111,7 @@ function section(
 		content:
 			upcoming.length === 0
 				? [heading, ...cards]
-				: [heading, ...cards, headingNode(3, "Upcoming events"), eventList(upcoming)],
+				: [heading, ...cards, headingNode(3, UPCOMING_EVENTS_HEADING), eventList(upcoming)],
 	};
 }
 
@@ -133,7 +134,7 @@ function articleCard(news: NewsCandidate): ArticleCardNode {
 	};
 }
 
-function eventList(upcoming: readonly Occurrence[]): EventListNode {
+export function eventList(upcoming: readonly Occurrence[]): EventListNode {
 	return {
 		type: "bulletList",
 		content: upcoming.map((o) => ({
