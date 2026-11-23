@@ -5,22 +5,21 @@ import {
 	data,
 	expect,
 	expectDenied,
+	expectIdLikeSlugRefused,
+	idLikeSlug,
 	newsData,
 	test,
 	unique,
+	uniquePng,
 } from "../body-access";
 import { BODY_NAMES } from "../roles";
 
 const CHAPTER = BODY_NAMES.chapter;
-// A 1x1 transparent PNG.
-const PNG = Buffer.from(
-	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
-	"base64",
-);
+const LODGE = BODY_NAMES["blue-lodge"];
 
-async function upload(client: APIRequestContext) {
+async function upload(client: APIRequestContext, png = uniquePng()) {
 	return client.post("/_emdash/api/media", {
-		multipart: { file: { name: `${unique("logo")}.png`, mimeType: "image/png", buffer: PNG } },
+		multipart: { file: { name: `${unique("logo")}.png`, mimeType: "image/png", buffer: png } },
 	});
 }
 
@@ -149,6 +148,81 @@ test.describe("middleware guard: writes no content hook sees (ADR-002)", () => {
 		);
 	});
 
+	test("@redteam a recovery revision cannot reach a trashed Chapter entry through a slug that is its id", async ({
+		as,
+		bodies,
+	}) => {
+		const admin = await as("admin");
+		const trashed = await createNews(admin, bodies.chapter);
+		await data(admin.delete(`${NEWS}/${trashed}`));
+		// Only an Admin can still store an id-shaped slug, so the Admin makes the Lodge's decoy.
+		await data(admin.post(NEWS, { data: { data: newsData(bodies["blue-lodge"]), slug: trashed } }));
+		await expectDenied(
+			(await as("blue-lodge")).post(`${NEWS}/${trashed}/revisions`, {
+				data: { data: { title: "Injected", body: bodies.chapter }, slug: null },
+			}),
+			CHAPTER,
+		);
+	});
+
+	test("@redteam a recovery revision cannot reach a trashed Chapter entry sharing a slug in another locale", async ({
+		as,
+		bodies,
+	}) => {
+		const admin = await as("admin");
+		const slug = unique("shared");
+		const chapter = await data<{ item: { id: string } }>(
+			admin.post(NEWS, { data: { data: newsData(bodies.chapter), slug, locale: "aa" } }),
+		);
+		await data(admin.delete(`${NEWS}/${chapter.item.id}`));
+		const lodge = await as("blue-lodge");
+		await data(
+			lodge.post(NEWS, { data: { data: newsData(bodies["blue-lodge"]), slug, locale: "en" } }),
+		);
+		await expectDenied(
+			lodge.post(`${NEWS}/${slug}/revisions`, {
+				data: { data: { title: "Injected" }, slug: null },
+			}),
+			CHAPTER,
+		);
+	});
+
+	test("@redteam an Editor cannot save a slug that looks like an entry id", async ({
+		as,
+		bodies,
+	}) => {
+		const lodge = await as("blue-lodge");
+		const id = await createNews(lodge, bodies["blue-lodge"]);
+		await expectIdLikeSlugRefused(
+			lodge.post(NEWS, { data: { data: newsData(bodies["blue-lodge"]), slug: idLikeSlug() } }),
+		);
+		await expectIdLikeSlugRefused(lodge.put(`${NEWS}/${id}`, { data: { slug: idLikeSlug() } }));
+		await expectIdLikeSlugRefused(
+			lodge.post(`${NEWS}/${id}/revisions`, { data: { data: {}, slug: idLikeSlug() } }),
+		);
+		const renamed = unique("lodge-news");
+		const saved = await data<{ item: { slug: string } }>(
+			lodge.put(`${NEWS}/${id}`, { data: { slug: renamed } }),
+		);
+		expect(saved.item.slug).toBe(renamed);
+	});
+
+	test("@redteam unpublish needs the body a pending draft moves the entry to", async ({
+		as,
+		bodies,
+	}) => {
+		const twoBody = await as("two-body");
+		const id = await createNews(twoBody, bodies["blue-lodge"]);
+		await data(twoBody.post(`${NEWS}/${id}/publish`, { data: {} }));
+		await data(twoBody.put(`${NEWS}/${id}`, { data: { data: { body: bodies.chapter } } }));
+		await expectDenied(
+			(await as("blue-lodge")).post(`${NEWS}/${id}/unpublish`, { data: {} }),
+			CHAPTER,
+		);
+		const after = await data<{ item: { status: string } }>(twoBody.get(`${NEWS}/${id}`));
+		expect(after.item.status).toBe("published");
+	});
+
 	test("clearing a scheduled-publish rejection is refused", async ({ as, bodies }) => {
 		const id = await createNews(await as("chapter"), bodies.chapter);
 		await expectDenied(
@@ -188,7 +262,7 @@ test.describe("middleware guard: media (ADR-002 O1)", () => {
 		await expectDenied(upload(unassigned), "has no body grants");
 		await expectDenied(
 			unassigned.post("/_emdash/api/media/upload-url", {
-				data: { filename: "x.png", contentType: "image/png", size: PNG.length },
+				data: { filename: "x.png", contentType: "image/png", size: uniquePng().length },
 			}),
 			"has no body grants",
 		);
@@ -214,6 +288,24 @@ test.describe("middleware guard: media (ADR-002 O1)", () => {
 		await data(lodge.put(media, { data: { alt: "Lodge emblem" } }));
 		await data((await as("admin")).put(media, { data: { alt: "Checked by an Admin" } }));
 		await data(lodge.delete(media));
+	});
+
+	test("@redteam an identical file uploaded by a second body's editor stays the first uploader's, and the refusal says why", async ({
+		as,
+	}) => {
+		const png = uniquePng();
+		const lodge = await as("blue-lodge");
+		const first = await data<{ item: { id: string } }>(upload(lodge, png));
+		const chapter = await as("chapter");
+		const second = await data<{ item: { id: string }; deduplicated?: boolean }>(
+			upload(chapter, png),
+		);
+		expect(second).toMatchObject({ item: { id: first.item.id }, deduplicated: true });
+		await expectDenied(
+			chapter.put(`/_emdash/api/media/${first.item.id}`, { data: { alt: "Ours too" } }),
+			"identical file",
+		);
+		await data(lodge.put(`/_emdash/api/media/${first.item.id}`, { data: { alt: LODGE } }));
 	});
 
 	test("a provider item with no recorded uploader is for Admins", async ({ as }) => {

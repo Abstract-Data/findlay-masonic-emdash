@@ -90,16 +90,56 @@ test.describe("FR-5 body write isolation", () => {
 			"PUBLISH_REJECTED",
 			CHAPTER,
 		);
-		await expectRejected(
-			lodge.post(`${NEWS}/${live}/unpublish`, { data: {} }),
-			"UNPUBLISH_REJECTED",
-			CHAPTER,
-		);
+		await expectDenied(lodge.post(`${NEWS}/${live}/unpublish`, { data: {} }), CHAPTER);
 		await expectRejected(
 			lodge.post(`${NEWS}/${draft}/schedule`, { data: { scheduledAt: "2027-01-01T12:00:00Z" } }),
 			"SCHEDULE_REJECTED",
 			CHAPTER,
 		);
+	});
+
+	test("@redteam only an Admin trashes, unpublishes or schedules a body's own page", async ({
+		as,
+		bodies,
+	}) => {
+		const page = `/_emdash/api/content/bodies/${bodies.council}`;
+		const council = await as("council");
+		const offline = "cannot trash, unpublish or schedule a body's page";
+		await expectDenied(council.post(`${page}/unpublish`, { data: {} }), offline);
+		await expectDenied(council.put(page, { data: { status: "draft" } }), offline);
+		await expectDenied(council.delete(page), offline);
+		await expectRejected(
+			council.post(`${page}/schedule`, { data: { scheduledAt: "2027-01-01T12:00:00Z" } }),
+			"SCHEDULE_REJECTED",
+			offline,
+		);
+		const note = unique("Meets on the second Tuesday");
+		const saved = await data<{ item: { data: { schedule_note: string } } }>(
+			council.put(page, { data: { data: { schedule_note: note } } }),
+		);
+		expect(saved.item.data.schedule_note).toBe(note);
+	});
+
+	test("@redteam a translation stays in the body of the entry it translates", async ({
+		as,
+		bodies,
+	}) => {
+		const twoBody = await as("two-body");
+		const source = await createNews(twoBody, bodies.chapter);
+		const translation = (body: string) => ({
+			data: {
+				data: newsData(body),
+				slug: unique("translated"),
+				locale: "fr",
+				translationOf: source,
+			},
+		});
+		await expectRejected(
+			twoBody.post(NEWS, translation(bodies["blue-lodge"])),
+			"SAVE_REJECTED",
+			CHAPTER,
+		);
+		await data(twoBody.post(NEWS, translation(bodies.chapter)));
 	});
 
 	test("FR-5.4: publishing a draft that moves the entry needs the live and the draft body", async ({

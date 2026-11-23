@@ -7,6 +7,7 @@ export const ROLES = [
 	"peer-lodge",
 	"two-body",
 	"grant-target",
+	"council",
 ] as const;
 
 export type Role = (typeof ROLES)[number];
@@ -66,6 +67,12 @@ export const ACCOUNTS: Readonly<Record<SignedInRole, Account>> = {
 		name: "Incoming Secretary",
 		role: EDITOR,
 		bodies: [],
+	},
+	council: {
+		email: "council@test.local",
+		name: "Council Recorder",
+		role: EDITOR,
+		bodies: ["council"],
 	},
 };
 

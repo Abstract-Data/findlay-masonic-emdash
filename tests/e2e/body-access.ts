@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { crc32 } from "node:zlib";
 import { test as base, expect, type APIRequestContext, type APIResponse } from "@playwright/test";
 import { storageStatePath, type SignedInRole } from "./roles";
 
@@ -9,7 +10,7 @@ export const API_HEADERS = { "X-EmDash-Request": "1" };
 
 export const NEWS = "/_emdash/api/content/news";
 
-export type Bodies = Readonly<Record<"blue-lodge" | "chapter", string>>;
+export type Bodies = Readonly<Record<"blue-lodge" | "chapter" | "council", string>>;
 
 interface Fixtures {
 	/** An API client signed in as `role`, from the setup project's storage state. */
@@ -38,7 +39,7 @@ export const test = base.extend<Fixtures>({
 			admin.get("/_emdash/api/content/bodies?limit=50"),
 		);
 		const id = (slug: string) => list.items.find((item) => item.slug === slug)?.id ?? "";
-		await use({ "blue-lodge": id("blue-lodge"), chapter: id("chapter") });
+		await use({ "blue-lodge": id("blue-lodge"), chapter: id("chapter"), council: id("council") });
 	},
 });
 
@@ -53,6 +54,28 @@ export async function data<T>(pending: Promise<APIResponse>): Promise<T> {
 
 export function unique(label: string): string {
 	return `${label}-${randomUUID().slice(0, 8)}`;
+}
+
+/** A fresh string EmDash would read as an entry id: 26 characters of 0-9 and A-Z. */
+export function idLikeSlug(): string {
+	return randomUUID().replaceAll("-", "").toUpperCase().slice(0, 26);
+}
+
+// A 1x1 transparent PNG; uniquePng adds a text chunk so EmDash's upload dedup never matches it.
+const PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+	"base64",
+);
+const IEND_CHUNK = 12;
+
+export function uniquePng(): Buffer {
+	const body = Buffer.concat([Buffer.from("tEXt"), Buffer.from(`run\0${randomUUID()}`)]);
+	const length = Buffer.alloc(4);
+	length.writeUInt32BE(body.length - 4);
+	const crc = Buffer.alloc(4);
+	crc.writeUInt32BE(crc32(body));
+	const end = PNG.length - IEND_CHUNK;
+	return Buffer.concat([PNG.subarray(0, end), length, body, crc, PNG.subarray(end)]);
 }
 
 export function newsData(body: string | undefined, extra: Record<string, unknown> = {}) {
@@ -99,6 +122,14 @@ export async function expectDenied(pending: Promise<APIResponse>, names: string)
 	const error = await failure(pending, 403);
 	expect(error.code).toBe("BODY_ACCESS_DENIED");
 	expect(error.message).toContain(names);
+	expect(error.message).not.toMatch(/[<>]/);
+}
+
+/** The middleware's refusal of a slug that EmDash would read as an entry id. */
+export async function expectIdLikeSlugRefused(pending: Promise<APIResponse>): Promise<void> {
+	const error = await failure(pending, 422);
+	expect(error.code).toBe("INVALID_SLUG");
+	expect(error.message).toContain("looks like an entry id");
 	expect(error.message).not.toMatch(/[<>]/);
 }
 
