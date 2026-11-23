@@ -5,9 +5,13 @@ import { defineConfig, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
 import { Features } from "lightningcss";
 
+// Vitest loads this config through getViteConfig() in plain Node, where the
+// adapter's workerd runner cannot start. Unit tests cover the pure core only.
+const isVitest = process.env.VITEST === "true";
+
 export default defineConfig({
 	output: "server",
-	adapter: cloudflare(),
+	adapter: isVitest ? undefined : cloudflare(),
 	image: {
 		layout: "constrained",
 		responsiveStyles: true,
