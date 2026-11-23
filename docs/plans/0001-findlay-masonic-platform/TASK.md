@@ -15,46 +15,60 @@
 ## M0 — Foundation and toolchain
 
 ### Dependencies
-- [ ] **T0.1 [AGENT] Bump EmDash and create the lockfile.** `pnpm add emdash@1.6.0 @emdash-cms/cloudflare@1.6.0`; commit the first `pnpm-lock.yaml` (none exists today). Confirm `engines.node >= 22.16` in `package.json`.
+- [x] **T0.1 [AGENT] Bump EmDash and create the lockfile.** `pnpm add emdash@1.6.0 @emdash-cms/cloudflare@1.6.0`; commit the first `pnpm-lock.yaml` (none exists today). Confirm `engines.node >= 22.16` in `package.json`.
   Verify: `pnpm install --frozen-lockfile` succeeds on a clean clone; `pnpm astro build` succeeds.
-- [ ] **T0.2 [AGENT] Pin the newsletter editor.** `pnpm add -E @react-email/editor@1.8.10` (exact, no caret; receipt in `context7-receipts.md`). Not imported anywhere until M5.
+  Evidence: frozen install in a clean copy outside the repo; `astro build` Complete. emdash 1.6.0, astro 7.4.13; engines.node >=22.16.
+- [x] **T0.2 [AGENT] Pin the newsletter editor.** `pnpm add -E @react-email/editor@1.8.10` (exact, no caret; receipt in `context7-receipts.md`). Not imported anywhere until M5.
   Deps: T0.1. Verify: `package.json` shows `"@react-email/editor": "1.8.10"`.
+  Evidence: package.json has `"@react-email/editor": "1.8.10"`. Transitive @tiptap peer mismatch left for M5.
 
 ### TypeScript
-- [ ] **T0.3 [AGENT] Strict tsconfig.** Extend `astro/tsconfigs/strict` (house "tsconfig.json (Astro strict)" template). Fix the template code errors this surfaces in `src/` without changing behavior.
+- [x] **T0.3 [AGENT] Strict tsconfig.** Extend `astro/tsconfigs/strict` (house "tsconfig.json (Astro strict)" template). Fix the template code errors this surfaces in `src/` without changing behavior.
   Deps: T0.1. Verify: `pnpm astro check` reports 0 errors.
-- [ ] **T0.4 [AGENT] Path aliases.** Add `@core/*` → `src/lib/core/*`, `@adapters/*` → `src/lib/adapters/*`, `@plugins/*` → `plugins/*`; create the empty `src/lib/core/` and `src/lib/adapters/` folders (with `.gitkeep`). Extensionless imports only (constitution § Platform and stack).
+  Evidence: `pnpm astro check` Result (32 files): 0 errors, 0 warnings. No template changes were needed.
+- [x] **T0.4 [AGENT] Path aliases.** Add `@core/*` → `src/lib/core/*`, `@adapters/*` → `src/lib/adapters/*`, `@plugins/*` → `plugins/*`; create the empty `src/lib/core/` and `src/lib/adapters/` folders (with `.gitkeep`). Extensionless imports only (constitution § Platform and stack).
   Deps: T0.3. Verify: a throwaway import via `@core/…` type-checks and builds; remove it.
+  Evidence: a throwaway `@core/throwaway` import in 404.astro type-checked and landed in the build chunk; removed.
 
 ### Lint and format
-- [ ] **T0.5 [AGENT] Oxlint + Oxfmt.** Add `oxlint@1.95.0` and `oxfmt@0.80.0`; copy the house `oxlint.config.ts` and `.oxfmtrc.jsonc` (JS/TS Base, Stable 1.0.0). Scripts: `lint`, `format`, `format:check`. Format the repo in a separate commit.
+- [x] **T0.5 [AGENT] Oxlint + Oxfmt.** Add `oxlint@1.95.0` and `oxfmt@0.80.0`; copy the house `oxlint.config.ts` and `.oxfmtrc.jsonc` (JS/TS Base, Stable 1.0.0). Scripts: `lint`, `format`, `format:check`. Format the repo in a separate commit.
   Deps: T0.1. Verify: `pnpm lint` and `pnpm format:check` are clean.
-- [ ] **T0.6 [AGENT] Astro leftovers.** Add `prettier` + `prettier-plugin-astro@1.1.2` with the house `.prettierrc (Astro)` scoped to `*.astro`/MDX; add `eslint` + `eslint-plugin-astro@3.2.1` with the two-rule `eslint.config.mjs (Astro)` (`no-set-html-directive`, `no-unsafe-inline-scripts`). Fold both into `lint` / `format:check`.
+  Evidence: `pnpm lint` and `pnpm format:check` exit 0. Versions are oxlint 1.94.0 / oxfmt 0.79.0 (pnpm release-age cooldown; receipts log).
+- [x] **T0.6 [AGENT] Astro leftovers.** Add `prettier` + `prettier-plugin-astro@1.1.2` with the house `.prettierrc (Astro)` scoped to `*.astro`/MDX; add `eslint` + `eslint-plugin-astro@3.2.1` with the two-rule `eslint.config.mjs (Astro)` (`no-set-html-directive`, `no-unsafe-inline-scripts`). Fold both into `lint` / `format:check`.
   Deps: T0.5. Verify: `pnpm lint` and `pnpm format:check` are clean; a temporary `set:html` in a page makes `pnpm lint` fail.
+  Evidence: both scripts exit 0; a temporary `set:html` in 404.astro made `pnpm lint` exit 1 (`astro/no-set-html-directive`), then was removed.
 
 ### Tests
-- [ ] **T0.7 [AGENT] Vitest 5.** Add `vitest@5.1.1` and `@vitest/coverage-v8`; `vitest.config.ts` uses Astro's `getViteConfig()`; include `tests/unit/**/*.test.ts`; coverage reporter on `src/lib/**`. Script `test`. Add one sanity test.
+- [x] **T0.7 [AGENT] Vitest 5.** Add `vitest@5.1.1` and `@vitest/coverage-v8`; `vitest.config.ts` uses Astro's `getViteConfig()`; include `tests/unit/**/*.test.ts`; coverage reporter on `src/lib/**`. Script `test`. Add one sanity test.
   Deps: T0.4. Verify: `pnpm vitest run` is green; `pnpm vitest run --coverage` writes a report.
-- [ ] **T0.8 [AGENT] Portless dev.** Wrap `dev` with portless so the site runs at a named `.localhost` URL; remove any numeric-port references from `AGENTS.md`/`README.md` (constitution § Secrets and configuration).
+  Evidence: `pnpm vitest run` 3 tests passed; `--coverage` wrote coverage/index.html. Adapter skipped under VITEST (astro.config.mjs).
+- [x] **T0.8 [AGENT] Portless dev.** Wrap `dev` with portless so the site runs at a named `.localhost` URL; remove any numeric-port references from `AGENTS.md`/`README.md` (constitution § Secrets and configuration).
   Deps: T0.1. Verify: `pnpm dev` serves the template at the named URL, and `/_emdash/admin` loads.
-- [ ] **T0.9 [AGENT] Playwright 1.65.** `@playwright/test@1.65.1`; `playwright.config.ts` with `webServer.url` (not `port`) pointing at the portless URL; a `setup` project that writes `tests/e2e/.auth/<role>.json` (git-ignored). For now it creates only `anon`; `admin`, `blue-lodge`, `chapter` and `unassigned-editor` are stubbed with `test.skip` and a pointer to M3. One `@smoke` test: home returns 200 and has an `<h1>`. Script `e2e`; CI passes `--trace off`.
+  Evidence: dev served https://<branch>.findlay-masonic.localhost: home 200, /_emdash/admin to /setup 200. No numeric port in AGENTS.md or README.md.
+- [x] **T0.9 [AGENT] Playwright 1.65.** `@playwright/test@1.65.1`; `playwright.config.ts` with `webServer.url` (not `port`) pointing at the portless URL; a `setup` project that writes `tests/e2e/.auth/<role>.json` (git-ignored). For now it creates only `anon`; `admin`, `blue-lodge`, `chapter` and `unassigned-editor` are stubbed with `test.skip` and a pointer to M3. One `@smoke` test: home returns 200 and has an `<h1>`. Script `e2e`; CI passes `--trace off`.
   Deps: T0.8. Verify: `pnpm e2e --grep @smoke --trace off` is green locally.
+  Evidence: `CI=true pnpm e2e --grep @smoke --trace off` in a clean copy: 2 passed, 4 skipped (role stubs), exit 0.
 
 ### Configuration
 - [ ] **T0.10 [PATH_ASK] `astro:env` schema.** In `astro.config.mjs`, declare server secrets `RESEND_API_KEY`, `TURNSTILE_SECRET`, `GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_SECRET` (`context: 'server', access: 'secret'`) and non-secret server values `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `GOOGLE_CLIENT_ID`, `MICROSOFT_CLIENT_ID`, `NEWSLETTER_TEST_ALLOWLIST`; `TURNSTILE_SITE_KEY` as `context: 'client', access: 'public'`. All `optional: true` until their milestone. Add `.dev.vars.example` with names only, no values.
   Deps: T0.3. Verify: `pnpm astro check` passes; no field is both `secret` and `client`; human approves the PR.
+  Agent part done (unticked until the human approves): `astro check` 0 errors; 10 fields, none both secret and client.
 - [ ] **T0.11 [PATH_ASK] Wrangler environments.** Restructure `wrangler.jsonc` from the house "wrangler.jsonc (Astro on Cloudflare)" template: top level = local dev; `env.staging` and `env.production`, each with its own `name`, D1 (`DB`), R2 (`MEDIA`), KV (`SESSION`), Durable Object binding, cron and an `observability` block (logs + traces, Axiom destinations by name). Resource IDs are placeholders `"<set by human: T0.12>"`. Decide with the human whether the existing D1 `findlay-masonic-site` (`e973aaf5-…`) becomes production or is retired; record the answer in the PR.
   Deps: T0.1. Verify: `pnpm wrangler deploy --dry-run --env staging` resolves config (placeholders aside); `pnpm wrangler types` regenerates `worker-configuration.d.ts` with the KV binding.
+  Agent part done (unticked until the human approves): `CLOUDFLARE_ENV=staging pnpm astro build && pnpm wrangler deploy --dry-run` resolves staging bindings; `wrangler types` emits `SESSION: KVNamespace`. `--env staging` after a plain build resolves local bindings, so deploys use `deploy:staging`. Awaiting human approval and the D1 decision (STATUS.md).
 - [ ] **T0.12 [HUMAN] Create staging resources.** In Cloudflare: staging D1, R2 bucket and KV namespace; Axiom dataset + OTLP destinations for staging logs and traces. Paste the IDs into `wrangler.jsonc` (IDs are not secrets).
   Deps: T0.11. Verify: `pnpm wrangler d1 list` shows the staging DB; IDs are committed.
 
 ### CI and agent docs
-- [ ] **T0.13 [AGENT] GitHub Actions CI.** `.github/workflows/ci.yml` from the house "GitHub Actions CI (Astro)" template: pnpm 11.9 + Node 22.16 setup with cache → `pnpm install --frozen-lockfile` → `astro check` → `lint` → `format:check` → `vitest run` → `astro build` → Playwright install + `e2e --grep @smoke --trace off`. No secrets required to pass.
+- [x] **T0.13 [AGENT] GitHub Actions CI.** `.github/workflows/ci.yml` from the house "GitHub Actions CI (Astro)" template: pnpm 11.9 + Node 22.16 setup with cache → `pnpm install --frozen-lockfile` → `astro check` → `lint` → `format:check` → `vitest run` → `astro build` → Playwright install + `e2e --grep @smoke --trace off`. No secrets required to pass.
   Deps: T0.6, T0.7, T0.9. Verify: the workflow is green on the M0 PR.
-- [ ] **T0.14 [AGENT] Project `AGENTS.md`.** Rebuild from the JS/TS Base v1.3.0 + Astro overlay, keeping the EmDash sections that still apply. Add: the Phase 3 Agent Scope (reads/writes/executes/ASK list, `brainstorm-intake.md` line 69), the PATH_ASK rule, the plan/spec/ADR links, and the real commands (`pnpm dev`, `test`, `e2e`, `lint`, `format`, `astro check`). Drop the blog-template "This Template"/"Visual character" sections; note the design is pending the M4 gate.
+  Evidence: CI run 45241090879 on a74876e green: every step passed, smoke e2e 2 passed / 4 skipped at https://findlay-masonic.localhost. CI starts the portless proxy first (`portless run` will not sudo without a TTY).
+- [x] **T0.14 [AGENT] Project `AGENTS.md`.** Rebuild from the JS/TS Base v1.3.0 + Astro overlay, keeping the EmDash sections that still apply. Add: the Phase 3 Agent Scope (reads/writes/executes/ASK list, `brainstorm-intake.md` line 69), the PATH_ASK rule, the plan/spec/ADR links, and the real commands (`pnpm dev`, `test`, `e2e`, `lint`, `format`, `astro check`). Drop the blog-template "This Template"/"Visual character" sections; note the design is pending the M4 gate.
   Deps: T0.8, T0.13. Verify: every command listed in `AGENTS.md` runs; no numeric localhost port appears.
-- [ ] **T0.15 [AGENT] Astro 7 verification.** Check the Astro overlay's rules against Astro 7.x (Vite 8/Rolldown, Rust compiler, `astro:env`, Cloudflare adapter 14, `getViteConfig`) by reading astro.build directly (Context7 has no v7 docs). Record each rule as OK / changed / blocker in STATUS.md. If there is a blocker, stop and propose the Astro 6 fallback to the human.
+  Evidence: every command in AGENTS.md was run in M0; no numeric localhost port.
+- [x] **T0.15 [AGENT] Astro 7 verification.** Check the Astro overlay's rules against Astro 7.x (Vite 8/Rolldown, Rust compiler, `astro:env`, Cloudflare adapter 14, `getViteConfig`) by reading astro.build directly (Context7 has no v7 docs). Record each rule as OK / changed / blocker in STATUS.md. If there is a blocker, stop and propose the Astro 6 fallback to the human.
   Deps: T0.7, T0.9, T0.10. Verify: STATUS.md has the verification table and outcome.
+  Evidence: STATUS.md table; no blocker, stay on Astro 7.
 
 ### M0 exit
 - [ ] **T0.16 [HUMAN] Staging deploy.** `pnpm astro build && pnpm wrangler deploy --env staging`, then confirm the template renders at the staging URL and `/_emdash/admin` loads.

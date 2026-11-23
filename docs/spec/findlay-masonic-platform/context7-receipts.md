@@ -63,3 +63,11 @@ Append-only. Phase 2 (Tooling), 2026-11-23. Versions are npm `latest` as of 2026
 
 ## No-library items (no receipt applicable)
 - Axiom: integrated through Cloudflare Workers Observability OTLP export (`observability.logs/traces.destinations` in wrangler.jsonc pointing to https://api.axiom.co/v1/logs and /v1/traces). Config only, no SDK. Source: developers.cloudflare.com/workers/observability/exporting-opentelemetry-data/axiom.
+
+## M0 install record (2026-11-23, T0.1–T0.9)
+Not a Context7 query: what `pnpm add` actually resolved, and where it differs from the receipts above. Source: `pnpm-lock.yaml` and `npm view <pkg> time`.
+- emdash 1.6.0, @emdash-cms/cloudflare 1.6.0, astro 7.4.13, @astrojs/cloudflare 14.4.9, wrangler 4.166.0: as receipted.
+- @react-email/editor 1.8.10 (exact): as receipted. `pnpm peers check` reports a transitive @tiptap 3.32 vs 3.35 peer mismatch inside the editor's tree; resolve in M5.
+- oxlint **1.94.0** and oxfmt **0.79.0**, not 1.95.0 / 0.80.0. Both receipted versions were published 2026-11-23 16:09/16:11 UTC, and `minimumReleaseAge: 1440` in pnpm-workspace.yaml refuses them. Bump after 2026-11-24 16:12 UTC. Type-aware linting adds oxlint-tsgolint 7.0.2008.
+- vitest 5.1.1 + @vitest/coverage-v8 5.1.1, @playwright/test 1.65.1, prettier-plugin-astro 1.1.2, eslint-plugin-astro 3.2.1: as receipted. Added prettier 3.10.1, eslint 10.15.0, @typescript-eslint/parser 8.73.0 (eslint-plugin-astro needs it for TS frontmatter), @types/node 22.20.5 (tsconfig already named `node` types).
+- portless 0.18.1 (not receipted; vercel-labs/portless). Declares `engines.node >=24`; every 0.15+ release does. Runs on Node 22.23 in M0 verification.
