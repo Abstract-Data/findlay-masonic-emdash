@@ -8,8 +8,16 @@ import type { EntryAction } from "./entries";
  */
 export type PassReason = "hook" | "site" | "account" | "plugin" | "read" | "dev";
 
+/**
+ * How the EmDash handler behind a route finds the entry its `[id]` names. `live` reads the id
+ * or the slug outside the trash (findByIdOrSlug); `trash` reads them trash included
+ * (findByIdOrSlugIncludingTrashed); `id` reads the id alone, trash included.
+ * tests/unit/route-table.test.ts reads each route's handler to check it.
+ */
+export type Lookup = "live" | "trash" | "id";
+
 export type RouteRule =
-	| { readonly kind: "entry"; readonly action: EntryAction }
+	| { readonly kind: "entry"; readonly action: EntryAction; readonly lookup: Lookup }
 	| { readonly kind: "revision-restore" }
 	| { readonly kind: "upload" }
 	| { readonly kind: "media-item" }
@@ -20,7 +28,11 @@ export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 type Rules = Readonly<Partial<Record<Method, RouteRule>>>;
 
-const entry = (action: EntryAction): RouteRule => ({ kind: "entry", action });
+const entry = (action: EntryAction, lookup: Lookup): RouteRule => ({
+	kind: "entry",
+	action,
+	lookup,
+});
 const pass = (why: PassReason): RouteRule => ({ kind: "pass", why });
 const ADMIN: RouteRule = { kind: "admin-only", action: "unlisted" };
 const MCP: RouteRule = { kind: "admin-only", action: "use-mcp" };
@@ -37,31 +49,37 @@ const all = (rule: RouteRule, ...methods: Method[]): Rules =>
  * as classified for a signed-in user below Admin. tests/unit/route-table.test.ts fails when
  * EmDash adds an unsafe route this table does not classify. Admins skip the table entirely.
  */
-export const ROUTE_TABLE: Readonly<Record<string, Rules>> = {
+const TABLE: Readonly<Record<string, Rules>> = {
 	"/_emdash/api/visual-editing/action-token": { POST: pass("read") },
 	"/_emdash/api/visual-editing/content/[collection]/[id]/publish": { POST: pass("hook") },
-	"/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]": { DELETE: entry("update") },
+	"/_emdash/api/admin/scheduled-policy-rejections/[collection]/[id]": {
+		DELETE: entry("update", "id"),
+	},
 
 	"/_emdash/api/content/[collection]": { POST: pass("hook") },
-	"/_emdash/api/content/[collection]/[id]": { PUT: entry("update"), DELETE: entry("delete") },
-	"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]": {
-		POST: entry("update"),
+	"/_emdash/api/content/[collection]/[id]": {
+		PUT: entry("update", "live"),
+		DELETE: entry("delete", "live"),
 	},
-	"/_emdash/api/content/[collection]/[id]/revisions": { POST: entry("update") },
+	"/_emdash/api/content/[collection]/[id]/plugin-extensions/[pluginId]/[kind]/[extensionId]": {
+		POST: entry("update", "live"),
+	},
+	"/_emdash/api/content/[collection]/[id]/revisions": { POST: entry("update", "trash") },
 	"/_emdash/api/content/[collection]/[id]/preview-url": { POST: pass("read") },
-	"/_emdash/api/content/[collection]/[id]/restore": { POST: entry("restore") },
+	"/_emdash/api/content/[collection]/[id]/restore": { POST: entry("restore", "trash") },
 	"/_emdash/api/content/[collection]/[id]/permanent": { DELETE: ADMIN },
-	"/_emdash/api/content/[collection]/[id]/duplicate": { POST: entry("duplicate") },
+	"/_emdash/api/content/[collection]/[id]/duplicate": { POST: entry("duplicate", "live") },
 	"/_emdash/api/content/[collection]/[id]/publish": { POST: pass("hook") },
-	"/_emdash/api/content/[collection]/[id]/unpublish": { POST: pass("hook") },
-	"/_emdash/api/content/[collection]/[id]/discard-draft": { POST: entry("discard") },
-	"/_emdash/api/content/[collection]/[id]/lock": all(entry("update"), "POST", "DELETE"),
-	"/_emdash/api/content/[collection]/[id]/room": { POST: entry("update") },
+	// EmDash hands beforeUnpublish the live entry only, so the draft's body is checked here first.
+	"/_emdash/api/content/[collection]/[id]/unpublish": { POST: entry("unpublish", "live") },
+	"/_emdash/api/content/[collection]/[id]/discard-draft": { POST: entry("discard", "live") },
+	"/_emdash/api/content/[collection]/[id]/lock": all(entry("update", "live"), "POST", "DELETE"),
+	"/_emdash/api/content/[collection]/[id]/room": { POST: entry("update", "live") },
 	"/_emdash/api/content/[collection]/[id]/schedule": {
 		POST: pass("hook"),
-		DELETE: entry("unschedule"),
+		DELETE: entry("unschedule", "live"),
 	},
-	"/_emdash/api/content/[collection]/[id]/terms/[taxonomy]": { POST: entry("update") },
+	"/_emdash/api/content/[collection]/[id]/terms/[taxonomy]": { POST: entry("update", "live") },
 	"/_emdash/api/revisions/[revisionId]/restore": { POST: { kind: "revision-restore" } },
 
 	"/_emdash/api/media": { POST: UPLOAD },
@@ -216,6 +234,23 @@ export const ROUTE_TABLE: Readonly<Record<string, Rules>> = {
 	"/_emdash/api/search/enable": { POST: ADMIN },
 };
 
+export const ROUTE_TABLE: ReadonlyMap<string, Rules> = new Map(Object.entries(TABLE));
+
+/**
+ * The routes whose JSON body sets an entry's slug, and on an update its status: the middleware
+ * reads those two fields. tests/unit/route-table.test.ts derives this list from EmDash.
+ */
+export const SAVE_ROUTES: ReadonlySet<string> = new Set([
+	"POST /_emdash/api/content/[collection]",
+	"PUT /_emdash/api/content/[collection]/[id]",
+	"POST /_emdash/api/content/[collection]/[id]/revisions",
+]);
+
+/** Whether a request's body is an entry save the middleware reads. */
+export function savesEntry(routePattern: string, method: string): boolean {
+	return SAVE_ROUTES.has(`${method.toUpperCase()} ${routePattern}`);
+}
+
 const METHODS: ReadonlySet<string> = new Set<Method>(["GET", "POST", "PUT", "PATCH", "DELETE"]);
 const isMethod = (method: string): method is Method => METHODS.has(method);
 
@@ -225,7 +260,11 @@ const isMethod = (method: string): method is Method => METHODS.has(method);
  */
 export function ruleFor(routePattern: string, method: string): RouteRule | null {
 	const upper = method.toUpperCase();
-	const listed = isMethod(upper) ? ROUTE_TABLE[routePattern]?.[upper] : undefined;
+	const rules = ROUTE_TABLE.get(routePattern);
+	const listed =
+		rules !== undefined && isMethod(upper) && Object.hasOwn(rules, upper)
+			? rules[upper]
+			: undefined;
 	if (listed !== undefined) return listed;
 	const safe = upper === "GET" || upper === "HEAD" || upper === "OPTIONS";
 	return safe || !routePattern.startsWith("/_emdash/") ? null : ADMIN;

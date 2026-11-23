@@ -36,6 +36,16 @@ const isWebUrl = (raw: unknown): raw is AbsoluteUrl =>
 	typeof raw === "string" && URL.canParse(raw) && /^https?:$/.test(new URL(raw).protocol);
 const isTagSlug = (slug: string): slug is TagSlug => slug !== "";
 
+/**
+ * EmDash's own test for an entry id (ContentRepository's ULID_PATTERN). A slug that passes it
+ * is read as an id first, so it can make a route reach a different entry than its slug names.
+ */
+const EMDASH_ID_SHAPE = /^[0-9A-Z]{26}$/;
+
+export function looksLikeEntryId(slug: string): boolean {
+	return EMDASH_ID_SHAPE.test(slug);
+}
+
 export function parseBodyId(raw: unknown): BodyId | null {
 	return isBodyId(raw) ? raw : null;
 }

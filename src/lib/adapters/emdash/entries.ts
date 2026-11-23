@@ -1,4 +1,4 @@
-import type { Operation } from "@core/acl/policy";
+import type { Operation, StateChange } from "@core/acl/policy";
 import type { BodyId } from "@core/ids";
 import { parseBodyId } from "./parse";
 
@@ -9,17 +9,18 @@ import { parseBodyId } from "./parse";
  */
 export type Scope = "body-field" | "self" | "site";
 
-export const COLLECTION_SCOPES: Readonly<Record<string, Scope>> = {
-	officers: "body-field",
-	events: "body-field",
-	news: "body-field",
-	bodies: "self",
-	pages: "site",
-};
+// A Map, because the collection comes from the request and must never match an Object key.
+export const COLLECTION_SCOPES: ReadonlyMap<string, Scope> = new Map([
+	["officers", "body-field"],
+	["events", "body-field"],
+	["news", "body-field"],
+	["bodies", "self"],
+	["pages", "site"],
+]);
 
 /** A collection missing from the table is Admin-only, so a new collection fails closed. */
 export function scopeOf(collection: string): Scope | "unlisted" {
-	return COLLECTION_SCOPES[collection] ?? "unlisted";
+	return COLLECTION_SCOPES.get(collection) ?? "unlisted";
 }
 
 /**
@@ -30,6 +31,30 @@ export interface StoredEntry {
 	readonly id: unknown;
 	readonly data?: unknown;
 	readonly liveData?: unknown;
+}
+
+/** An entry as EmDash stores it: its live values, and its pending draft's revision id. */
+export interface EntryRow {
+	readonly id: string;
+	readonly data: Record<string, unknown>;
+	readonly draftRevisionId?: string | null;
+}
+
+export type ReadEntry = StoredEntry & { readonly data: Record<string, unknown> };
+
+/**
+ * The entry as EmDash's routes read it, with its draft's values over the live ones. Null when
+ * the entry has a pending draft that could not be read: the caller refuses, because checking
+ * the live body alone would miss a draft that moves the entry.
+ */
+export function overlayDraft(
+	row: EntryRow,
+	draft: { readonly data: Record<string, unknown> } | null,
+): ReadEntry | null {
+	if (!row.draftRevisionId) return { id: row.id, data: row.data };
+	if (draft === null) return null;
+	const staged = Object.entries(draft.data).filter(([key]) => !key.startsWith("_"));
+	return { id: row.id, data: { ...row.data, ...Object.fromEntries(staged) }, liveData: row.data };
 }
 
 export type OwnedScope = Exclude<Scope, "site">;
@@ -78,8 +103,26 @@ export function saveOperation(
 		: { kind: "update", from: storedBodies(scope, existing), to };
 }
 
-/** Entry routes with no hook of their own, which the middleware guards. */
-export type EntryAction = "update" | "delete" | "restore" | "duplicate" | "discard" | "unschedule";
+/** FR-5.4: a state change to an entry, or to a body's own page, which core rules on apart. */
+export function stateChangeOperation(
+	change: StateChange,
+	scope: OwnedScope,
+	entry: StoredEntry,
+): Operation {
+	return scope === "self"
+		? { kind: "body-page", change, body: targetBody(scope, entry) }
+		: { kind: change, bodies: storedBodies(scope, entry) };
+}
+
+/** Entry routes the middleware guards. */
+export type EntryAction =
+	| "update"
+	| "delete"
+	| "restore"
+	| "duplicate"
+	| "discard"
+	| "unschedule"
+	| "unpublish";
 
 /** An `update` here keeps the stored body: the body field itself is checked by the save hook. */
 export function entryOperation(
@@ -96,7 +139,7 @@ export function entryOperation(
 				? { kind: "admin-only", action: "add-body" }
 				: { kind: "create", body: liveBody(entry) };
 		default:
-			return { kind: action, bodies: storedBodies(scope, entry) };
+			return stateChangeOperation(action, scope, entry);
 	}
 }
 

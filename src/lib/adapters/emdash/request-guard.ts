@@ -1,19 +1,26 @@
 import { authorize, denialText, type Operation } from "@core/acl/policy";
 import type { BodyId } from "@core/ids";
-import { PluginStorageRepository } from "emdash";
+import {
+	ContentRepository,
+	MediaRepository,
+	PluginStorageRepository,
+	RevisionRepository,
+} from "emdash";
 import type { RequestActor } from "./actor-context";
 import {
 	entryOperation,
+	overlayDraft,
 	revisionRestoreOperation,
 	scopeOf,
-	type EntryAction,
-	type StoredEntry,
+	stateChangeOperation,
+	type EntryRow,
+	type ReadEntry,
 } from "./entries";
 import { GRANTS, grantsOf, principalFor, type Directory } from "./grants";
-import { isAdminRole, parseBodyRecord, parseUserId } from "./parse";
-import { ruleFor, type RouteRule } from "./route-table";
+import { isAdminRole, looksLikeEntryId, parseBodyRecord, parseUserId } from "./parse";
+import { ruleFor, savesEntry, type Lookup, type RouteRule } from "./route-table";
 
-type EmDash = App.Locals["emdash"];
+type EmDash = NonNullable<App.Locals["emdash"]>;
 
 export interface GuardedRequest {
 	/** The route Astro matched, as EmDash injected it. */
@@ -22,25 +29,63 @@ export interface GuardedRequest {
 	readonly params: Readonly<Record<string, string | undefined>>;
 	readonly locale: string | undefined;
 	readonly actor: RequestActor | null;
-	readonly emdash: EmDash | undefined;
+	/** The request's JSON body, or null; read only for an entry save. */
+	readonly body: () => Promise<unknown>;
+}
+
+/**
+ * What the guard reads from EmDash. Each read returns null when the record does not exist and
+ * throws on any other failure, which the guard turns into a refusal.
+ */
+export interface GuardReads {
+	/** findById, or findByIdIncludingTrashed when `trash`. */
+	entryById(collection: string, id: string, trash: boolean): Promise<EntryRow | null>;
+	/** findBySlug, or findBySlugIncludingTrashed when `trash`; no locale reads the lowest. */
+	entryBySlug(
+		collection: string,
+		slug: string,
+		locale: string | undefined,
+		trash: boolean,
+	): Promise<EntryRow | null>;
+	revision(id: string): Promise<{
+		readonly collection: string;
+		readonly entryId: string;
+		readonly data: Record<string, unknown>;
+	} | null>;
+	media(id: string): Promise<{ readonly authorId: string | null } | null>;
+	readonly directory: Directory;
+	bodyNames(): Promise<ReadonlyMap<BodyId, string>>;
 }
 
 export const DENIED_CODE = "BODY_ACCESS_DENIED";
 
+const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
+
 /**
  * The middleware half of the guard: every unsafe EmDash route a signed-in non-admin calls is
  * authorized by core before EmDash runs it, including the writes no content hook sees. Returns
- * the 403 to send, or null to let the request through. Admins and anonymous requests pass:
+ * the response to send, or null to let the request through. Admins and anonymous requests pass:
  * Admins hold every body (FR-5.7), and EmDash refuses anonymous writes itself.
  */
-export async function guardRequest(request: GuardedRequest): Promise<Response | null> {
-	const { actor, emdash } = request;
-	if (actor === null || isAdminRole(actor.role) || emdash === undefined) return null;
+export async function guardRequest(
+	request: GuardedRequest,
+	reads: () => GuardReads,
+): Promise<Response | null> {
+	const { actor } = request;
+	if (actor === null || isAdminRole(actor.role)) return null;
 	const rule = ruleFor(request.routePattern, request.method);
 	if (rule === null) return null;
-	const ops = await operationsFor(rule, request, emdash);
+	const save = savesEntry(request.routePattern, request.method)
+		? readSave(await request.body())
+		: NO_SAVE;
+	if (save.slug !== null && looksLikeEntryId(save.slug)) return idLikeSlug(save.slug);
+	const from = reads();
+	const ops = await operationsFor(rule, request, from, save).catch((error: unknown) => {
+		console.error("[body-access] a guard lookup failed, so the request was refused:", error);
+		return [UNLISTED];
+	});
 	if (ops.length === 0) return null;
-	const principal = await principalFor(actor, [], directory(emdash));
+	const principal = await principalFor(actor, [], from.directory);
 	if (principal === null) {
 		return denied("The signed-in account could not be identified, so the change was refused.");
 	}
@@ -48,11 +93,53 @@ export async function guardRequest(request: GuardedRequest): Promise<Response | 
 		.map((op) => authorize(principal, op))
 		.find((decision) => decision.outcome === "deny");
 	return refusal?.outcome === "deny"
-		? denied(denialText(refusal.reason, await bodyNames(emdash)))
+		? denied(denialText(refusal.reason, await from.bodyNames()))
 		: null;
 }
 
-const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
+/** EmDash's reads, for one request. */
+export function emdashReads(emdash: EmDash): GuardReads {
+	const content = new ContentRepository(emdash.db);
+	const revisions = new RevisionRepository(emdash.db);
+	const media = new MediaRepository(emdash.db);
+	const grants = new PluginStorageRepository(emdash.db, GRANTS.pluginId, GRANTS.collection, [
+		...GRANTS.indexes,
+	]);
+	return {
+		entryById: async (collection, id, trash) =>
+			trash ? content.findByIdIncludingTrashed(collection, id) : content.findById(collection, id),
+		entryBySlug: async (collection, slug, locale, trash) =>
+			trash
+				? content.findBySlugIncludingTrashed(collection, slug, locale)
+				: content.findBySlug(collection, slug, locale),
+		revision: async (id) => revisions.findById(id),
+		media: async (id) => media.findById(id),
+		directory: {
+			grantsOf: async (user) => grantsOf(grants, user),
+			// The middleware judges the actor alone; co-editors are the save hook's to check.
+			roleOf: async () => null,
+		},
+		bodyNames: async () => bodyNames(emdash),
+	};
+}
+
+/** The fields of an entry save the guard reads before EmDash does. */
+interface Save {
+	readonly slug: string | null;
+	/** A save that sets `status` (EmDash accepts only "draft") unpublishes the entry. */
+	readonly unpublishes: boolean;
+}
+
+const NO_SAVE: Save = { slug: null, unpublishes: false };
+
+function readSave(body: unknown): Save {
+	if (typeof body !== "object" || body === null) return NO_SAVE;
+	const slug: unknown = Reflect.get(body, "slug");
+	return {
+		slug: typeof slug === "string" ? slug : null,
+		unpublishes: Reflect.get(body, "status") !== undefined,
+	};
+}
 
 function denied(message: string): Response {
 	return Response.json(
@@ -61,15 +148,12 @@ function denied(message: string): Response {
 	);
 }
 
-function directory(emdash: EmDash): Directory {
-	const rows = new PluginStorageRepository(emdash.db, GRANTS.pluginId, GRANTS.collection, [
-		...GRANTS.indexes,
-	]);
-	return {
-		grantsOf: async (user) => grantsOf(rows, user),
-		// The middleware judges the actor alone; co-editors are the save hook's to check.
-		roleOf: async () => null,
-	};
+function idLikeSlug(slug: string): Response {
+	const message = `The slug ${slug} looks like an entry id, so it could make a change reach the wrong entry. Choose a slug made of words, such as spring-banquet.`;
+	return Response.json(
+		{ success: false, error: { code: "INVALID_SLUG", message } },
+		{ status: 422, headers: { "Cache-Control": "private, no-store" } },
+	);
 }
 
 async function bodyNames(emdash: EmDash): Promise<Map<BodyId, string>> {
@@ -84,26 +168,15 @@ async function bodyNames(emdash: EmDash): Promise<Map<BodyId, string>> {
 	);
 }
 
-function entryOf(result: { success: boolean; data?: unknown }): StoredEntry | null {
-	if (!result.success) return null;
-	const found: unknown = Reflect.get(Object(result.data), "item");
-	return typeof found === "object" && found !== null
-		? {
-				id: Reflect.get(found, "id"),
-				data: Reflect.get(found, "data"),
-				liveData: Reflect.get(found, "liveData"),
-			}
-		: null;
-}
-
 /**
- * Every operation the request performs; none lets it through, and EmDash answers it (a 404, a
- * site write, a hook-guarded write).
+ * Every operation the request performs. An empty list lets the request through to EmDash, which
+ * answers it (a 404, a site write, a hook-guarded write).
  */
 async function operationsFor(
 	rule: RouteRule,
 	request: GuardedRequest,
-	emdash: EmDash,
+	reads: GuardReads,
+	save: Save,
 ): Promise<readonly Operation[]> {
 	const { params } = request;
 	switch (rule.kind) {
@@ -116,53 +189,70 @@ async function operationsFor(
 		case "media-item": {
 			// A provider's item (media/providers/[providerId]/[itemId]) records no uploader.
 			if (params.id === undefined) return [{ kind: "media", uploader: null }];
-			const media = await emdash.handleMediaGet(params.id);
-			return media.success
-				? [{ kind: "media", uploader: parseUserId(media.data.item.authorId) }]
-				: [];
+			const media = await reads.media(params.id);
+			return media === null ? [] : [{ kind: "media", uploader: parseUserId(media.authorId) }];
 		}
 		case "entry": {
 			const collection = params.collection ?? "";
 			const scope = scopeOf(collection);
 			if (scope === "site") return [];
 			if (scope === "unlisted") return [UNLISTED];
-			const found = await entriesNamed(rule.action, collection, params.id ?? "", request, emdash);
+			const named = await entriesNamed(reads, rule.lookup, collection, params.id ?? "", request);
 			// Refused rather than passed: a miss here must not leave EmDash to find the entry another way.
-			if (found.length === 0) return [UNLISTED];
-			return found.map((entry) => entryOperation(rule.action, scope, entry));
+			if (named.length === 0) return [UNLISTED];
+			const ops = named.map((entry) => entryOperation(rule.action, scope, entry));
+			const unpublishes = save.unpublishes
+				? named.map((entry) => stateChangeOperation("unpublish", scope, entry))
+				: [];
+			return [...ops, ...unpublishes];
 		}
 	}
-	return revisionRestore(params.revisionId ?? "", emdash);
+	return revisionRestore(reads, params.revisionId ?? "");
 }
 
 /**
- * The entries a route could act on. Some EmDash routes resolve a slug in the request's locale
- * and some ignore it, so both readings are checked.
+ * Every entry a route's `[id]` could name, read the way the route's EmDash handler reads it.
+ * The handler tries the id or the slug first and falls back to the other, and may scope the
+ * slug to the request's locale, so the guard reads all of them and authorizes each.
  */
 async function entriesNamed(
-	action: EntryAction,
+	reads: GuardReads,
+	lookup: Lookup,
 	collection: string,
 	id: string,
-	request: GuardedRequest,
-	emdash: EmDash,
-): Promise<StoredEntry[]> {
-	const readings =
-		action === "restore"
-			? [emdash.handleContentGetIncludingTrashed(collection, id)]
-			: [
-					emdash.handleContentGet(collection, id, request.locale),
-					...(request.locale === undefined ? [] : [emdash.handleContentGet(collection, id)]),
-				];
-	return (await Promise.all(readings)).flatMap((result) => entryOf(result) ?? []);
+	request: Pick<GuardedRequest, "locale">,
+): Promise<ReadEntry[]> {
+	const trash = lookup !== "live";
+	const slugLocales = lookup === "id" ? [] : [...new Set([undefined, request.locale])];
+	const rows = await Promise.all([
+		reads.entryById(collection, id, trash),
+		...slugLocales.map(async (locale) => reads.entryBySlug(collection, id, locale, trash)),
+	]);
+	const unique = new Map(rows.flatMap((row) => (row === null ? [] : [[row.id, row] as const])));
+	return Promise.all([...unique.values()].map(async (row) => withDraft(reads, row)));
 }
 
-async function revisionRestore(revisionId: string, emdash: EmDash): Promise<readonly Operation[]> {
-	const revision = await emdash.handleRevisionGet(revisionId);
-	if (!revision.success) return [];
-	const { collection, entryId, data } = revision.data.item;
+async function withDraft(reads: GuardReads, row: EntryRow): Promise<ReadEntry> {
+	const draft = row.draftRevisionId ? await reads.revision(row.draftRevisionId) : null;
+	const entry = overlayDraft(row, draft);
+	if (entry === null) throw new Error(`the draft revision of ${row.id} could not be read`);
+	return entry;
+}
+
+async function revisionRestore(
+	reads: GuardReads,
+	revisionId: string,
+): Promise<readonly Operation[]> {
+	const revision = await reads.revision(revisionId);
+	if (revision === null) return [];
+	const { collection, entryId, data } = revision;
 	const scope = scopeOf(collection);
 	if (scope === "site") return [];
 	if (scope === "unlisted") return [UNLISTED];
-	const current = entryOf(await emdash.handleContentGet(collection, entryId));
-	return current === null ? [UNLISTED] : [revisionRestoreOperation(scope, current, data)];
+	// EmDash restores into findById(entryId), and a recovery revision through a save that reads
+	// the id or the slug, so both are checked.
+	const current = await entriesNamed(reads, "live", collection, entryId, { locale: undefined });
+	return current.length === 0
+		? [UNLISTED]
+		: current.map((entry) => revisionRestoreOperation(scope, entry, data));
 }

@@ -1,6 +1,6 @@
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ROUTE_TABLE, ruleFor } from "@adapters/emdash/route-table";
+import { ROUTE_TABLE, SAVE_ROUTES, ruleFor, savesEntry } from "@adapters/emdash/route-table";
 import { describe, expect, it } from "vitest";
 
 const EMDASH_SRC = join(process.cwd(), "node_modules/emdash/src");
@@ -9,20 +9,71 @@ const UNSAFE: ReadonlySet<string> = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
 const routesSource = readFileSync(ROUTES_TS, "utf8");
 
-/** Every route EmDash injects, with the HTTP methods its route file exports. */
-const emdashRoutes = new Map(
+/** Every route file EmDash injects, by its pattern. */
+const routeFiles = new Map(
 	[
 		...routesSource.matchAll(
 			/pattern:\s*"([^"]+)",\s*entrypoint:\s*resolveRoute\(\s*"([^"]+)"\s*,?\s*\)/g,
 		),
-	].map(([, pattern = "", entrypoint = ""]) => {
-		const route = readFileSync(join(EMDASH_SRC, "astro/routes", entrypoint), "utf8");
-		const exported = route.matchAll(
-			/export\s+(?:const|async\s+function|function)\s+(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE|ALL)\b/g,
-		);
-		return [pattern, new Set([...exported].map(([, method = ""]) => method))];
-	}),
+	].map(([, pattern = "", entrypoint = ""]) => [
+		pattern,
+		readFileSync(join(EMDASH_SRC, "astro/routes", entrypoint), "utf8"),
+	]),
 );
+
+const EXPORT =
+	/export\s+(?:const|async\s+function|function)\s+(GET|HEAD|OPTIONS|POST|PUT|PATCH|DELETE|ALL)\b/g;
+
+/** Every route EmDash injects, with the HTTP methods its route file exports. */
+const emdashRoutes = new Map(
+	[...routeFiles].map(([pattern, route]) => [
+		pattern,
+		new Set([...route.matchAll(EXPORT)].map(([, method = ""]) => method)),
+	]),
+);
+
+/** The source of one method's handler in a route file. */
+function handlerSource(pattern: string, method: string): string {
+	const route = routeFiles.get(pattern) ?? "";
+	const start = [...route.matchAll(EXPORT)].find(([, exported]) => exported === method)?.index;
+	if (start === undefined) return "";
+	const next = route.slice(start + 1).search(EXPORT);
+	return next === -1 ? route.slice(start) : route.slice(start, start + 1 + next);
+}
+
+/**
+ * How each function EmDash's entry routes call finds the entry `[id]` names, read from EmDash
+ * 1.6.0: `findByIdOrSlug` (live) or `findByIdOrSlugIncludingTrashed` (trash), or the id alone.
+ */
+const RESOLVERS: readonly (readonly [RegExp, string])[] = [
+	[/\bhandleContentGetIncludingTrashed\(/, "trash"],
+	[/\bhandleRecoveryRevisionCreate\(/, "trash"],
+	[/\bscheduledPolicyRejectionKey\(/, "id"],
+	[/\bhandleContentGet\(/, "live"],
+	[/\bsaveContent\(/, "live"],
+	[/\bresolveEntry\(/, "live"],
+	[/\bhandleRoomJoin\(/, "live"],
+	[/\bdispatchPluginEditorExtensionApiRequest\(/, "live"],
+];
+
+const SCHEMAS = join(EMDASH_SRC, "api/schemas");
+const schemaFiles = readdirSync(SCHEMAS)
+	.filter((file) => file.endsWith(".ts"))
+	.map((file) => readFileSync(join(SCHEMAS, file), "utf8"))
+	.join("\n");
+
+/** The source of one request-body schema EmDash declares in api/schemas, up to the next statement. */
+function schemaSource(name: string): string {
+	const start = schemaFiles.search(new RegExp(`export const ${name}\\b`));
+	if (start === -1) return "";
+	const next = schemaFiles.slice(start).search(/\n(?=[^\s.)}\]])/);
+	return next === -1 ? schemaFiles.slice(start) : schemaFiles.slice(start, start + next);
+}
+
+function emdashLookups(pattern: string, method: string): string[] {
+	const source = handlerSource(pattern, method);
+	return [...new Set(RESOLVERS.filter(([call]) => call.test(source)).map(([, lookup]) => lookup))];
+}
 
 describe("EmDash route table (ADR-002)", () => {
 	it("reads every route pattern EmDash injects", () => {
@@ -40,19 +91,53 @@ describe("EmDash route table (ADR-002)", () => {
 		const unclassified = [...emdashRoutes].flatMap(([pattern, methods]) =>
 			[...methods]
 				.filter((method) => UNSAFE.has(method))
-				.filter((method) => !Object.hasOwn(ROUTE_TABLE[pattern] ?? {}, method))
+				.filter((method) => !Object.hasOwn(ROUTE_TABLE.get(pattern) ?? {}, method))
 				.map((method) => `${method} ${pattern}`),
 		);
 		expect(unclassified).toEqual([]);
 	});
 
 	it("lists only routes and methods EmDash has", () => {
-		const stale = Object.entries(ROUTE_TABLE).flatMap(([pattern, rules]) =>
+		const stale = [...ROUTE_TABLE].flatMap(([pattern, rules]) =>
 			Object.keys(rules)
 				.filter((method) => !emdashRoutes.get(pattern)?.has(method))
 				.map((method) => `${method} ${pattern}`),
 		);
 		expect(stale).toEqual([]);
+	});
+
+	it("gives every entry rule the lookup EmDash's handler finds the entry with", () => {
+		const entryRules = [...ROUTE_TABLE].flatMap(([pattern, rules]) =>
+			Object.entries(rules).flatMap(([method, rule]) =>
+				rule?.kind === "entry" ? [{ pattern, method, rule }] : [],
+			),
+		);
+		expect(entryRules.length).toBeGreaterThan(10);
+		const wrong = entryRules.flatMap(({ pattern, method, rule }) => {
+			const found = emdashLookups(pattern, method);
+			const lookup: unknown = Reflect.get(rule, "lookup");
+			return found.length === 1 && found[0] === lookup
+				? []
+				: [`${method} ${pattern}: table ${String(lookup)}, EmDash ${found.join("+") || "unknown"}`];
+		});
+		expect(wrong).toEqual([]);
+	});
+
+	it("reads the body of every entry route whose body can set a slug", () => {
+		const slugBodies = [...emdashRoutes].flatMap(([pattern, methods]) =>
+			pattern.startsWith("/_emdash/api/content/[collection]")
+				? [...methods]
+						.filter((method) => UNSAFE.has(method))
+						.filter((method) => {
+							const schema = /parseBody\(\s*request,\s*(\w+)/.exec(handlerSource(pattern, method));
+							return schema?.[1] !== undefined && /\bslug:/.test(schemaSource(schema[1]));
+						})
+						.map((method) => `${method} ${pattern}`)
+				: [],
+		);
+		expect(slugBodies.toSorted()).toEqual([...SAVE_ROUTES].toSorted());
+		expect(savesEntry("/_emdash/api/content/[collection]/[id]", "put")).toBe(true);
+		expect(savesEntry("/_emdash/api/content/[collection]/[id]", "DELETE")).toBe(false);
 	});
 
 	it("refuses an unsafe request to an EmDash route it does not list", () => {
@@ -98,12 +183,25 @@ describe("EmDash route table (ADR-002)", () => {
 		["POST", "/_emdash/api/revisions/[revisionId]/restore", { kind: "revision-restore" }],
 		["POST", "/_emdash/api/content/[collection]/[id]/lock", { kind: "entry", action: "update" }],
 		["POST", "/_emdash/api/content/[collection]/[id]/room", { kind: "entry", action: "update" }],
+		[
+			"POST",
+			"/_emdash/api/content/[collection]/[id]/unpublish",
+			{ kind: "entry", action: "unpublish" },
+		],
 		["POST", "/_emdash/api/media", { kind: "upload" }],
 		["PUT", "/_emdash/api/media/[id]/replace", { kind: "media-item" }],
 		["DELETE", "/_emdash/api/media/[id]", { kind: "media-item" }],
 		["POST", "/_emdash/api/mcp", { kind: "admin-only", action: "use-mcp" }],
 		["GET", "/_emdash/api/mcp", { kind: "admin-only", action: "use-mcp" }],
-	])("guards %s %s, a write no content hook sees", (method, pattern, rule) => {
-		expect(ruleFor(pattern, method)).toEqual(rule);
+	])("guards %s %s in the middleware", (method, pattern, rule) => {
+		expect(ruleFor(pattern, method)).toMatchObject(rule);
+	});
+
+	it("reads no rule from Object.prototype", () => {
+		expect(ruleFor("constructor", "POST")).toBeNull();
+		expect(ruleFor("/_emdash/api/media", "constructor")).toEqual({
+			kind: "admin-only",
+			action: "unlisted",
+		});
 	});
 });

@@ -2,9 +2,11 @@ import { readFileSync } from "node:fs";
 import {
 	COLLECTION_SCOPES,
 	entryOperation,
+	overlayDraft,
 	revisionRestoreOperation,
 	saveOperation,
 	scopeOf,
+	stateChangeOperation,
 	storedBodies,
 	targetBody,
 } from "@adapters/emdash/entries";
@@ -92,12 +94,28 @@ describe("entryOperation (writes with no content hook)", () => {
 		});
 	});
 
-	it.each(["delete", "restore", "discard", "unschedule"] as const)(
+	it.each(["delete", "restore", "discard", "unschedule", "unpublish"] as const)(
 		"needs every stored body to %s",
 		(action) => {
 			expect(entryOperation(action, "body-field", moved)).toEqual({
 				kind: action,
 				bodies: [LODGE, CHAPTER],
+			});
+		},
+	);
+
+	it.each(["delete", "unpublish", "restore"] as const)(
+		"treats %s on a body's own page as a change to that body's page",
+		(change) => {
+			expect(entryOperation(change, "self", bodiesEntry)).toEqual({
+				kind: "body-page",
+				change,
+				body: LODGE,
+			});
+			expect(stateChangeOperation(change, "self", bodiesEntry)).toEqual({
+				kind: "body-page",
+				change,
+				body: LODGE,
 			});
 		},
 	);
@@ -127,6 +145,29 @@ describe("entryOperation (writes with no content hook)", () => {
 	});
 });
 
+describe("overlayDraft (ADR-002 live and draft bodies)", () => {
+	const row = { id: "E1", data: { body: LODGE, title: "Live" }, draftRevisionId: "R1" };
+
+	it("reads the draft's values over the live ones, keeping the live values apart", () => {
+		expect(overlayDraft(row, { data: { body: CHAPTER, _slug: "moved" } })).toEqual({
+			id: "E1",
+			data: { body: CHAPTER, title: "Live" },
+			liveData: { body: LODGE, title: "Live" },
+		});
+	});
+
+	it("reads the live values of an entry with no pending draft", () => {
+		expect(overlayDraft({ id: "E1", data: { body: LODGE }, draftRevisionId: null }, null)).toEqual({
+			id: "E1",
+			data: { body: LODGE },
+		});
+	});
+
+	it("fails when a pending draft could not be read, rather than checking the live body alone", () => {
+		expect(overlayDraft(row, null)).toBeNull();
+	});
+});
+
 describe("collection scopes (constitution § Per-body access control)", () => {
 	const seed: unknown = JSON.parse(readFileSync("seed/seed.json", "utf8"));
 	const collections: { slug: string; fields: { slug: string; type: string }[] }[] = Reflect.get(
@@ -136,7 +177,7 @@ describe("collection scopes (constitution § Per-body access control)", () => {
 
 	it("classifies every seeded collection, so none is locked to Admins by accident", () => {
 		expect(collections.map((c) => scopeOf(c.slug)).filter((s) => s === "unlisted")).toEqual([]);
-		expect(Object.keys(COLLECTION_SCOPES).toSorted()).toEqual(
+		expect([...COLLECTION_SCOPES.keys()].toSorted()).toEqual(
 			collections.map((c) => c.slug).toSorted(),
 		);
 	});
@@ -151,4 +192,11 @@ describe("collection scopes (constitution § Per-body access control)", () => {
 	it("treats a collection added later as Admin-only until it is classified", () => {
 		expect(scopeOf("minutes")).toBe("unlisted");
 	});
+
+	it.each(["constructor", "toString", "__proto__", "hasOwnProperty", "valueOf"])(
+		"keeps a collection named %s Admin-only, never a scope inherited from Object",
+		(collection) => {
+			expect(scopeOf(collection)).toBe("unlisted");
+		},
+	);
 });

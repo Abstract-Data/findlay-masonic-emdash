@@ -28,16 +28,17 @@ const WEEKDAY = "(MO|TU|WE|TH|FR|SA|SU)";
 
 // rrule-temporal's strict mode still accepts unknown parts and out-of-range numbers
 // (GARBAGE=1, BYMONTHDAY=40, COUNT=-3), so every supported part is whitelisted here.
-const PARTS: Partial<Record<string, { readonly item: RegExp; readonly list: boolean }>> = {
-	INTERVAL: { item: /^[1-9]\d{0,3}$/, list: false },
-	COUNT: { item: /^[1-9]\d{0,3}$/, list: false },
-	UNTIL: { item: /^\d{8}(T\d{6}Z?)?$/, list: false },
-	WKST: { item: new RegExp(`^${WEEKDAY}$`), list: false },
-	BYDAY: { item: new RegExp(`^([+-]?[1-5])?${WEEKDAY}$`), list: true },
-	BYMONTHDAY: { item: /^-?([1-9]|[12]\d|3[01])$/, list: true },
-	BYMONTH: { item: /^([1-9]|1[0-2])$/, list: true },
-	BYSETPOS: { item: /^-?[1-5]$/, list: true },
-};
+// A Map, because the part names come from content and must never match an Object key.
+const PARTS: ReadonlyMap<string, { readonly item: RegExp; readonly list: boolean }> = new Map([
+	["INTERVAL", { item: /^[1-9]\d{0,3}$/, list: false }],
+	["COUNT", { item: /^[1-9]\d{0,3}$/, list: false }],
+	["UNTIL", { item: /^\d{8}(T\d{6}Z?)?$/, list: false }],
+	["WKST", { item: new RegExp(`^${WEEKDAY}$`), list: false }],
+	["BYDAY", { item: new RegExp(`^([+-]?[1-5])?${WEEKDAY}$`), list: true }],
+	["BYMONTHDAY", { item: /^-?([1-9]|[12]\d|3[01])$/, list: true }],
+	["BYMONTH", { item: /^([1-9]|1[0-2])$/, list: true }],
+	["BYSETPOS", { item: /^-?[1-5]$/, list: true }],
+]);
 
 const NEVER_OCCURS_HORIZON = { years: 5 };
 
@@ -63,7 +64,7 @@ export function parseRRule(raw: string, timing: EventTiming): Result<RRule, RRul
 
 	for (const [name, value] of parts) {
 		if (name === "FREQ") continue;
-		const spec = PARTS[name];
+		const spec = PARTS.get(name);
 		if (spec === undefined) return err({ code: "unsupported-part", part: name });
 		const bad = (spec.list ? value.split(",") : [value]).find((item) => !spec.item.test(item));
 		if (bad !== undefined) return err({ code: "out-of-range", part: name, value: bad });
@@ -90,7 +91,7 @@ export function parseRRule(raw: string, timing: EventTiming): Result<RRule, RRul
 	}
 }
 
-const SUPPORTED_PARTS = ["FREQ", ...Object.keys(PARTS)].join(", ");
+const SUPPORTED_PARTS = ["FREQ", ...PARTS.keys()].join(", ");
 
 /** Plain text for an editor whose event save was refused. Parts and values are already charset-checked. */
 export function rruleErrorText(error: RRuleError): string {
