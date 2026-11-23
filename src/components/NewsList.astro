@@ -1,0 +1,96 @@
+---
+import { paths } from "@adapters/site/paths";
+import type { BodyView, NewsView } from "@adapters/site/views";
+import type { BodyId } from "@core/ids";
+import { excerpt } from "@core/newsletter/excerpt";
+import { formatDate, SITE_TZ } from "@core/time";
+
+// FR-1.1, 3.3, 3.4: news newest first; the combined list labels each item with its body.
+interface Props {
+	items: readonly NewsView[];
+	bodies: ReadonlyMap<BodyId, BodyView>;
+	showBody: boolean;
+	empty: string;
+	headingLevel?: 2 | 3;
+}
+
+const { items, bodies, showBody, empty, headingLevel = 3 } = Astro.props;
+const Title = `h${headingLevel}` as const;
+const rows = items.flatMap((item) => {
+	const body = bodies.get(item.body);
+	if (body === undefined) return [];
+	const labels = new Map(body.tags.map((tag) => [tag.slug, tag.label]));
+	return [
+		{
+			item,
+			body,
+			date: item.publishedAt.toZonedDateTimeISO(SITE_TZ).toPlainDate(),
+			tags: item.tags.map((slug) => ({ slug, label: labels.get(slug) ?? slug })),
+		},
+	];
+});
+---
+
+{rows.length === 0 ? (
+	<p class="news-list__empty" data-testid="news-empty">
+		{empty}
+	</p>
+) : (
+	<ul class="news-list" data-testid="news-list">
+		{rows.map(({ item, body, date, tags }) => (
+			<li data-body={body.slug}>
+				<article class="news-list__item">
+					<Title class="news-list__title">
+						<a href={paths.newsItem(body.slug, item.slug)}>{item.title}</a>
+					</Title>
+					<p class="news-list__meta">
+						<time datetime={date.toString()}>{formatDate(date)}</time>
+						{showBody && (
+							<>
+								{" · "}
+								<a class="body-label" href={paths.body(body.slug)}>
+									{body.label}
+								</a>
+							</>
+						)}
+					</p>
+					<p class="news-list__excerpt">{excerpt(item.content)}</p>
+					{tags.length > 0 && (
+						<ul class="chips" aria-label="Tags">
+							{tags.map((tag) => (
+								<li>
+									<a
+										class="chip"
+										href={`${paths.bodyNews(body.slug)}?tag=${encodeURIComponent(tag.slug)}`}
+									>
+										{tag.label}
+									</a>
+								</li>
+							))}
+						</ul>
+					)}
+				</article>
+			</li>
+		))}
+	</ul>
+)}
+
+<style>
+	.news-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: var(--spacing-6);
+	}
+
+	.news-list__item {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	.news-list__meta {
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-sm);
+	}
+</style>

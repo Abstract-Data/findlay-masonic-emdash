@@ -1,0 +1,75 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import { datetimeOf, timeLabel, type AgendaDay } from "@core/calendar/month";
+import type { BodyId, EntryId } from "@core/ids";
+import type { EventSeries } from "@core/recurrence/series";
+import { formatLongDay } from "@core/time";
+
+// The month grid as a list, and the body page's upcoming events: the readable view on a phone
+// and for screen readers.
+interface Props {
+	days: readonly AgendaDay[];
+	bodies: ReadonlyMap<BodyId, BodyView>;
+	series: ReadonlyMap<EntryId, EventSeries>;
+	showBody: boolean;
+	empty: string;
+	headingLevel?: 2 | 3 | 4;
+}
+
+const { days, bodies, series, showBody, empty, headingLevel = 3 } = Astro.props;
+const Day = `h${headingLevel}` as const;
+---
+
+{days.length === 0 ? (
+	<p class="agenda__empty" data-testid="agenda-empty">
+		{empty}
+	</p>
+) : (
+	<ol class="agenda" data-testid="agenda">
+		{days.map((day) => (
+			<li class="agenda__day">
+				<Day class="agenda__date">
+					<time datetime={day.date.toString()}>{formatLongDay(day.date)}</time>
+				</Day>
+				<ul class="agenda__entries">
+					{day.occurrences.map((o) => {
+						const body = bodies.get(o.body);
+						const location = series.get(o.event)?.location ?? null;
+						return (
+							<li data-body={body?.slug}>
+								<time datetime={datetimeOf(o)}>{timeLabel(o)}</time>{" "}
+								{showBody && body && <span class="body-label">{body.label}</span>}{" "}
+								<span class="agenda__title">{o.title}</span>
+								{location && <span class="agenda__location">, {location}</span>}
+							</li>
+						);
+					})}
+				</ul>
+			</li>
+		))}
+	</ol>
+)}
+
+<style>
+	.agenda,
+	.agenda__entries {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+
+	.agenda {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+
+	.agenda__date {
+		font-size: var(--font-size-base);
+		margin-bottom: var(--spacing-2);
+	}
+
+	.agenda__entries {
+		display: grid;
+		gap: var(--spacing-2);
+	}
+</style>

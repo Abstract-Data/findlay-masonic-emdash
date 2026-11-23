@@ -1,0 +1,109 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import { timeLabel, type MonthGrid } from "@core/calendar/month";
+import type { BodyId } from "@core/ids";
+import { formatMonth } from "@core/time";
+
+// FR-4.3, 4.4: a server-rendered month. Each entry carries its body as text and as
+// data-body, which the design direction may colour.
+interface Props {
+	grid: MonthGrid;
+	bodies: ReadonlyMap<BodyId, BodyView>;
+	showBody: boolean;
+}
+
+const { grid, bodies, showBody } = Astro.props;
+const WEEKDAYS = [
+	["Sun", "Sunday"],
+	["Mon", "Monday"],
+	["Tue", "Tuesday"],
+	["Wed", "Wednesday"],
+	["Thu", "Thursday"],
+	["Fri", "Friday"],
+	["Sat", "Saturday"],
+] as const;
+---
+
+<table class="month-grid" data-testid="month-grid">
+	<caption>{formatMonth(grid.month)}</caption>
+	<thead>
+		<tr>
+			{WEEKDAYS.map(([short, long]) => (
+				<th scope="col">
+					<abbr title={long}>{short}</abbr>
+				</th>
+			))}
+		</tr>
+	</thead>
+	<tbody>
+		{grid.weeks.map((week) => (
+			<tr>
+				{week.map((day) =>
+					day === null ? (
+						<td class="month-grid__pad" />
+					) : (
+						<td data-date={day.date.toString()} aria-current={day.isToday ? "date" : undefined}>
+							<time class="month-grid__day" datetime={day.date.toString()}>
+								{day.date.day}
+							</time>
+							{day.occurrences.length > 0 && (
+								<ul class="month-grid__entries">
+									{day.occurrences.map((o) => {
+										const body = bodies.get(o.body);
+										return (
+											<li data-body={body?.slug}>
+												{showBody && body && <span class="body-label">{body.label}</span>}{" "}
+												<span class="month-grid__time">{timeLabel(o)}</span> {o.title}
+											</li>
+										);
+									})}
+								</ul>
+							)}
+						</td>
+					),
+				)}
+			</tr>
+		))}
+	</tbody>
+</table>
+
+<style>
+	.month-grid {
+		width: 100%;
+		border-collapse: collapse;
+		table-layout: fixed;
+	}
+
+	.month-grid caption {
+		text-align: start;
+		font-weight: var(--font-weight-heading);
+		margin-bottom: var(--spacing-3);
+	}
+
+	.month-grid th,
+	.month-grid td {
+		border: 1px solid var(--color-border);
+		padding: var(--spacing-2);
+		vertical-align: top;
+		text-align: start;
+	}
+
+	.month-grid abbr {
+		text-decoration: none;
+	}
+
+	.month-grid__day {
+		display: block;
+		font-weight: 600;
+	}
+
+	.month-grid__entries {
+		list-style: none;
+		padding: 0;
+		margin: var(--spacing-1) 0 0;
+		display: grid;
+		gap: var(--spacing-1);
+		font-size: var(--font-size-sm);
+		overflow-wrap: anywhere;
+	}
+</style>

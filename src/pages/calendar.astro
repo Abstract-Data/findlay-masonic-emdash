@@ -1,0 +1,101 @@
+---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { loadBodies, loadCalendar } from "@adapters/site/content";
+import { paths } from "@adapters/site/paths";
+import { chosenBodies } from "@adapters/site/views";
+import { agenda, monthGrid, parseMonth } from "@core/calendar/month";
+import { expand, monthWindow } from "@core/recurrence/expand";
+import { formatMonth, SITE_TZ } from "@core/time";
+import type { Temporal } from "temporal-polyfill";
+import Agenda from "../components/Agenda.astro";
+import CalendarFilter from "../components/CalendarFilter.astro";
+import FeedLinks from "../components/FeedLinks.astro";
+import MonthGrid from "../components/MonthGrid.astro";
+import MonthNav from "../components/MonthNav.astro";
+import Base from "../layouts/Base.astro";
+
+// FR-4.4: every body's occurrences for a month, labelled by body, narrowed by `?body=` slugs.
+const today = systemClock.now().toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const month = parseMonth(Astro.url.searchParams.get("month"), today);
+const bodies = await loadBodies();
+const chosen = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
+const calendar = await loadCalendar(chosen.length === 0 ? bodies.value : chosen);
+cacheRoute(Astro.cache, [bodies.hint, calendar.hint], CLOCK_BOUND);
+
+const { series, byId } = calendar.value;
+const occurrences = expand(series, monthWindow(month));
+const grid = monthGrid(month, occurrences, today);
+const days = agenda(
+	occurrences,
+	month.toPlainDate({ day: 1 }),
+	month.add({ months: 1 }).toPlainDate({ day: 1 }),
+);
+const byBody = new Map(bodies.value.map((body) => [body.id, body]));
+const href = (target: Temporal.PlainYearMonth) => {
+	const query = new URLSearchParams({ month: target.toString() });
+	for (const body of chosen) query.append("body", body.slug);
+	return `${paths.calendar}?${query}`;
+};
+const monthName = formatMonth(month);
+---
+
+<Base
+	title={`Temple calendar, ${monthName}`}
+	description="Meetings and events at the Findlay Masonic Temple."
+>
+	<header class="band intro">
+		<div class="frame">
+			<h1 class="intro__title">Temple calendar</h1>
+			<p class="intro__lead">Meetings and events of every body that meets at the Temple.</p>
+		</div>
+	</header>
+	<section class="band section" aria-label="Choose bodies">
+		<div class="frame">
+			<CalendarFilter
+				bodies={bodies.value}
+				selected={new Set(chosen.map((body) => body.id))}
+				month={month.toString()}
+				action={paths.calendar}
+			/>
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="month-title">
+		<div class="frame calendar-month">
+			<h2 id="month-title" class="section-head__title">
+				{monthName}
+			</h2>
+			<MonthNav month={month} href={href} />
+			<MonthGrid grid={grid} bodies={byBody} showBody={true} />
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="agenda-title">
+		<div class="frame">
+			<h2 id="agenda-title" class="section-head__title">
+				Events in {monthName}
+			</h2>
+			<Agenda
+				days={days}
+				bodies={byBody}
+				series={byId}
+				showBody={true}
+				empty={`Nothing is on the calendar in ${monthName}.`}
+			/>
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="feed-title">
+		<div class="frame">
+			<h2 id="feed-title" class="section-head__title">
+				Subscribe to every body's events
+			</h2>
+			<FeedLinks path={paths.feed} />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.calendar-month {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+</style>

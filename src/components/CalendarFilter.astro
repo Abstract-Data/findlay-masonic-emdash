@@ -1,0 +1,57 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import type { BodyId } from "@core/ids";
+
+// FR-4.4: a plain GET form, so the filter is a link that needs no script. With nothing chosen,
+// every body is shown and every box ticked.
+interface Props {
+	bodies: readonly BodyView[];
+	selected: ReadonlySet<BodyId>;
+	month: string;
+	action: string;
+}
+
+const { bodies, selected, month, action } = Astro.props;
+---
+
+<form method="get" action={action} class="calendar-filter" data-testid="calendar-filter">
+	<fieldset>
+		<legend>Show these bodies</legend>
+		{bodies.map((body) => (
+			<label class="calendar-filter__body">
+				<input
+					type="checkbox"
+					name="body"
+					value={body.slug}
+					checked={selected.size === 0 || selected.has(body.id)}
+				/>{" "}
+				{body.displayName}
+			</label>
+		))}
+	</fieldset>
+	<input type="hidden" name="month" value={month} />
+	<p class="calendar-filter__actions">
+		<button type="submit" class="btn">
+			Show calendar
+		</button>
+		{selected.size > 0 && <a href={`${action}?month=${month}`}>Show all bodies</a>}
+	</p>
+</form>
+
+<style>
+	.calendar-filter fieldset {
+		border: 0;
+		padding: 0;
+		margin: 0;
+		display: grid;
+		gap: var(--spacing-2);
+	}
+
+	.calendar-filter__actions {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-4);
+		align-items: center;
+		margin-top: var(--spacing-4);
+	}
+</style>

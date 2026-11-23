@@ -5,20 +5,19 @@ export interface MediaReference {
 	url?: string;
 }
 
-export interface BlogSiteIdentitySettings {
+export interface SiteIdentitySettings {
 	title?: string;
 	tagline?: string;
 	logo?: MediaReference;
 	favicon?: MediaReference;
 }
 
-const DEFAULT_SITE_TITLE = "My Blog";
-const DEFAULT_SITE_TAGLINE = "Thoughts, stories, and ideas.";
+const DEFAULT_SITE_TITLE = "Findlay Masonic Temple";
 
-export function resolveBlogSiteIdentity(settings?: BlogSiteIdentitySettings) {
+export function resolveSiteIdentity(settings?: SiteIdentitySettings) {
 	return {
 		siteTitle: settings?.title ?? DEFAULT_SITE_TITLE,
-		siteTagline: settings?.tagline ?? DEFAULT_SITE_TAGLINE,
+		siteTagline: settings?.tagline ?? "",
 		siteLogo: settings?.logo?.url ? settings.logo : null,
 	};
 }

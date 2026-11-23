@@ -1,0 +1,86 @@
+---
+import { cacheRoute } from "@adapters/site/cache";
+import { loadBodies, loadNewsPage } from "@adapters/site/content";
+import { paths } from "@adapters/site/paths";
+import { chosenBodies } from "@adapters/site/views";
+import { parsePage } from "@core/news/paging";
+import NewsList from "../../components/NewsList.astro";
+import Pager from "../../components/Pager.astro";
+import Base from "../../layouts/Base.astro";
+
+// FR-3.4: news from every body, newest first, each labelled with its body; `?body=` narrows it
+// to one body.
+const bodies = await loadBodies();
+const [chosen] = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
+const news = await loadNewsPage(
+	chosen === undefined ? bodies.value : [chosen],
+	parsePage(Astro.url.searchParams.get("page")),
+);
+cacheRoute(Astro.cache, [bodies.hint, news.hint]);
+const page = news.value;
+if (page.page > 1 && page.items.length === 0) return Astro.rewrite("/404");
+
+const byBody = new Map(bodies.value.map((body) => [body.id, body]));
+const href = (n: number) => {
+	const query = new URLSearchParams();
+	if (chosen !== undefined) query.set("body", chosen.slug);
+	if (n > 1) query.set("page", String(n));
+	const search = query.toString();
+	return search === "" ? paths.news : `${paths.news}?${search}`;
+};
+const title = chosen === undefined ? "News" : `News from ${chosen.displayName}`;
+---
+
+<Base title={title} description="News from the Masonic bodies of the Findlay Masonic Temple.">
+	<header class="band intro">
+		<div class="frame">
+			<h1 class="intro__title">News</h1>
+			<p class="intro__lead">Updates from every body that meets at the Temple.</p>
+		</div>
+	</header>
+	<section class="band section" aria-labelledby="news-title">
+		<div class="frame">
+			<h2 id="news-title" class="sr-only">
+				{title}
+			</h2>
+			<nav aria-label="Filter by body" class="news-bodies" data-testid="body-filter">
+				<ul class="chips">
+					<li>
+						<a
+							class="chip"
+							href={paths.news}
+							aria-current={chosen === undefined ? "page" : undefined}
+						>
+							All bodies
+						</a>
+					</li>
+					{bodies.value.map((body) => (
+						<li>
+							<a
+								class="chip"
+								href={`${paths.news}?body=${encodeURIComponent(body.slug)}`}
+								aria-current={chosen?.id === body.id ? "page" : undefined}
+							>
+								{body.label}
+							</a>
+						</li>
+					))}
+				</ul>
+			</nav>
+			<NewsList
+				items={page.items}
+				bodies={byBody}
+				showBody={true}
+				headingLevel={3}
+				empty={chosen === undefined ? "No news yet." : `No news from ${chosen.displayName} yet.`}
+			/>
+			<Pager page={page} href={href} />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.news-bodies {
+		margin-bottom: var(--spacing-6);
+	}
+</style>

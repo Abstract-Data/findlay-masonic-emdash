@@ -4,6 +4,7 @@ import {
 	parseBodyRecord,
 	parseEntryId,
 } from "@adapters/emdash/parse";
+import { paths } from "@adapters/site/paths";
 import type { BodySummary, NewsCandidate } from "@core/newsletter/assemble";
 import type { PortableTextBlock } from "@core/newsletter/excerpt";
 import type { BodyId } from "@core/ids";
@@ -63,10 +64,7 @@ function image(raw: unknown, origin: string): NewsCandidate["image"] {
 	return absolute === null ? null : { src: absolute, alt: typeof alt === "string" ? alt : "" };
 }
 
-/**
- * A published `news` item as an assembly candidate. Articles link to their body's news page
- * (R8: news has no detail route yet); M4 can point `href` at a detail page here.
- */
+/** A published `news` item as an assembly candidate, linking to its page on the site (R8). */
 export function parseNewsCandidate(
 	item: ListedItem,
 	bodySlugs: ReadonlyMap<BodyId, string>,
@@ -80,8 +78,9 @@ export function parseNewsCandidate(
 	if (id === null || body === null || title === "" || publishedAt === null || !bodySlug) {
 		return null;
 	}
-	const anchor = encodeURIComponent(item.slug ?? item.id);
-	const href = parseAbsoluteUrl(new URL(`/bodies/${bodySlug}/news#${anchor}`, origin).href);
+	const href = parseAbsoluteUrl(
+		new URL(paths.newsItem(bodySlug, item.slug ?? item.id), origin).href,
+	);
 	if (href === null) return null;
 	return {
 		id,

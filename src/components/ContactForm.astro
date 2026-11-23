@@ -1,0 +1,108 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import Turnstile from "./Turnstile.astro";
+
+// Spec Q12: a plain form post to the newsletter plugin's contact route, which emails the body's
+// private recipients and redirects back here with ?contact=<outcome>. No address is shown.
+interface Props {
+	/** The bodies a visitor can write to: those with recipients set. */
+	bodies: readonly BodyView[];
+	/** On a body's own page, the body the message is for. */
+	body?: BodyView;
+}
+
+const { bodies, body } = Astro.props;
+const MESSAGES: Readonly<Record<string, string>> = {
+	sent: "Thank you. Your message has been sent.",
+	invalid: "Please fill in your name, a valid email address and a message.",
+	"verification-failed": "We could not confirm you are a person. Please try again.",
+	"rate-limited": "You have sent several messages in a short time. Please try again in an hour.",
+	unavailable: "Messages are not working right now. Please try again later.",
+};
+const outcome = Astro.url.searchParams.get("contact");
+const message = outcome === null ? undefined : MESSAGES[outcome];
+const reachable = body === undefined ? bodies.length > 0 : body.acceptsMessages;
+const title = body === undefined ? "Write to a body" : `Write to ${body.displayName}`;
+---
+
+<section id="contact" class="band section contact" aria-labelledby="contact-title">
+	<div class="frame contact__inner">
+		<h2 id="contact-title">{title}</h2>
+		{message && (
+			<p role="status" data-testid="contact-message">
+				{message}
+			</p>
+		)}
+		{reachable ? (
+			<form
+				method="post"
+				action="/_emdash/api/plugins/newsletter/contact"
+				data-testid="contact-form"
+			>
+				<input type="hidden" name="from" value={Astro.url.pathname} />
+				{body ? (
+					<input type="hidden" name="body" value={body.id} />
+				) : (
+					<p>
+						<label for="contact-body">Body</label>
+						<select id="contact-body" name="body" required>
+							<option value="">Choose a body</option>
+							{bodies.map((option) => (
+								<option value={option.id}>{option.displayName}</option>
+							))}
+						</select>
+					</p>
+				)}
+				<p>
+					<label for="contact-name">Your name</label>
+					<input id="contact-name" name="name" required maxlength="100" autocomplete="name" />
+				</p>
+				<p>
+					<label for="contact-email">Your email address</label>
+					<input
+						id="contact-email"
+						name="email"
+						type="email"
+						required
+						maxlength="254"
+						autocomplete="email"
+					/>
+				</p>
+				<p>
+					<label for="contact-message">Message</label>
+					<textarea
+						id="contact-message"
+						name="message"
+						rows="6"
+						required
+						maxlength="5000"
+					></textarea>
+				</p>
+				<Turnstile />
+				<p>
+					<button type="submit" class="btn">
+						Send message
+					</button>
+				</p>
+			</form>
+		) : (
+			<p data-testid="contact-unavailable">
+				{body === undefined
+					? "No body has set up its contact form yet."
+					: `${body.displayName} has not set up its contact form yet.`}
+			</p>
+		)}
+	</div>
+</section>
+
+<style>
+	.contact__inner {
+		display: grid;
+		gap: var(--spacing-4);
+		max-width: var(--content-width);
+	}
+
+	.contact__inner label {
+		display: block;
+	}
+</style>

@@ -1,0 +1,32 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import type { Meetings } from "@core/recurrence/meetings";
+import BodyCard from "./BodyCard.astro";
+
+interface Props {
+	cards: readonly { readonly body: BodyView; readonly meetings: Meetings }[];
+	headingLevel?: 2 | 3;
+}
+
+const { cards, headingLevel } = Astro.props;
+---
+
+{cards.length === 0 ? (
+	<p data-testid="bodies-empty">No bodies are published yet.</p>
+) : (
+	<ul class="post-grid body-cards" data-testid="body-cards">
+		{cards.map((card) => (
+			<li>
+				<BodyCard body={card.body} meetings={card.meetings} headingLevel={headingLevel} />
+			</li>
+		))}
+	</ul>
+)}
+
+<style>
+	.body-cards {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+	}
+</style>

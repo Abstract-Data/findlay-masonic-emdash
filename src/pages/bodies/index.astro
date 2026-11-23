@@ -1,0 +1,31 @@
+---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { loadBodies, loadCalendar } from "@adapters/site/content";
+import { meetingsByBody } from "@core/recurrence/meetings";
+import BodyCards from "../../components/BodyCards.astro";
+import Base from "../../layouts/Base.astro";
+
+// FR-1.2: every published body with its emblem and next meeting.
+const now = systemClock.now();
+const bodies = await loadBodies();
+const calendar = await loadCalendar(bodies.value);
+cacheRoute(Astro.cache, [bodies.hint, calendar.hint], CLOCK_BOUND);
+const cards = meetingsByBody(bodies.value, calendar.value.series, now, 1);
+---
+
+<Base title="Bodies" description="The Masonic bodies that meet at the Findlay Masonic Temple.">
+	<header class="band intro">
+		<div class="frame">
+			<h1 class="intro__title">Bodies</h1>
+			<p class="intro__lead">
+				The Masonic bodies that meet at the Temple, and when each meets next.
+			</p>
+		</div>
+	</header>
+	<section class="band section" aria-label="All bodies">
+		<div class="frame">
+			<BodyCards cards={cards} />
+		</div>
+	</section>
+</Base>

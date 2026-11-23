@@ -1,9 +1,16 @@
 ---
+import { cacheRoute } from "@adapters/site/cache";
+import { loadBodies } from "@adapters/site/content";
 import { getEmDashEntry, getSeoMeta, decodeSlug, getSiteSettingsWithCacheHint } from "emdash";
 import { PortableText } from "emdash/ui";
+import ContactForm from "../../components/ContactForm.astro";
 import Base from "../../layouts/Base.astro";
-import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import { resolveSiteIdentity } from "../../utils/site-identity";
 import "../../styles/prose.css";
+
+// FR-9.1: About, Scholarships, Contact and the rest of the pages collection. The Contact page
+// also carries the form that writes to any body (spec Q12).
+const CONTACT_PAGE = "contact";
 
 const slug = decodeSlug(Astro.params.slug);
 
@@ -17,12 +24,12 @@ if (!page) {
 	return Astro.rewrite("/404");
 }
 
-const settings = await getSiteSettingsWithCacheHint();
-if (Astro.cache?.enabled) {
-	Astro.cache.set(cacheHint);
-	Astro.cache.set(settings.cacheHint);
-}
-const { siteTitle } = resolveBlogSiteIdentity(settings.data);
+const [settings, bodies] = await Promise.all([
+	getSiteSettingsWithCacheHint(),
+	slug === CONTACT_PAGE ? loadBodies() : null,
+]);
+cacheRoute(Astro.cache, [cacheHint, settings.cacheHint, ...(bodies ? [bodies.hint] : [])]);
+const { siteTitle } = resolveSiteIdentity(settings.data);
 const seo = getSeoMeta(page, {
 	siteTitle,
 	siteUrl: Astro.url.origin,
@@ -51,6 +58,7 @@ const seo = getSeoMeta(page, {
 			</div>
 		</div>
 	</article>
+	{bodies && <ContactForm bodies={bodies.value.filter((body) => body.acceptsMessages)} />}
 </Base>
 
 <style>

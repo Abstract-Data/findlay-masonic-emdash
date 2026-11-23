@@ -1,0 +1,51 @@
+---
+import { paths } from "@adapters/site/paths";
+import type { BodyView } from "@adapters/site/views";
+import { datetimeOf } from "@core/calendar/month";
+import { formatOccurrence } from "@core/recurrence/describe";
+import type { Meetings } from "@core/recurrence/meetings";
+import { Image } from "emdash/ui";
+
+// FR-1.2: a body with its emblem and next meeting, linking to its page.
+interface Props {
+	body: BodyView;
+	meetings: Meetings;
+	headingLevel?: 2 | 3;
+}
+
+const { body, meetings, headingLevel = 2 } = Astro.props;
+const Title = `h${headingLevel}` as const;
+const next = meetings.next[0];
+const { schedule } = meetings;
+---
+
+<article class="body-card" data-body={body.slug} data-testid="body-card">
+	{body.emblem && <Image image={body.emblem} alt="" class="body-card__emblem" />}
+	<Title class="body-card__name">
+		<a href={paths.body(body.slug)}>{body.displayName}</a>
+	</Title>
+	<p class="body-card__next">
+		{next ? (
+			<>
+				Next meeting: <time datetime={datetimeOf(next)}>{formatOccurrence(next)}</time>
+			</>
+		) : schedule.kind === "note" ? (
+			schedule.note
+		) : (
+			"Contact the secretary for meeting times."
+		)}
+	</p>
+</article>
+
+<style>
+	.body-card {
+		display: grid;
+		gap: var(--spacing-2);
+		align-content: start;
+	}
+
+	:global(.body-card__emblem) {
+		width: 4rem;
+		height: auto;
+	}
+</style>

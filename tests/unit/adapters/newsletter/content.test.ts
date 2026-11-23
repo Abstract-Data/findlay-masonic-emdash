@@ -22,7 +22,7 @@ function newsItem(data: Record<string, unknown>, extra: Partial<ListedItem> = {}
 }
 
 describe("news items as newsletter candidates (FR-6.1)", () => {
-	it("links each article to its body's news page and makes its image absolute", () => {
+	it("links each article to its own page under its body (R8) and makes its image absolute", () => {
 		const candidate = parseNewsCandidate(
 			newsItem({ featured_image: { src: "/_emdash/api/media/file/a.jpg", alt: "Officers" } }),
 			slugs,
@@ -32,7 +32,7 @@ describe("news items as newsletter candidates (FR-6.1)", () => {
 			id: entryId(1),
 			body: LODGE,
 			title: "Degree night",
-			href: "https://findlaymason.org/bodies/blue-lodge/news#degree-night",
+			href: "https://findlaymason.org/bodies/blue-lodge/news/degree-night",
 			image: { src: "https://findlaymason.org/_emdash/api/media/file/a.jpg", alt: "Officers" },
 			includeInNewsletter: true,
 		});

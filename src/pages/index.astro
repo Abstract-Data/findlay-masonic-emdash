@@ -1,18 +1,53 @@
 ---
-import { getEmDashCollection, getSiteSettingsWithCacheHint } from "emdash";
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { loadBodies, loadCalendar, loadNewsPage } from "@adapters/site/content";
+import { paths } from "@adapters/site/paths";
+import { agenda } from "@core/calendar/month";
+import { daysAhead, expand } from "@core/recurrence/expand";
+import { meetingsByBody } from "@core/recurrence/meetings";
+import { SITE_TZ } from "@core/time";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { PortableText } from "emdash/ui";
+import Agenda from "../components/Agenda.astro";
+import BodyCards from "../components/BodyCards.astro";
+import NewsList from "../components/NewsList.astro";
 import Base from "../layouts/Base.astro";
-import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteIdentity } from "../utils/site-identity";
+import "../styles/prose.css";
 
-const [{ entries: bodies, cacheHint }, settings] = await Promise.all([
-	getEmDashCollection("bodies", { orderBy: { display_order: "asc" } }),
+// What is on at the Temple soon, the latest news and every body. The intro copy is the `home`
+// entry in the pages collection (FR-9.1), when an editor has written one.
+const COMING_UP_DAYS = 14;
+const LATEST_NEWS = 5;
+
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const [bodies, settings, home] = await Promise.all([
+	loadBodies(),
 	getSiteSettingsWithCacheHint(),
+	getEmDashEntry("pages", "home"),
 ]);
-const { siteTitle, siteTagline } = resolveBlogSiteIdentity(settings.data);
+if (home.error !== undefined) throw home.error;
+const [calendar, news] = await Promise.all([
+	loadCalendar(bodies.value),
+	loadNewsPage(bodies.value, 1, LATEST_NEWS),
+]);
+cacheRoute(
+	Astro.cache,
+	[bodies.hint, settings.cacheHint, home.cacheHint, calendar.hint, news.hint],
+	CLOCK_BOUND,
+);
 
-if (Astro.cache?.enabled) {
-	Astro.cache.set(cacheHint);
-	Astro.cache.set(settings.cacheHint);
-}
+const { siteTitle, siteTagline } = resolveSiteIdentity(settings.data);
+const byBody = new Map(bodies.value.map((body) => [body.id, body]));
+const { series, byId } = calendar.value;
+const comingUp = agenda(
+	expand(series, daysAhead(now, COMING_UP_DAYS)),
+	today,
+	today.add({ days: COMING_UP_DAYS + 1 }),
+);
+const cards = meetingsByBody(bodies.value, series, now, 1);
 ---
 
 <Base title={siteTitle} description={siteTagline}>
@@ -20,31 +55,59 @@ if (Astro.cache?.enabled) {
 		<div class="frame">
 			<h1 class="intro__title">{siteTitle}</h1>
 			{siteTagline && <p class="intro__subtitle">{siteTagline}</p>}
+			{home.entry?.data.content && (
+				<div class="prose intro__lead" {...home.entry.edit.content}>
+					<PortableText value={home.entry.data.content} />
+				</div>
+			)}
 		</div>
 	</header>
 
-	<section class="band section" aria-labelledby="bodies-heading">
+	<section class="band section" aria-labelledby="coming-up-title">
 		<div class="frame">
-			<h2 id="bodies-heading" class="eyebrow">
-				Our bodies
-			</h2>
-			<ul class="bodies">
-				{bodies.map((body) => (
-					<li>
-						{body.data.name}
-						{body.data.number != null && ` No. ${body.data.number}`}
-					</li>
-				))}
-			</ul>
+			<div class="section-head">
+				<h2 id="coming-up-title" class="section-head__title">
+					Coming up
+				</h2>
+				<a class="arrow-link" href={paths.calendar}>
+					Temple calendar
+				</a>
+			</div>
+			<Agenda
+				days={comingUp}
+				bodies={byBody}
+				series={byId}
+				showBody={true}
+				empty={`Nothing is on the calendar for the next ${COMING_UP_DAYS} days.`}
+			/>
+		</div>
+	</section>
+
+	<section class="band section" aria-labelledby="news-title">
+		<div class="frame">
+			<div class="section-head">
+				<h2 id="news-title" class="section-head__title">
+					Latest news
+				</h2>
+				<a class="arrow-link" href={paths.news}>
+					All news
+				</a>
+			</div>
+			<NewsList items={news.value.items} bodies={byBody} showBody={true} empty="No news yet." />
+		</div>
+	</section>
+
+	<section class="band section" aria-labelledby="bodies-title">
+		<div class="frame">
+			<div class="section-head">
+				<h2 id="bodies-title" class="section-head__title">
+					Our bodies
+				</h2>
+				<a class="arrow-link" href={paths.bodies}>
+					All bodies
+				</a>
+			</div>
+			<BodyCards cards={cards} headingLevel={3} />
 		</div>
 	</section>
 </Base>
-
-<style>
-	.bodies {
-		margin-top: var(--spacing-6);
-		display: grid;
-		gap: var(--spacing-3);
-		font-size: var(--font-size-lg);
-	}
-</style>

@@ -1,0 +1,45 @@
+---
+import type { NewsPage } from "@core/news/paging";
+
+interface Props {
+	page: NewsPage<unknown>;
+	/** The link to another page of the same list, filters kept. */
+	href: (page: number) => string;
+}
+
+const { page, href } = Astro.props;
+---
+
+{(page.hasNewer || page.hasOlder) && (
+	<nav class="pager" aria-label="News pages" data-testid="pager">
+		<ul>
+			{page.hasNewer && (
+				<li>
+					<a href={href(page.page - 1)} rel="prev">
+						Newer news
+					</a>
+				</li>
+			)}
+			<li aria-current="page">Page {page.page}</li>
+			{page.hasOlder && (
+				<li>
+					<a href={href(page.page + 1)} rel="next">
+						Older news
+					</a>
+				</li>
+			)}
+		</ul>
+	</nav>
+)}
+
+<style>
+	.pager ul {
+		list-style: none;
+		padding: 0;
+		margin: var(--spacing-8) 0 0;
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-4);
+		align-items: baseline;
+	}
+</style>

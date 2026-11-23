@@ -1,0 +1,15 @@
+---
+import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
+import { TURNSTILE_SITE_KEY } from "astro:env/client";
+
+// Spec Q7: the widget writes its token into the enclosing form. Its script is the only one a
+// public form loads.
+// Development only: stand in for the widget with Cloudflare's published test token.
+const devToken = import.meta.env.DEV && !TURNSTILE_SITE_KEY;
+---
+
+{TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} />}
+{devToken && <input type="hidden" name={TURNSTILE_FIELD} value={DUMMY_TURNSTILE_TOKEN} />}
+{TURNSTILE_SITE_KEY && (
+	<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+)}

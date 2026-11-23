@@ -1,0 +1,26 @@
+---
+// FR-4.5: how a member subscribes to a feed. webcal:// opens the calendar app on Apple devices
+// and in Outlook; Google Calendar takes the https address pasted in "From URL".
+interface Props {
+	path: string;
+}
+
+const { path } = Astro.props;
+const https = new URL(path, Astro.url).href;
+const webcal = https.replace(/^https?:/, "webcal:");
+---
+
+<div class="feed-links" data-testid="feed-links">
+	<p>
+		<a href={webcal}>Subscribe in your calendar app</a>
+	</p>
+	<p>
+		Or add this address to Google Calendar or Outlook: <code>{https}</code>
+	</p>
+</div>
+
+<style>
+	.feed-links code {
+		overflow-wrap: anywhere;
+	}
+</style>
