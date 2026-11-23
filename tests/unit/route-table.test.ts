@@ -1,6 +1,14 @@
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
-import { ROUTE_TABLE, SAVE_ROUTES, ruleFor, savesEntry } from "@adapters/emdash/route-table";
+import {
+	PLUGIN_ROUTES,
+	ROUTE_TABLE,
+	SAVE_ROUTES,
+	ruleFor,
+	savesEntry,
+} from "@adapters/emdash/route-table";
+import { createPlugin as bodyAccess } from "@plugins/body-access";
+import { createPlugin as newsletter } from "@plugins/newsletter";
 import { describe, expect, it } from "vitest";
 
 const EMDASH_SRC = join(process.cwd(), "node_modules/emdash/src");
@@ -203,5 +211,48 @@ describe("EmDash route table (ADR-002)", () => {
 			kind: "admin-only",
 			action: "unlisted",
 		});
+	});
+});
+
+/** Every native plugin this site registers, by the id its descriptor in astro.config.mjs gives. */
+const NATIVE_PLUGINS = { "body-access": bodyAccess, newsletter } as const;
+
+describe("native plugin routes (ADR-002, ADR-003)", () => {
+	it("knows every native plugin astro.config.mjs registers", () => {
+		const config = readFileSync("astro.config.mjs", "utf8");
+		const ids = [
+			...config.matchAll(/id:\s*"([^"]+)",\s*version:\s*"[^"]+",\s*format:\s*"native"/g),
+		].map(([, id = ""]) => id);
+		expect(ids.toSorted()).toEqual(Object.keys(NATIVE_PLUGINS).toSorted());
+	});
+
+	it("passes plugin routes to EmDash, which checks each route's own permission", () => {
+		for (const method of ["POST", "PUT", "PATCH", "DELETE"]) {
+			expect(ruleFor("/_emdash/api/plugins/[pluginId]/[...path]", method)).toEqual({
+				kind: "pass",
+				why: "plugin",
+			});
+		}
+	});
+
+	it("classifies every route each native plugin declares, and only those", () => {
+		const declared = Object.entries(NATIVE_PLUGINS).flatMap(([id, create]) =>
+			Object.keys(create().routes).map((route) => `${id}/${route}`),
+		);
+		expect(declared.toSorted()).toEqual([...PLUGIN_ROUTES.keys()].toSorted());
+	});
+
+	it("gives each plugin route the guard the table records", () => {
+		const mismatched = Object.entries(NATIVE_PLUGINS).flatMap(([id, create]) =>
+			Object.entries(create().routes).flatMap(([route, declared]) => {
+				const guard = PLUGIN_ROUTES.get(`${id}/${route}`);
+				const matches =
+					guard?.kind === "public"
+						? declared.public === true
+						: declared.public !== true && declared.permission === guard?.permission;
+				return matches ? [] : [`${id}/${route}`];
+			}),
+		);
+		expect(mismatched).toEqual([]);
 	});
 });

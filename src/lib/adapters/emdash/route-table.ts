@@ -237,6 +237,44 @@ const TABLE: Readonly<Record<string, Rules>> = {
 export const ROUTE_TABLE: ReadonlyMap<string, Rules> = new Map(Object.entries(TABLE));
 
 /**
+ * What guards a native plugin route the table passes as `plugin`: EmDash checks a route's
+ * permission before its handler runs (Admin alone holds `users:manage` and `settings:manage`),
+ * and a public route makes its own checks. tests/unit/route-table.test.ts fails when a plugin
+ * declares a route this map does not classify, or classifies it differently.
+ */
+export type PluginRouteGuard =
+	| {
+			readonly kind: "permission";
+			readonly permission: "users:manage" | "settings:manage" | "content:create";
+	  }
+	| { readonly kind: "public"; readonly checks: string };
+
+const ADMIN_SETTINGS: PluginRouteGuard = { kind: "permission", permission: "settings:manage" };
+
+/** Keyed `<pluginId>/<route>`, as EmDash mounts them under `/_emdash/api/plugins/`. */
+export const PLUGIN_ROUTES: ReadonlyMap<string, PluginRouteGuard> = new Map<
+	string,
+	PluginRouteGuard
+>([
+	["body-access/grants/list", { kind: "permission", permission: "users:manage" }],
+	["body-access/grants/set", { kind: "permission", permission: "users:manage" }],
+	["body-access/my-bodies", { kind: "permission", permission: "content:create" }],
+	["newsletter/issues/list", ADMIN_SETTINGS],
+	["newsletter/issues/get", ADMIN_SETTINGS],
+	["newsletter/issues/new", ADMIN_SETTINGS],
+	["newsletter/issues/save", ADMIN_SETTINGS],
+	["newsletter/issues/test-send", ADMIN_SETTINGS],
+	["newsletter/issues/approve", ADMIN_SETTINGS],
+	["newsletter/issues/discard", ADMIN_SETTINGS],
+	// Registered only by the dev server (src/plugins/newsletter/routes.ts).
+	["newsletter/dev/outbox", ADMIN_SETTINGS],
+	[
+		"newsletter/subscribe",
+		{ kind: "public", checks: "site Origin or X-EmDash-Request, zod, Turnstile (FR-7.1, 7.2)" },
+	],
+]);
+
+/**
  * The routes whose JSON body sets an entry's slug, and on an update its status: the middleware
  * reads those two fields. tests/unit/route-table.test.ts derives this list from EmDash.
  */
