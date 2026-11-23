@@ -370,11 +370,14 @@ Design: [ADR-003](../../adr/ADR-003-newsletter-plugin.md). M5 runs ahead of M4, 
 - [ ] **T5.13 [PATH_ASK] `astro.config.mjs`.** The `newsletter` native plugin descriptor; `RESEND_FROM` and `RESEND_FAKE` in the env schema.
   Verify: `astro check`, `astro build`; CI green; the human approves the PR.
   Agent part done, awaiting approval.
+- [x] **T5.20 [AGENT] Classify every plugin route (after the M3 red-team fixes).** The route table passes `/_emdash/api/plugins/[pluginId]/[...path]` to EmDash; `PLUGIN_ROUTES` in `route-table.ts` records each body-access and newsletter route's guard: the permission EmDash checks (`users:manage` and `settings:manage` are Admin only, `my-bodies` needs `content:create`), or a public route's own checks (`newsletter/subscribe`).
+  Verify: `tests/unit/route-table.test.ts` "native plugin routes".
+  Evidence: green. Dropping `newsletter/dev/outbox` from the map and giving `issues/approve` `content:create` fails both checks, naming the routes; reverted.
 
 ### Tests and docs
 - [x] **T5.14 [AGENT] Playwright newsletter suites.** Admin: start an issue, see a section per body, edit, approval refused, test send, approval, a second approval refused, the archive. Editor: page and every route refused. Visitor: signup, no token refused, cross-origin refused. Empty archive first, in its own project.
   Verify: `CI=true pnpm e2e --trace off`.
-  Evidence: 47 passed (40 from M3 and 7 new).
+  Evidence: 55 passed after rebasing onto the M3 red-team fixes (48 from M3 and 7 new).
 - [x] **T5.15 [AGENT] ADR-003, runbook `docs/runbooks/newsletter-send.md`, STATUS.**
   Verify: the documents.
   Evidence: written.
