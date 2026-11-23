@@ -273,6 +273,46 @@ Design: [ADR-002](../../adr/ADR-002-body-access-middleware.md). One policy, core
   Verify: `docs/adr/ADR-002-body-access-middleware.md`.
   Evidence: written, status Proposed until the PR lands.
 
+### M3 red-team fixes
+Two red teams reviewed feb8594. The code review found eight issues (five confirmed live, three suspected). The live HTTP attack found no bypass in 61 attempts and added three follow-ups (a to c). Each fix below has a test that failed before the fix and passes after it. Evidence was run in a clean copy outside the worktree (`pnpm install --frozen-lockfile`, its own portless name) on 2026-11-23. Design: [ADR-002](../../adr/ADR-002-body-access-middleware.md) § The route table and § Accepted residual risks.
+
+- [x] **T3.19 [AGENT] Finding 1: guard every entry a route's `[id]` could name.** A recovery revision reached another body's trashed entry, because the guard read the entry outside the trash while EmDash's handler read it trash included. Each `entry` rule now names its handler's lookup (`live`, `trash` or `id`). The middleware reads the entry by id, by slug with no locale and by slug in the request's locale, each draft strictly, and authorizes every entry it finds. Revision restores check every entry the revision's entry id could name.
+  Verify: `route-table.test.ts` reads each entry route's handler and fails when a lookup is missing or differs; `request-guard.test.ts`; `middleware.spec.ts` (both red-team variants).
+  Evidence: before, the lookup test listed all 13 entry rules as "table undefined", and both e2e variants returned 201 (the revision landed on the Chapter's trashed entry). After, 403 naming the Chapter. Mutations: reading outside the trash on a trash route fails 4 guard tests; dropping the locale-less slug read fails 1.
+- [x] **T3.20 [AGENT] Defense in depth: no id-shaped slugs below Admin.** The middleware reads `slug` from the body of every save route (`SAVE_ROUTES`) and refuses one matching EmDash's id test with `422 INVALID_SLUG` and a plain reason.
+  Verify: `route-table.test.ts` derives the save routes from EmDash's request schemas; `request-guard.test.ts`; `middleware.spec.ts`.
+  Evidence: before, an Editor's create with an id-shaped slug returned 201. After, create, PUT and recovery revision each return 422, and a word slug still saves.
+- [x] **T3.21 [AGENT] Finding 2: no lookup keyed by request input reads `Object.prototype`.** `COLLECTION_SCOPES` and `ROUTE_TABLE` are Maps; a method is matched with `Object.hasOwn`. A grep of `src/` for computed index reads found one more lookup keyed by input, the RRULE part table in `core/recurrence/rrule.ts`. Its keys are uppercased and charset-checked first, so no prototype name could match, but it is a Map now too. The rest are keyed by validated values (`isBodyType` already uses `Object.hasOwn`) or internal unions.
+  Verify: `entries.test.ts`, `route-table.test.ts`.
+  Evidence: before, `scopeOf` returned an inherited value for `constructor`, `toString`, `__proto__`, `hasOwnProperty` and `valueOf` (5 failures). After, all five are unlisted; the re-run probe 3 gets 422 for an Editor's entry in a `constructor` collection.
+- [x] **T3.22 [AGENT] Finding 3: unpublish checks the draft's body.** EmDash hands `beforeUnpublish` the live entry only. The middleware now guards unpublish as an `entry` rule, and every policy hook reads the entry and its draft itself.
+  Verify: `middleware.spec.ts`, `hooks.test.ts`, `request-guard.test.ts`.
+  Evidence: before, a Lodge editor unpublished a Lodge entry whose draft moved it to the Chapter (200). After, 403 naming the Chapter, and the entry stays published. `writes.spec.ts` now expects the middleware's 403 for a cross-body unpublish.
+- [x] **T3.23 [AGENT] Finding 4 (coordinator decision): only an Admin trashes, unpublishes or schedules a body's page.** Core gains a `body-page` operation and the `retire-body` Admin action; the adapter maps every state change on a `bodies` entry to it. A save that sets `status` counts as an unpublish, so a data-less PUT cannot take the page offline either.
+  Verify: `policy.table.test.ts` rows 16 and 17; the exhaustive test (30 operations, 2160 cases); `writes.spec.ts`; `hooks.test.ts`.
+  Evidence: before, the Council editor unpublished the Council page (200). After, unpublish, PUT `status`, trash (403) and schedule (422) are refused with "cannot trash, unpublish or schedule a body's page", and the editor still edits the page.
+- [x] **T3.24 [AGENT] Finding 5: a media lookup failure refuses.** Only a missing item passes to EmDash, which answers 404; any other failure of a guard read refuses and is logged.
+  Verify: `request-guard.test.ts`.
+  Evidence: with the old behavior restored (any failure reads as missing), "refuses when the item cannot be read" fails; with the fix it passes.
+- [x] **T3.25 [AGENT] Finding 6: a write with no event actor is held to the request's user.** `beforeSave`, `beforeDelete`, the policy hooks and `beforeUpload` act for the event's actor, else the signed-in user in the actor store. Only a write outside any signed-in request is internal; scheduler and system policy events stay internal.
+  Verify: `hooks.test.ts`.
+  Evidence: against the original hooks, "holds a write with no event actor to the signed-in user" failed; after, it passes, and writes outside a signed-in request still pass.
+- [x] **T3.26 [AGENT] Finding 7: a pending draft that cannot be read refuses.** The middleware and the hooks share `overlayDraft`, which returns null for a missing draft; both refuse instead of checking the live body alone.
+  Verify: `entries.test.ts`, `request-guard.test.ts`, `hooks.test.ts`.
+  Evidence: the hooks test failed against the original hooks; the guard test fails with the old non-strict read restored.
+- [x] **T3.27 [AGENT] Finding 8: translations stay in one body.** A new translation must belong to its source's body (`checkTranslationBody` in core). EmDash's group-wide writes run only with two or more Astro i18n locales; `translations.test.ts` fails if `astro.config.mjs` gains an `i18n` block. ADR-002 residual risk 7 records the rest.
+  Verify: `content-rules.test.ts`, `hooks.test.ts`, `writes.spec.ts`, `translations.test.ts`.
+  Evidence: before, a two-body editor created a Lodge translation of a Chapter entry (201). After, 422 naming the Chapter; a Chapter translation still saves.
+- [x] **T3.28 [AGENT] Follow-up a: self-minted Editor tokens.** ADR-002 risk 4 said only an Admin creates tokens; an Editor can mint one through public client registration and the device flow. Corrected, with an e2e test.
+  Verify: `mcp.spec.ts`.
+  Evidence: the self-minted token writes the Editor's own body (201) and is refused another body's entry and MCP (403). It passed before the fixes too: it proves a property, not a regression.
+- [x] **T3.29 [AGENT] Follow-up b: identical uploads.** Decision: keep EmDash's content-hash deduplication; the `not-uploader` refusal explains that the library kept the first uploader's copy, which the editor can still use. Recorded in ADR-002 § Media default.
+  Verify: `denial-text.test.ts`; `middleware.spec.ts`.
+  Evidence: before, the refusal never mentioned an identical file. After, it does, and the second upload still returns the first record with `deduplicated: true`.
+- [x] **T3.30 [AGENT] Follow-up c: unique fixture bytes.** `uniquePng()` adds a random text chunk to the 1x1 PNG, so no media test collides with EmDash's deduplication on a shared database.
+  Verify: `middleware.spec.ts` on a database reused across runs.
+  Evidence: green on a fresh database and on reruns (STATUS.md log).
+
 ### Human and close-out
 - [ ] **T3.17 [HUMAN] Sign-in on staging (FR-8.2).** Store the Google and Microsoft credentials and `MICROSOFT_TENANT_ID` as Worker secrets and vars; on staging, invite an editor, accept with a passkey and with each provider, and grant a body.
   Deps: T0.16. Verify: the runbook's step 4 passes for each sign-in method.

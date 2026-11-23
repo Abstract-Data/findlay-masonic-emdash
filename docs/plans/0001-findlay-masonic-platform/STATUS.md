@@ -2,7 +2,7 @@
 | Field | Value |
 |---|---|
 | SDD phase | 3 — TASKS |
-| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks done, config awaiting PATH_ASK approval and the M3 critic** |
+| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks and red-team fixes done, config awaiting PATH_ASK approval and the M3 critic** |
 | Last updated | 2026-11-23 |
 | Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M1 PATH_ASK items, T1.2 and T2.17 still open |
 | Tasks | [TASK.md](TASK.md) |
@@ -14,7 +14,7 @@
 | M0 | Foundation and toolchain | In progress: T0.1–T0.9, T0.13–T0.15 done (CI green, run 45241090879); T0.10, T0.11 built, awaiting PATH_ASK approval; T0.12, T0.16 human; T0.17 critic pending | CI green + staging deploy |
 | M1 | Content model and seed | In progress: T1.1, T1.3, T1.7, T1.9–T1.11 done; T1.4–T1.6, T1.8 built, awaiting PATH_ASK approval; T1.2 lodge; T1.12 critic pending | Collections in admin, FR-9.2 test |
 | M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
-| M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 done (40 e2e green locally and in CI on both legs; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
+| M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 and red-team fixes T3.19–T3.30 done (48 e2e green locally; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
 | M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
 | M5 | Newsletter plugin | Not started | Staging send to allowlist + test Segment |
 | M6 | Content migration | Not started | Inventory resolved, redirects green |
@@ -103,7 +103,7 @@ Run 2026-11-23 over every file M3 touched. Astro gate: `src/middleware.ts`, `ast
 | T4 adapters as the boundary | Pass | `entries.ts`, `grants.ts`, `parse.ts` and `request-guard.ts` parse EmDash entries, revisions, media, users and grant rows before `authorize` sees them; the hooks and the middleware hold no policy. |
 | T5 branded ids | Pass | `UserId` and `BodyId` come only from `parseUserId` and `parseBodyId`; grant rows that name no valid body grant nothing. |
 | T6 illegal states unrepresentable | Pass | `Operation`, `DenyReason`, `RouteRule` and `Scope` are discriminated unions; `ROUTE_TABLE` and `COLLECTION_SCOPES` are tables, with fail-closed defaults. |
-| T7 pure, exhaustive acl policy | Pass | 22 operations, 1584 exhaustive cases; acl at 100% branch coverage; hooks and middleware only call `authorize`. |
+| T7 pure, exhaustive acl policy | Pass | 30 operations, 2160 exhaustive cases after the red-team fixes; acl at 100% branch coverage; hooks and middleware only call `authorize`. |
 | T8 extensionless alias imports | Pass | `@core`, `@adapters` and `@plugins` (now `src/plugins`); no `.js` suffixes. |
 
 ## Workers Builds `SESSION` KV failure
@@ -126,7 +126,7 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - **Static pages are site-wide:** body editors can edit `pages` (Home, About, Scholarships, Contact), like menus and widgets (ADR-002 residual risk 2). To make them Admin-only, drop `pages` from `COLLECTION_SCOPES` in `src/lib/adapters/emdash/entries.ts`.
 - **T3.17 (HUMAN), sign-in on staging (FR-8.2):** create the Google and Microsoft OAuth clients (callback `<site>/_emdash/api/auth/oauth/<provider>/callback`), store `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT_ID` as Worker secrets and vars, keep EmDash's allowed domains empty, then follow `docs/runbooks/onboard-body-editor.md` with a passkey and with each provider. The e2e suites sign in through the dev-only bypass and cannot cover this.
 - **Production `siteUrl`:** passkeys bind to the site's origin, which EmDash takes from `siteUrl`; today it is set only in dev (from portless). Decide the staging and production `siteUrl` before T3.17.
-- **Residual-risk sign-off (M8, Q14):** ADR-002 lists six accepted residual risks, the constitution's two included, for the lodge to accept.
+- **Residual-risk sign-off (M8, Q14):** ADR-002 lists nine accepted residual risks, the constitution's two included, for the lodge to accept. Risks 7 to 9 came from the M3 red team: translation groups if i18n is ever enabled, refusals of a write addressed by a slug another body shares, and id-shaped slugs an Admin can still store.
 
 ## Log
 - 2026-11-23: Spec brainstorm Phases 0–5 complete (docs/spec/findlay-masonic-platform/). Planning decisions recorded (PLAN §2). Plan drafted.
@@ -137,3 +137,4 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - 2026-11-23: M2 agent work (T2.1–T2.16) on `claude/happy-bell-oj5yoo`: pure acl, recurrence, ics and newsletter core with an EmDash parse adapter; 1107 unit tests, 100% coverage gate on acl and recurrence, core import restrictions in oxlint, TypeScript gate pass. Follow-ups from the M1 verification: exact pin of each officer title list and a fixture for the seed `$ref` check. T2.17 waits on the critic.
 - 2026-11-23: M2 passed independent verification at 695c44f. Its follow-ups land in M3: ICS calendar-name escaping (T3.3), one principal record per user (T3.5) and plain-text RRULE errors on save (T3.2).
 - 2026-11-23: M3 agent work (T3.1–T3.16) on `claude/happy-bell-oj5yoo`: core policy extended (restore, unschedule, discard, stored live and draft bodies, media, admin-only); the native `body-access` plugin with hooks, grant routes, the Body Access page and the body field; `src/middleware.ts` guarding every write no hook sees, failing closed, and refusing MCP below Admin; structural tests for capabilities and EmDash's route list; per-role Playwright suites in CI; ADR-002 and the onboarding runbook. CI run 45260287484 failed on the admin smoke test after the OAuth providers made the admin load `@cloudflare/kumo` unbundled; pre-bundling it fixed it (run 45266276314). T3.12 and T3.13 wait on PATH_ASK approval, T3.17 on a human, T3.18 on the critic.
+- 2026-11-23: M3 red-team fixes (T3.19–T3.30) on `claude/happy-bell-oj5yoo`, from two reviews of feb8594. Each `entry` rule now names its EmDash handler's lookup, and the middleware authorizes every entry an `[id]` could name, with drafts read strictly; editors cannot save id-shaped slugs; unpublish is guarded with the draft's body; only an Admin trashes, unpublishes or schedules a body's page; guard read failures refuse; hooks act for the request's user when the event names none; translations stay in their source's body. ADR-002 corrected (Editors can mint their own bearer tokens; not a bypass) and gains residual risks 7 to 9. Each finding's test failed before its fix. Evidence: 48 e2e green with `CI=true` on a fresh database and on a rerun; 2550 unit tests, acl and recurrence at 100%; the red team's four probes re-run against the fixed server return 403 or 422 where they returned 201 or 200.
