@@ -16,7 +16,7 @@ const KEYS = [
 	/-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ];
 const FAKE_MARKER = /findlay-dev-fake-mailer/;
-const DEV_ROUTE = /"dev\/outbox"/;
+const DEV_ROUTE = /"dev\/(?:outbox|unsubscribe)"/;
 
 // Source maps embed the original sources, so a key or the fake reaching them is caught too.
 const TEXT = /\.(?:m?js|css|html|json|txt|xml|svg|map)$/;
@@ -53,7 +53,7 @@ for (const pattern of KEYS)
 check("server has no dev fake (FAKE_MARKER)", matching(server, FAKE_MARKER));
 // Code only: routes.ts's source, which a map embeds, declares the route inside its DEV branch.
 check(
-	"server has no dev-only outbox route",
+	"server has no dev-only fake route",
 	matching(
 		server.filter((file) => !file.endsWith(".map")),
 		DEV_ROUTE,

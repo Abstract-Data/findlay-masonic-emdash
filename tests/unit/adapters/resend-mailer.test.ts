@@ -164,7 +164,7 @@ describe("Resend mailer against a fake Resend API", () => {
 			segmentId: "seg-subscribers",
 			topicIds: ["topic-newsletter", "topic-lodge"],
 		});
-		expect(saved).toEqual({ ok: true, value: undefined });
+		expect(saved).toEqual({ ok: true, value: "subscribed" });
 		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
 			"GET /contacts/new@example.test",
 			"POST /contacts",
@@ -190,13 +190,33 @@ describe("Resend mailer against a fake Resend API", () => {
 			segmentId: "seg-subscribers",
 			topicIds: ["topic-newsletter"],
 		});
-		expect(saved.ok).toBe(true);
+		expect(saved).toEqual({ ok: true, value: "subscribed" });
 		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
 			"GET /contacts/old@example.test",
 			"POST /contacts/old@example.test/segments/seg-subscribers",
 			"PATCH /contacts/old@example.test/topics",
 		]);
 		expect(calls[2]?.body).toEqual([{ id: "topic-newsletter", subscription: "opt_in" }]);
+	});
+
+	it("leaves a contact that unsubscribed from all email untouched, and says so", async () => {
+		const calls = fakeResendApi((call) =>
+			call.method === "GET"
+				? {
+						status: 200,
+						body: { object: "contact", id: "c-2", email: "gone@example.test", unsubscribed: true },
+					}
+				: { status: 200, body: { id: "c-2" } },
+		);
+		const saved = await mailer().upsertContact({
+			email: "gone@example.test",
+			segmentId: "seg-subscribers",
+			topicIds: ["topic-newsletter"],
+		});
+		expect(saved).toEqual({ ok: true, value: "previously-unsubscribed" });
+		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+			"GET /contacts/gone@example.test",
+		]);
 	});
 
 	it("reports a 4xx as rejected and a 5xx, 429 or network failure as an unknown outcome", async () => {

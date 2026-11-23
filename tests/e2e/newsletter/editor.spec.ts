@@ -31,6 +31,7 @@ test.describe("newsletter is Admin-only (Editor, spec Q5)", () => {
 			editor.post(`${NEWSLETTER_API}/issues/test-send`, { data: { id: ISSUE, revision: 1 } }),
 			editor.post(`${NEWSLETTER_API}/issues/approve`, { data: { id: ISSUE, revision: 1 } }),
 			editor.post(`${NEWSLETTER_API}/issues/discard`, { data: { id: ISSUE } }),
+			editor.post(`${NEWSLETTER_API}/dev/unsubscribe`, { data: { email: "a@example.test" } }),
 		];
 		for (const call of calls) {
 			// oxlint-disable-next-line no-await-in-loop -- each refusal is checked in turn.

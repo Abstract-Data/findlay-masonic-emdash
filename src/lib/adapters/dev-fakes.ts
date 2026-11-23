@@ -18,11 +18,18 @@ export const FAKE_MARKER = "findlay-dev-fake-mailer";
 
 export interface FakeBroadcast extends BroadcastDraft, FoundBroadcast {}
 
+export interface FakeContact {
+	readonly segments: Set<string>;
+	readonly topics: Set<string>;
+	/** Unsubscribed from all email, as a recipient's click on an unsubscribe link records. */
+	unsubscribed: boolean;
+}
+
 export interface Outbox {
 	readonly marker: typeof FAKE_MARKER;
 	readonly emails: OutgoingEmail[];
 	readonly broadcasts: FakeBroadcast[];
-	readonly contacts: Map<string, { segments: Set<string>; topics: Set<string> }>;
+	readonly contacts: Map<string, FakeContact>;
 	/** Every createBroadcast call, including ones a test makes fail. */
 	createCalls: number;
 }
@@ -77,13 +84,25 @@ export function fakeMailer(outbox: Outbox = devOutbox()): Mailer {
 			const contact = outbox.contacts.get(signup.email) ?? {
 				segments: new Set(),
 				topics: new Set(),
+				unsubscribed: false,
 			};
+			if (contact.unsubscribed) return ok("previously-unsubscribed");
 			contact.segments.add(signup.segmentId);
 			for (const topic of signup.topicIds) contact.topics.add(topic);
 			outbox.contacts.set(signup.email, contact);
-			return ok(undefined);
+			return ok("subscribed");
 		},
 	};
+}
+
+/** A recipient unsubscribing from all email through a link, as Resend records it. */
+export function unsubscribeEverywhere(email: string, outbox: Outbox = devOutbox()): void {
+	const contact = outbox.contacts.get(email);
+	if (contact === undefined) {
+		outbox.contacts.set(email, { segments: new Set(), topics: new Set(), unsubscribed: true });
+	} else {
+		contact.unsubscribed = true;
+	}
 }
 
 interface SendingConfig {
@@ -132,6 +151,7 @@ export function outboxSummary(outbox: Outbox = devOutbox()) {
 			email,
 			segments: [...contact.segments],
 			topics: [...contact.topics],
+			unsubscribed: contact.unsubscribed,
 		})),
 	};
 }

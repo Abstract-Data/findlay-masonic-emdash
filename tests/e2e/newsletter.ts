@@ -23,6 +23,7 @@ export interface Outbox {
 		readonly email: string;
 		readonly segments: readonly string[];
 		readonly topics: readonly string[];
+		readonly unsubscribed: boolean;
 	}[];
 }
 

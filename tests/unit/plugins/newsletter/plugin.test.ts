@@ -55,8 +55,11 @@ describe("newsletter plugin structure", () => {
 		});
 	});
 
-	it("adds the outbox route only on the dev server, for Admins", () => {
+	it("adds the fake's outbox and unsubscribe routes only on the dev server, for Admins", () => {
 		expect(import.meta.env.DEV).toBe(true);
 		expect(createPlugin().routes["dev/outbox"]).toMatchObject({ permission: ADMIN_PERMISSION });
+		expect(createPlugin().routes["dev/unsubscribe"]).toMatchObject({
+			permission: ADMIN_PERMISSION,
+		});
 	});
 });

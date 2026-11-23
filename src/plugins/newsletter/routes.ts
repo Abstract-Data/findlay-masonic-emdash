@@ -264,6 +264,16 @@ export const routes: Record<string, PluginRoute> = {
 					methods: ["GET"],
 					handler: async () => (await import("@adapters/dev-fakes")).outboxSummary(),
 				},
+				/** What Resend records when a recipient unsubscribes from all email. */
+				"dev/unsubscribe": {
+					...admin,
+					methods: ["POST"],
+					input: z.object({ email: z.email() }),
+					handler: async (ctx: RouteContext<{ email: string }>) => {
+						(await import("@adapters/dev-fakes")).unsubscribeEverywhere(ctx.input.email);
+						return { email: ctx.input.email, unsubscribed: true };
+					},
+				},
 			}
 		: {}),
 };

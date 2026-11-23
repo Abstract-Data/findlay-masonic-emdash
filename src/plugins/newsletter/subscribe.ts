@@ -5,7 +5,12 @@ import { z } from "astro/zod";
 /** Where the signup form posts back to, with `?subscribe=<outcome>` added. */
 export const SIGNUP_PAGE = "/newsletters";
 
-export type SubscribeOutcome = "ok" | "invalid" | "verification-failed" | "unavailable";
+export type SubscribeOutcome =
+	| "ok"
+	| "previously-unsubscribed"
+	| "invalid"
+	| "verification-failed"
+	| "unavailable";
 
 export interface SubscribeRequest {
 	readonly origin: string | null;
@@ -55,7 +60,8 @@ export function parseSignup(fields: SubscribeRequest["fields"]): Signup | null {
 /**
  * FR-7.1: validate, verify the Turnstile token, then create or update the Resend contact in the
  * subscribers Segment with the newsletter Topic and each chosen body's Topic. Bodies without a
- * Topic are skipped; an unknown body makes the request invalid.
+ * Topic are skipped; an unknown body makes the request invalid. A contact that unsubscribed from
+ * all email is left as it is.
  */
 export async function subscribe(
 	deps: SubscribeDeps,
@@ -79,5 +85,6 @@ export async function subscribe(
 		topicIds: [...new Set([newsletterTopicId, ...bodyTopics])],
 	};
 	const saved = await mailer.upsertContact(contact);
-	return saved.ok ? "ok" : "unavailable";
+	if (!saved.ok) return "unavailable";
+	return saved.value === "subscribed" ? "ok" : "previously-unsubscribed";
 }

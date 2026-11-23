@@ -43,6 +43,31 @@ test.describe("newsletter signup (FR-7)", () => {
 		expect(saved?.topics.toSorted()).toEqual([CHAPTER_TOPIC, FAKE.topic].toSorted());
 	});
 
+	test("an address that unsubscribed from all email is told so and stays unsubscribed", async ({
+		page,
+		as,
+	}) => {
+		test.setTimeout(240_000);
+		const email = address();
+		const admin = await as("admin");
+		await data(admin.post(`${NEWSLETTER_API}/dev/unsubscribe`, { data: { email } }));
+		await page.goto("/newsletters");
+		const form = page.getByTestId("signup");
+		await form.getByLabel("Email address").fill(email);
+		await form.getByLabel(BODY_NAMES.chapter).check();
+		await form.getByRole("button", { name: "Subscribe" }).click();
+		await expect(page).toHaveURL(/\/newsletters\?subscribe=previously-unsubscribed#signup$/);
+		await expect(page.getByTestId("signup-message")).toContainText(
+			"This address unsubscribed from the Temple's email before, so it was not added.",
+		);
+		expect(await contact(admin, email)).toEqual({
+			email,
+			segments: [],
+			topics: [],
+			unsubscribed: true,
+		});
+	});
+
 	test("a post without a Turnstile token is refused and reaches no contact", async ({
 		playwright,
 		baseURL,

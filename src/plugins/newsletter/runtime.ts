@@ -21,7 +21,10 @@ export interface Runtime {
 const blank = (value: string | undefined) =>
 	value === undefined || value.trim() === "" ? null : value;
 
-/** Read once, when EmDash builds its plugins: register the email transport or not. */
+/**
+ * Read once, when EmDash builds its plugins: register the email transport or not. On Workers
+ * that is during the first request of each isolate, after the Worker's env is bound (ADR-003).
+ */
 export function registersEmailTransport(): boolean {
 	return deliversEmail({
 		dev: import.meta.env.DEV,

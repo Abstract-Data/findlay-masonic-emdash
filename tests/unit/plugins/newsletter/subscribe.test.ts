@@ -1,4 +1,4 @@
-import { dummyVerifier, emptyOutbox, fakeMailer } from "@adapters/dev-fakes";
+import { dummyVerifier, emptyOutbox, fakeMailer, unsubscribeEverywhere } from "@adapters/dev-fakes";
 import type { Mailer } from "@adapters/resend-mailer";
 import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
 import { err } from "@core/ids";
@@ -64,6 +64,7 @@ describe("public subscribe (FR-7.1)", () => {
 				{
 					segments: new Set(["seg-subscribers"]),
 					topics: new Set(["topic-newsletter", "topic-lodge"]),
+					unsubscribed: false,
 				},
 			],
 		]);
@@ -95,6 +96,21 @@ describe("public subscribe (FR-7.1)", () => {
 			"verification-failed",
 		);
 		expect(outbox.contacts.size).toBe(0);
+	});
+
+	it("never re-subscribes an address that unsubscribed from all email, and says so", async () => {
+		const { deps, outbox } = setup();
+		unsubscribeEverywhere("gone@example.test", outbox);
+		const outcome = await subscribe(
+			deps,
+			request({ email: "gone@example.test", body: [LODGE], ...token }),
+		);
+		expect(outcome).toBe("previously-unsubscribed");
+		expect(outbox.contacts.get("gone@example.test")).toEqual({
+			segments: new Set(),
+			topics: new Set(),
+			unsubscribed: true,
+		});
 	});
 
 	it("reports unavailable when Resend or Turnstile is not configured or Resend fails", async () => {

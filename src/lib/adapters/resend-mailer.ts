@@ -47,6 +47,12 @@ export interface ContactSignup {
 	readonly topicIds: readonly string[];
 }
 
+/**
+ * `previously-unsubscribed`: the contact unsubscribed from all email, so nothing was changed. A
+ * public form must never reverse that; the contact opts back in from a link in a past email.
+ */
+export type ContactUpsert = "subscribed" | "previously-unsubscribed";
+
 /** The port the newsletter plugin sends through. Only plugin routes and the transport use it. */
 export interface Mailer {
 	sendEmail(email: OutgoingEmail): Promise<Result<{ id: string }, MailerError>>;
@@ -56,7 +62,7 @@ export interface Mailer {
 		id: string,
 		scheduledAt: string | null,
 	): Promise<Result<{ id: string }, MailerError>>;
-	upsertContact(signup: ContactSignup): Promise<Result<void, MailerError>>;
+	upsertContact(signup: ContactSignup): Promise<Result<ContactUpsert, MailerError>>;
 }
 
 type SdkResponse<T> =
@@ -153,14 +159,15 @@ export function resendMailer(apiKey: string): Mailer {
 						topics,
 					}),
 				);
-				return created.ok ? ok(undefined) : created;
+				return created.ok ? ok("subscribed") : created;
 			}
+			if (existing.data?.unsubscribed === true) return ok("previously-unsubscribed");
 			const added = settle(
 				await resend.contacts.segments.add({ email: signup.email, segmentId: signup.segmentId }),
 			);
 			if (!added.ok) return added;
 			const updated = settle(await resend.contacts.topics.update({ email: signup.email, topics }));
-			return updated.ok ? ok(undefined) : updated;
+			return updated.ok ? ok("subscribed") : updated;
 		},
 	};
 }
