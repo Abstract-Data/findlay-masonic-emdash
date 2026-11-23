@@ -12,13 +12,18 @@ A human sets these up in Resend, Cloudflare and the Worker's settings. Nothing i
 
 | Setting | What it is | Where |
 | --- | --- | --- |
-| `RESEND_API_KEY` | A Resend API key with sending access | Worker secret (`wrangler secret put`), from 1Password |
-| `RESEND_FROM` | The sender, on the Resend-verified domain, e.g. `Findlay Masonic Temple <newsletter@findlaymason.org>` | Worker variable |
-| `RESEND_SEGMENT_ID` | The `subscribers` Segment every Broadcast goes to | Worker variable |
-| `RESEND_NEWSLETTER_TOPIC_ID` | The newsletter Topic every Broadcast is sent under | Worker variable |
-| `NEWSLETTER_TEST_ALLOWLIST` | The inboxes test sends go to, comma-separated. Never a subscriber list | Worker variable |
-| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET` | The signup form's Turnstile widget and its secret | Worker variable and secret |
+| `RESEND_API_KEY` | A Resend API key with sending access | Worker secret: `pnpm wrangler secret put RESEND_API_KEY --env <staging or production>`, from 1Password |
+| `RESEND_FROM` | The sender, on the Resend-verified domain, e.g. `Findlay Masonic Temple <newsletter@findlaymason.org>` | `vars` of the environment in `wrangler.jsonc` |
+| `RESEND_SEGMENT_ID` | The `subscribers` Segment every Broadcast goes to | `vars` of the environment in `wrangler.jsonc` |
+| `RESEND_NEWSLETTER_TOPIC_ID` | The newsletter Topic every Broadcast is sent under | `vars` of the environment in `wrangler.jsonc` |
+| `NEWSLETTER_TEST_ALLOWLIST` | The inboxes test sends go to, comma-separated. Never a subscriber list | `vars` of the environment in `wrangler.jsonc` |
+| `TURNSTILE_SECRET` | The secret of the signup form's Turnstile widget | Worker secret, as for `RESEND_API_KEY` |
+| `TURNSTILE_SITE_KEY` | The signup form's Turnstile widget | The shell that runs the deploy (see below). Not a Worker variable |
 | Body Topics | One Resend Topic per body, default "opt out", its id saved in that body's **Resend topic id** field | Resend dashboard, then the body's entry in the admin |
+
+The Worker reads the four `vars` and both secrets at runtime, not at build time. The `vars` are identifiers, not secrets, so they are committed in `wrangler.jsonc` under `env.staging.vars` and `env.production.vars`. Each deploy replaces the Worker's variables with these, so a value typed into the Cloudflare dashboard is lost on the next deploy; change the file instead. An empty value means "not set", and the builder names it.
+
+`TURNSTILE_SITE_KEY` is different: the build writes it into the page, so the Worker's settings cannot change it, and each environment's build must be given its own key. Deploy with the key in the environment, for example `TURNSTILE_SITE_KEY=<staging site key> pnpm run deploy:staging`. A build without it serves a form with no Turnstile widget, and every signup is refused as unverified. Check the deployed `/newsletters` page shows the widget.
 
 Staging uses its own Segment (a staging-only test Segment holding only allowlisted addresses) and its own Topics, so a staging approval never reaches a real subscriber.
 
@@ -62,10 +67,11 @@ Before editing an issue whose approval failed with "could not be reached", check
 
 ## 5. After the send
 
-- The issue appears at `/newsletters`, newest first, and opens in a frame that shows the email as sent, with a signup link in place of the unsubscribe link.
+- The issue appears at `/newsletters` for every visitor, signed in or not, newest first, and opens in a frame that shows the email as sent, with a signup link in place of the unsubscribe link. The archive shows only each sent issue's subject, date and email.
 - A scheduled issue joins the archive once its time passes.
 - Subscribers manage their body preferences from the link in each email. Signups from the site's form land in the `subscribers` Segment with the newsletter Topic and the Topics of the bodies they ticked.
+- An address that unsubscribed from all Temple email is never added back by the form. The visitor is told the address unsubscribed before and to use the preferences link in a past newsletter, or to contact the Temple. To re-add someone who asks, change the contact in the Resend dashboard.
 
 ## Development and tests
 
-`astro dev` without `RESEND_API_KEY` (or with `RESEND_FAKE=true` in `.dev.vars`) sends nothing: an in-memory fake records every email, Broadcast and contact, and Admins can read it at `/_emdash/api/plugins/newsletter/dev/outbox`. Without `TURNSTILE_SECRET` the signup form carries Cloudflare's published test token and an offline check accepts only that. None of this exists in a build: `tests/build/check-dist.mjs` fails CI if the fake reaches the production bundle.
+`astro dev` without `RESEND_API_KEY` (or with `RESEND_FAKE=true` in `.dev.vars`) sends nothing: an in-memory fake records every email, Broadcast and contact, and Admins can read it at `/_emdash/api/plugins/newsletter/dev/outbox`. A `POST` to `dev/unsubscribe` with `{ "email": … }` marks an address as unsubscribed from all email, as Resend does when a recipient uses the link. Without `TURNSTILE_SECRET` the signup form carries Cloudflare's published test token and an offline check accepts only that. None of this exists in a build: `tests/build/check-dist.mjs` fails CI if the fake reaches the production bundle, and `tests/build/check-runtime-env.mjs` fails it if a build inlines a setting the Worker should read at runtime.
