@@ -50,7 +50,7 @@ pnpm install
 pnpm dev
 ```
 
-Open http://localhost:4321/_emdash/admin and complete the setup wizard. EmDash runs database migrations and applies the blog seed during setup. The site is available at http://localhost:4321.
+`pnpm dev` runs Astro through [portless](https://github.com/vercel-labs/portless), which serves the site at `https://findlay-masonic.localhost` (in a git worktree, `https://<branch>.findlay-masonic.localhost`; `pnpm exec portless get findlay-masonic` prints it). The first run starts a local HTTPS proxy and may ask for `sudo` to trust its certificate. Open `/_emdash/admin` on that URL and complete the setup wizard. EmDash runs database migrations and applies the seed during setup.
 
 ## Deploying
 

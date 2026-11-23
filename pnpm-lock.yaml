@@ -66,6 +66,9 @@ importers:
       oxlint-tsgolint:
         specifier: 7.0.2008
         version: 7.0.2008
+      portless:
+        specifier: 0.18.1
+        version: 0.18.1
       prettier:
         specifier: 3.10.1
         version: 3.10.1
@@ -4368,6 +4371,12 @@ packages:
   pkce-challenge@5.0.2:
     resolution: {integrity: sha512-vCc54+qyIfKC5e2UN28AZKElwqjLINgiIV3RKI8pDu93TjaAJoB3QrgMzEBouy8yOKsXVXdAinO1QArJf9x5WA==}
     engines: {node: '>=16.20.0'}
+
+  portless@0.18.1:
+    resolution: {integrity: sha512-3gfeicAvS5kwFUbZrsZpt1oU1MUBvfiy2S0MT/n8mwWEp/ZjQsWI0mC353GEi/q8JUVgdx7lBGDzCcMI9O1MXg==}
+    engines: {node: '>=24'}
+    os: [darwin, linux, win32]
+    hasBin: true
 
   postcss-selector-parser@7.2.1:
     resolution: {integrity: sha512-GwxlMgTTXwIom+ebC7an3k6RaJDwklRQQnfiXsLPGicu8FYV/k/+1/9YY2OU2+r938H2t4X0TDxoif+HP2rjzQ==}
@@ -9855,6 +9864,8 @@ snapshots:
   picospinner@3.1.2: {}
 
   pkce-challenge@5.0.2: {}
+
+  portless@0.18.1: {}
 
   postcss-selector-parser@7.2.1:
     dependencies:

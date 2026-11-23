@@ -32,6 +32,10 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
+			// portless serves dev over HTTPS at a named .localhost origin and sets
+			// PORTLESS_URL. Passkeys, CSRF and redirects need that public origin,
+			// not the proxied 127.0.0.1 address. Unset in builds.
+			...(process.env.PORTLESS_URL ? { siteUrl: process.env.PORTLESS_URL } : {}),
 		}),
 	],
 	fonts: [

@@ -7,7 +7,7 @@ pnpm dev              # Start the Astro dev server
 npx emdash types      # Regenerate TypeScript types from a running site
 ```
 
-The admin UI is at `http://localhost:4321/_emdash/admin`.
+The admin UI is at `/_emdash/admin` on the portless URL (`pnpm exec portless get findlay-masonic`).
 
 ## Key Files
 
