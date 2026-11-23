@@ -2,11 +2,11 @@
 | Field | Value |
 |---|---|
 | SDD phase | 3 — TASKS |
-| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 agent tasks done, awaiting the M2 critic** |
+| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks done, config awaiting PATH_ASK approval and the M3 critic** |
 | Last updated | 2026-11-23 |
-| Current milestone | M2 — Pure core (T2.17 critic pending); M1 PATH_ASK items and T1.2 still open |
+| Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M1 PATH_ASK items, T1.2 and T2.17 still open |
 | Tasks | [TASK.md](TASK.md) |
-| ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted |
+| ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted; [ADR-002](../../adr/ADR-002-body-access-middleware.md) — Proposed (lands with the M3 PR) |
 
 ## Milestones
 | ID | Milestone | State | Exit check |
@@ -14,7 +14,7 @@
 | M0 | Foundation and toolchain | In progress: T0.1–T0.9, T0.13–T0.15 done (CI green, run 45241090879); T0.10, T0.11 built, awaiting PATH_ASK approval; T0.12, T0.16 human; T0.17 critic pending | CI green + staging deploy |
 | M1 | Content model and seed | In progress: T1.1, T1.3, T1.7, T1.9–T1.11 done; T1.4–T1.6, T1.8 built, awaiting PATH_ASK approval; T1.2 lodge; T1.12 critic pending | Collections in admin, FR-9.2 test |
 | M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
-| M3 | Auth + body-access | Not started | FR-5 per-role e2e green |
+| M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 done (39 e2e green locally and in CI run 45267387509; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
 | M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
 | M5 | Newsletter plugin | Not started | Staging send to allowlist + test Segment |
 | M6 | Content migration | Not started | Inventory resolved, redirects green |
@@ -80,6 +80,32 @@ Gate text: [docs/gates/astro-design-principles.md](../../gates/astro-design-prin
 | T7 pure, exhaustive acl policy | Pass | `authorize` is pure; 864 exhaustive cases plus the decision table; 100% branch coverage on `src/lib/core/acl` is a Vitest threshold. |
 | T8 extensionless alias imports | Pass | No `.js` suffixes. Core uses relative imports within itself; adapters and tests use `@core` and `@adapters`. |
 
+## Design principles gates (M3)
+Run 2026-11-23 over every file M3 touched. Astro gate: `src/middleware.ts`, `astro.config.mjs`, `tsconfig.json`, `playwright.config.ts` and the CI workflow. TypeScript gate: `src/lib/**` and `src/plugins/body-access/**`.
+
+| Rule | Result | Evidence |
+|---|---|---|
+| A1 server-rendered | Pass | No page added; `output: "server"` unchanged. |
+| A2 no blanket `client:load` | Pass | No `client:` directive; the plugin's React runs inside EmDash's admin, not as a page island. |
+| A3 no `set:html` | Pass | `pnpm lint` clean. |
+| A4 no unsafe inline scripts | Pass | `pnpm lint` clean. |
+| A5 server-only SDKs stay on the server | Pass | `src/plugins/body-access/admin.tsx` imports only `react`; the hooks, routes and grant storage are server modules it never imports. |
+| A6 `astro:env`, no secret+client | Pass | `MICROSOFT_TENANT_ID` is `server`/`public`; `.dev.vars.example` lists the name only. |
+| A7 `cloudflare:workers` env | Pass | The middleware reads `locals.user` and `locals.emdash`; no `locals.runtime`. |
+| A8 Web/Workers APIs only at runtime | Pass, one recorded use | `src/lib/adapters/emdash/actor-context.ts` imports `AsyncLocalStorage` from `node:async_hooks`, which Workers provides under the `nodejs_compat` flag already in `wrangler.jsonc` (EmDash uses it for its own request context). Proven in the production build under `wrangler dev`. `node:url` appears only in `astro.config.mjs` (build time). |
+| A9 cache hints | n/a | No cached route touched. |
+| A10 images and ids | n/a | No template touched. |
+| A11 valid templates | Pass | `pnpm astro check` 0 errors; `pnpm astro build` Complete. |
+| A12 no numeric ports | Pass | No new doc or config names a port; the runbook uses the site address. |
+| T1 strict | Pass | `pnpm astro check` 0 errors. |
+| T2 no `any`/unsafe casts | Pass, one documented assertion | No `any`, `@ts-ignore` or `@ts-expect-error`. `admin.tsx` asserts the `data` of an EmDash plugin-route answer to the type its caller expects, with a disable comment giving the reason. |
+| T3 pure core | Pass | `policy.ts` and `rrule.ts` gained no imports; `no-restricted-imports` clean. |
+| T4 adapters as the boundary | Pass | `entries.ts`, `grants.ts`, `parse.ts` and `request-guard.ts` parse EmDash entries, revisions, media, users and grant rows before `authorize` sees them; the hooks and the middleware hold no policy. |
+| T5 branded ids | Pass | `UserId` and `BodyId` come only from `parseUserId` and `parseBodyId`; grant rows that name no valid body grant nothing. |
+| T6 illegal states unrepresentable | Pass | `Operation`, `DenyReason`, `RouteRule` and `Scope` are discriminated unions; `ROUTE_TABLE` and `COLLECTION_SCOPES` are tables, with fail-closed defaults. |
+| T7 pure, exhaustive acl policy | Pass | 22 operations, 1584 exhaustive cases; acl at 100% branch coverage; hooks and middleware only call `authorize`. |
+| T8 extensionless alias imports | Pass | `@core`, `@adapters` and `@plugins` (now `src/plugins`); no `.js` suffixes. |
+
 ## Workers Builds `SESSION` KV failure
 The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace must have a namespace_id specified`. Cause, read from wrangler 4.166 (`provisionBindings` in `wrangler-dist/cli.js`): the adapter adds a `SESSION` binding with no ID, and wrangler's auto-provisioning would create the namespace, but when listing KV namespaces returns a permission error it skips provisioning silently and uploads the binding without an ID. So the Workers Builds API token most likely lacks KV permission (inferred, not seen in the build log). No config-only fix exists that keeps EmDash sign-in working: EmDash stores users in the Astro session, and a different session driver needs other infrastructure. Two human fixes, either works: create the KV namespaces and paste their IDs (T0.12), or grant the Workers Builds token KV edit permission so provisioning runs. Workers Builds should also deploy with `CLOUDFLARE_ENV=staging` (see above); the top level is now local-only with IDs `local` and will not deploy.
 
@@ -94,6 +120,13 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - **T1.4, T1.5, T1.6, T1.8 (PATH_ASK):** approve the M1 `seed/seed.json` schema and seed by landing the PR. Officer title options come from the DRAFT lists; T1.2 still has to confirm them. Body full names ("Findlay Lodge", "Findlay Chapter, Order of the Eastern Star" and so on) are placeholders the lodge should confirm.
 - **Built-in Categories and Tags:** every EmDash database starts with `category` and `tag` taxonomy definitions (migration 006), bound to the removed `posts`. A seed cannot delete them. On each environment, an admin removes them once with `DELETE /_emdash/api/taxonomies/category` and `/tag` (or from the admin).
 - **Body numbers:** Council No. 50 and Order of the Eastern Star No. 23 come only from `docs/spec/findlay-masonic-platform/brainstorm-intake.md:7` (the intake's description of the live findlaymason.org). `reference/` is the 2023 staging export and does not corroborate them. Pending lodge confirmation.
+- **T3.12 (PATH_ASK):** approve the M3 `astro.config.mjs` changes by landing the PR: the native `body-access` plugin descriptor, `authProviders: [google(), microsoft()]`, the `MICROSOFT_TENANT_ID` env field, and `vite.optimizeDeps.include` for `@cloudflare/kumo` (the providers' sign-in buttons import it from source; without it CI run 45260287484 failed).
+- **T3.13 (PATH_ASK):** approve `"widget": "body-access:body"` on the three `body` fields in `seed/seed.json`. A database seeded before M3 keeps the plain ID box until an Admin sets the widget on each `body` field (`PUT /_emdash/api/schema/collections/<collection>/fields/body` with `{ "widget": "body-access:body" }`, then check the field is still required and indexed).
+- **Media default (decision O1, reversible):** uploads need at least one body grant; changing, replacing or deleting a media item needs its uploader or an Admin. To let any granted editor change any file, change the `media-item` rules in `src/lib/adapters/emdash/route-table.ts`.
+- **Static pages are site-wide:** body editors can edit `pages` (Home, About, Scholarships, Contact), like menus and widgets (ADR-002 residual risk 2). To make them Admin-only, drop `pages` from `COLLECTION_SCOPES` in `src/lib/adapters/emdash/entries.ts`.
+- **T3.17 (HUMAN), sign-in on staging (FR-8.2):** create the Google and Microsoft OAuth clients (callback `<site>/_emdash/api/auth/oauth/<provider>/callback`), store `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT_ID` as Worker secrets and vars, keep EmDash's allowed domains empty, then follow `docs/runbooks/onboard-body-editor.md` with a passkey and with each provider. The e2e suites sign in through the dev-only bypass and cannot cover this.
+- **Production `siteUrl`:** passkeys bind to the site's origin, which EmDash takes from `siteUrl`; today it is set only in dev (from portless). Decide the staging and production `siteUrl` before T3.17.
+- **Residual-risk sign-off (M8, Q14):** ADR-002 lists six accepted residual risks, the constitution's two included, for the lodge to accept.
 
 ## Log
 - 2026-11-23: Spec brainstorm Phases 0–5 complete (docs/spec/findlay-masonic-platform/). Planning decisions recorded (PLAN §2). Plan drafted.
@@ -102,3 +135,5 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - 2026-11-23: M0 independently verified at e218b68. M0 follow-ups: ESLint ignores coverage and Playwright output; CI runs a Node matrix (22.23.4, the real floor astro 7.4 declares, and latest 22; constitution amendment 3); `tests/unit/wrangler-envs.test.ts` keeps staging and production resources apart; Playwright reads the portless name from `package.json`; T8.0 carries the production resources. Constitution amendment 2 replaces `locals.runtime.env`.
 - 2026-11-23: M1 agent work pushed on `claude/happy-bell-oj5yoo`: officer titles drafted, four collections and six bodies seeded (PATH_ASK), blog removed, types regenerated, seed and admin tests green. Design principles gates recorded for M0 and M1.
 - 2026-11-23: M2 agent work (T2.1–T2.16) on `claude/happy-bell-oj5yoo`: pure acl, recurrence, ics and newsletter core with an EmDash parse adapter; 1107 unit tests, 100% coverage gate on acl and recurrence, core import restrictions in oxlint, TypeScript gate pass. Follow-ups from the M1 verification: exact pin of each officer title list and a fixture for the seed `$ref` check. T2.17 waits on the critic.
+- 2026-11-23: M2 passed independent verification at 695c44f. Its follow-ups land in M3: ICS calendar-name escaping (T3.3), one principal record per user (T3.5) and plain-text RRULE errors on save (T3.2).
+- 2026-11-23: M3 agent work (T3.1–T3.16) on `claude/happy-bell-oj5yoo`: core policy extended (restore, unschedule, discard, stored live and draft bodies, media, admin-only); the native `body-access` plugin with hooks, grant routes, the Body Access page and the body field; `src/middleware.ts` guarding every write no hook sees, failing closed, and refusing MCP below Admin; structural tests for capabilities and EmDash's route list; per-role Playwright suites in CI; ADR-002 and the onboarding runbook. CI run 45260287484 failed on the admin smoke test after the OAuth providers made the admin load `@cloudflare/kumo` unbundled; pre-bundling it fixed it (run 45266276314). T3.12 and T3.13 wait on PATH_ASK approval, T3.17 on a human, T3.18 on the critic.

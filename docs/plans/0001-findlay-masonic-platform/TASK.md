@@ -1,7 +1,7 @@
-# TASK — 0001-findlay-masonic-platform (M0, M1, M2)
+# TASK — 0001-findlay-masonic-platform (M0 to M3)
 **SDD phase:** 3 (TASKS)
 **Plan:** [PLAN.md](PLAN.md) (approved 2026-11-23) · **Status:** [STATUS.md](STATUS.md)
-**Scope:** M0, M1 and M2. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
+**Scope:** M0 to M3. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
 
 ## Conventions
 - One checkbox = one reviewable commit (or a small, coherent group of commits). Tick it only when its **Verify** line passes.
@@ -207,6 +207,77 @@ Design: every business rule is a pure function in `src/lib/core`, typed by brand
   Evidence: T1–T8 pass; T2 notes seven documented brand-mint assertions in core.
 - [ ] **T2.17 [AGENT] Close M2.** Exit check: `vitest run` green with 100% branch coverage on acl and recurrence; CI green; task-critic PASS; update STATUS.md.
   Deps: all of M2. Verify: critic returns PASS.
+
+---
+
+## M3 — Authentication and the `body-access` plugin
+Design: [ADR-002](../../adr/ADR-002-body-access-middleware.md). One policy, core's `authorize`, with two callers: the native `body-access` plugin's hooks and `src/middleware.ts`, which guards the EmDash writes no hook sees. Evidence below was run in a clean copy outside the worktree (`pnpm install --frozen-lockfile`) on 2026-11-23.
+
+### Core
+- [x] **T3.1 [AGENT] Extend the grant policy.** `StateChange` gains `restore`, `unschedule` and `discard`. State changes and updates carry the entry's stored bodies (live, then the draft's), so a draft that moves an entry needs both grants (decision 3). New operations: `media` (uploader or Admin, decision O1) and `admin-only` (MCP, adding a body, unlisted routes). A state change on an entry with no body is Admin-only.
+  Verify: `policy.table.test.ts` rows 10 and 12 to 15; the exhaustive test enumerates every operation; 100% coverage on `src/lib/core/acl`.
+  Evidence: 22 operations x 72 actor and co-editor profiles = 1584 cases, no invariant failure. acl 100/100/100/100. Mutation: checking only the first stored body failed 12 tests (I1 soundness), then reverted.
+- [x] **T3.2 [AGENT] Plain-text messages for RRULE and parse errors (M2 follow-up).** `rruleErrorText` covers every `RRuleError`, including the skipped spring-forward hour; `parseErrorText` covers the parse errors.
+  Verify: `rrule.test.ts` and `parse.test.ts` assert a distinct plain message per error; `rules.spec.ts` sees them on an event save.
+  Evidence: green; the e2e save of a 2:30 AM weekly event returns "…between 2:00 and 2:59 AM, because those times are skipped on the spring daylight-saving day…".
+- [x] **T3.3 [AGENT] Escape the ICS calendar name (M2 verification follow-up).** `NAME` and `X-WR-CALNAME` were written verbatim by ical-generator; CR/LF now collapse and `,` `;` `\` are escaped.
+  Verify: `calendar.test.ts` builds a feed from a name carrying `\r\nBEGIN:VEVENT`.
+  Evidence: green; without the fix the test fails (1 failed, 8 passed).
+
+### Adapters
+- [x] **T3.4 [AGENT] `actor-context.ts`.** One `AsyncLocalStorage` on `globalThis` (`Symbol.for`); the middleware writes it, `beforeDelete` and `media:beforeUpload` read it.
+  Verify: the production-build trash denial below.
+  Evidence: with the middleware's DELETE row bypassed, the production build under `wrangler dev` answers a Lodge editor's trash of Chapter news with `400 DELETE_BLOCKED` from the hook, which allows when it reads no actor.
+- [x] **T3.5 [AGENT] `grants.ts`.** Grant rows in plugin storage (`userId`, `bodyId`, replace-all, idempotent) for the plugin and the middleware; `principalFor` builds one `Editor` per user id from one role and one grants lookup (M2 verification follow-up).
+  Verify: `grants.test.ts`.
+  Evidence: green; with the actor listed in its own `editedBy` and a co-editor listed twice, each user gets one grants lookup and each co-editor one role lookup.
+- [x] **T3.6 [AGENT] `entries.ts`, `route-table.ts`, `request-guard.ts`.** Collection scopes (body field, the body itself, site, unlisted is Admin-only); every unsafe EmDash route classified by its injected pattern; the middleware's decision through `authorize`.
+  Verify: `entries.test.ts`, `route-table.test.ts`.
+  Evidence: green; the test reads all 219 routes EmDash 1.6.0 injects and finds every unsafe method classified.
+
+### Plugin
+- [x] **T3.7 [AGENT] Hooks.** `beforeSave` (actor and every `editedBy`, live and draft body, `translationOf`, FR-5.5 assign, the body must exist, FR-3.2 tags, FR-2.1 officer titles, FR-4.2 RRULE); `beforePublish`/`beforeSchedule` (live and draft body), `beforeUnpublish`; `beforeDelete` and `media:beforeUpload` as backstops.
+  Verify: the e2e suites.
+  Evidence: `writes.spec.ts` and `rules.spec.ts` green.
+- [x] **T3.8 [AGENT] Routes.** `grants/list` (GET) and `grants/set` (POST, replace-all) with `users:manage`; `my-bodies` (GET) with `content:create`.
+  Verify: `grants.spec.ts`; `body-access.test.ts` pins methods and permissions.
+  Evidence: green; an Editor gets 403 from both grant routes.
+- [x] **T3.9 [AGENT] Admin UI.** The Body Access page (Admin only, a grant matrix with a Save per user) and the `body` field widget (the editor's bodies plus the current one; a single grant is preselected).
+  Verify: `grants.spec.ts`, `ui.spec.ts`.
+  Evidence: green for admin, blue-lodge, chapter and unassigned-editor.
+- [x] **T3.10 [AGENT] Structural tests.** The capability table against `createPlugin().capabilities`, and EmDash's `HookPipeline` registering every guard hook; the route table against `node_modules/emdash` `routes.ts`.
+  Verify: misspell a capability; remove two route rows.
+  Evidence: a misspelt `hooks.content-policy:register` fails 3 tests ("Invalid capability"); a valid but wrong capability fails 2 ("…skipping"); removing the PUT and restore rows fails `route-table.test.ts`, naming both routes. All reverted.
+
+### Request middleware
+- [x] **T3.11 [AGENT] `src/middleware.ts`.** Wraps `next()` in the actor store; refuses below Admin through the route table: the data-less PUT, trash, restore, duplicate, discard, unschedule, revision restore, recovery revisions, locks, rooms, terms, plugin extensions, rejection clearing, uploads, media items and MCP; an unlisted unsafe `/_emdash` route fails closed.
+  Verify: `middleware.spec.ts`, `mcp.spec.ts`; the bypass regression.
+  Evidence: green. With the PUT and restore rows set to pass, a Lodge editor re-slugs a published Chapter entry and restores a trashed one (200), and the matching tests fail; reverted.
+
+### Configuration (PATH_ASK)
+- [ ] **T3.12 [PATH_ASK] `astro.config.mjs`.** The `body-access` plugin descriptor; `authProviders: [google(), microsoft()]` (FR-8.2); `MICROSOFT_TENANT_ID` in the env schema; `optimizeDeps.include` for `@cloudflare/kumo`, which the providers' sign-in buttons import from source.
+  Verify: `astro check`, `astro build`; CI green; the human approves the PR.
+  Agent part done, awaiting approval. Without the kumo entry the admin's dev loads took 7 to 8 s and Vite reloaded mid-session (CI run 45260287484 failed); with it, 2.6 to 3.7 s (CI run 45266276314 green).
+- [ ] **T3.13 [PATH_ASK] `seed/seed.json` widget.** `"widget": "body-access:body"` on the three `body` fields.
+  Verify: `seed.test.ts`; the body field e2e; the human approves the PR.
+  Agent part done, awaiting approval. An existing database keeps its old field settings until an Admin sets the widget on each `body` field.
+
+### Docs and tests
+- [x] **T3.14 [AGENT] Runbook `docs/runbooks/onboard-body-editor.md`.** Invite, accept, grant, check, change or remove, troubleshooting, sign-in options.
+  Verify: the invite route returns a link when no email provider is configured (read from EmDash 1.6.0).
+  Evidence: written.
+- [x] **T3.15 [AGENT] Playwright per-role suites.** The setup project signs in seven accounts through the dev-only bypass (each borrows the dev address in turn) and saves their storage states; 35 tests in `tests/e2e/body-access/`; CI runs every suite.
+  Verify: `CI=true pnpm e2e --trace off`; CI green on both legs.
+  Evidence: 39 passed locally on a fresh database; CI run 45267387509 green.
+- [x] **T3.16 [AGENT] ADR-002.** Why hooks alone are not enough, the middleware design, the media default, MCP denial, residual risks.
+  Verify: `docs/adr/ADR-002-body-access-middleware.md`.
+  Evidence: written, status Proposed until the PR lands.
+
+### Human and close-out
+- [ ] **T3.17 [HUMAN] Sign-in on staging (FR-8.2).** Store the Google and Microsoft credentials and `MICROSOFT_TENANT_ID` as Worker secrets and vars; on staging, invite an editor, accept with a passkey and with each provider, and grant a body.
+  Deps: T0.16. Verify: the runbook's step 4 passes for each sign-in method.
+- [ ] **T3.18 [AGENT] Close M3.** Exit check: FR-5 e2e green locally and in CI; task-critic PASS; update STATUS.md.
+  Deps: all of M3. Verify: critic returns PASS.
 
 ---
 
