@@ -44,6 +44,20 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"] },
 			dependencies: ["setup"],
 		},
+		{
+			// Before any issue is approved, so a fresh database shows the empty archive.
+			name: "newsletter-empty",
+			testMatch: /newsletter-archive\.empty\.spec\.ts/,
+			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["setup"],
+		},
+		{
+			// The dev server's in-memory Resend and Turnstile fakes stand in for both services.
+			name: "newsletter",
+			testDir: "tests/e2e/newsletter",
+			use: { ...devices["Desktop Chrome"] },
+			dependencies: ["setup", "newsletter-empty"],
+		},
 	],
 	webServer: {
 		// Astro 7 backgrounds `astro dev` when it detects a coding agent, and the
