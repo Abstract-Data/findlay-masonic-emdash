@@ -2,9 +2,9 @@
 | Field | Value |
 |---|---|
 | SDD phase | 3 — TASKS |
-| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks and red-team fixes done, config awaiting PATH_ASK approval and the M3 critic; M5 agent tasks done ahead of M4, config awaiting PATH_ASK approval, staging send human** |
+| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks and red-team fixes done, config awaiting PATH_ASK approval and the M3 critic; M5 agent tasks done ahead of M4, config awaiting PATH_ASK approval, staging send human; M4 functional half done ahead of its design gate, restyle and Lighthouse wait on the operator's design choice** |
 | Last updated | 2026-11-23 |
-| Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M5 — Newsletter (T5.13 PATH_ASK; T5.16–T5.18 human; T5.19 critic); M1 PATH_ASK items, T1.2 and T2.17 still open |
+| Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M5 — Newsletter (T5.13 PATH_ASK; T5.16–T5.18 human; T5.19 critic); M4 — Public site (T4.1 operator design choice; T4.12–T4.14 wait on it); M1 PATH_ASK items, T1.2 and T2.17 still open |
 | Tasks | [TASK.md](TASK.md) |
 | ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted; [ADR-002](../../adr/ADR-002-body-access-middleware.md) — Proposed (lands with the M3 PR); [ADR-003](../../adr/ADR-003-newsletter-plugin.md) — Proposed (lands with the M5 PR) |
 
@@ -15,7 +15,7 @@
 | M1 | Content model and seed | In progress: T1.1, T1.3, T1.7, T1.9–T1.11 done; T1.4–T1.6, T1.8 built, awaiting PATH_ASK approval; T1.2 lodge; T1.12 critic pending | Collections in admin, FR-9.2 test |
 | M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
 | M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 and red-team fixes T3.19–T3.30 done (48 e2e green locally; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
-| M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
+| M4 | Public site | In progress, functional half done ahead of the design gate: T4.2–T4.11 done (89 e2e green on a fresh database, 34 of them M4's; 2732 unit tests; axe 0 violations on 17 routes in light and dark and on both plugin pages); T4.1 design direction with the operator; T4.12 restyle and T4.13 Lighthouse (carried to M7) wait on it; T4.14 critic pending | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
 | M5 | Newsletter plugin | In progress, ahead of M4: T5.1–T5.12, T5.14, T5.15, T5.20 and fix round T5.21–T5.25 done (57 e2e green on a fresh database, 48 of them M3's; 2645 unit tests; production bundle checked for the SDK, keys, dev fakes and inlined runtime settings); T5.13 and T5.22 built, awaiting PATH_ASK approval; T5.16–T5.18 human; T5.19 critic pending | Staging send to allowlist + test Segment |
 | M6 | Content migration | Not started | Inventory resolved, redirects green |
 | M7 | Observability + hardening | Not started | Code-devil clean, Checkly 48 h green |
@@ -132,6 +132,49 @@ Run 2026-11-23 over every file M5 touched. Astro gate: `src/pages/newsletters/*`
 | T7 pure, exhaustive acl policy | n/a | No acl change. |
 | T8 extensionless alias imports | Pass | `@core`, `@adapters`, `@plugins`; no `.js` suffixes. |
 
+## Design principles gates (M4)
+Run 2026-11-23 over every file M4 touched. Astro gate: the new pages under `src/pages/` (`index.astro`, `bodies/**`, `news/**`, `calendar.astro`, `calendar.ics.ts`, `pages/[slug].astro`), the components in `src/components/`, `src/layouts/Base.astro` and `playwright.config.ts`. TypeScript gate: `src/lib/core/{calendar,bodies,news}`, `src/lib/core/recurrence/meetings.ts`, `src/lib/core/time.ts`, `src/lib/adapters/site/**`, `src/lib/adapters/emdash/{parse,route-table}.ts`, `src/lib/adapters/newsletter/content.ts` and `src/plugins/newsletter/{contact,routes,index}.ts`. Each grep check is the one the gate file lists; lint, `astro check` and the build cover the rest.
+
+| Rule | Result | Evidence |
+|---|---|---|
+| A1 server-rendered | Pass | No `getStaticPaths` or `prerender` in `src/`. |
+| A2 no blanket `client:load` | Pass | No `client:` directive in `src/`. The pages add no script; the contact form is a plain form post. |
+| A3 no `set:html` | Pass | `pnpm lint` clean; rich text renders through EmDash `PortableText`. |
+| A4 no unsafe inline scripts | Pass | No `<script>` without `src` in `src/components` or `src/pages`; Turnstile's `is:inline src` moved unchanged into `Turnstile.astro`. |
+| A5 server-only SDKs stay on the server | Pass | No `resend`, `cloudflare:workers` or `locals.emdash` in the M4 components, pages or `src/lib/adapters/site`; the contact route runs in the plugin. `check-dist.mjs` passes all 14 checks. |
+| A6 `astro:env`, no secret+client | Pass | No new field; `TURNSTILE_SITE_KEY` stays the only client field. |
+| A7 `cloudflare:workers` env | Pass | No `locals.runtime`; public pages never read `locals.emdash` (visitors get it without `db`). |
+| A8 Web/Workers APIs only at runtime | Pass | New runtime code uses Web APIs only (`crypto.subtle`, `TextEncoder`, `URL`); the only `node:` import outside tests is M3's recorded `node:async_hooks`. |
+| A9 cache hints | Pass | Every M4 route passes its content hints to `cacheRoute` (a no-op until a provider is configured); home, bodies, body, calendars add `CLOCK_BOUND` (15 minutes) because they show what comes next. Site settings and menus use the `WithCacheHint` variants. |
+| A10 images and ids | Pass | Emblems, officer photos and featured images render through `<Image>` from `emdash/ui`; no raw `<img>`. URLs use slugs (`paths`); the contact form and queries use body ULIDs (`entry.data.id`). |
+| A11 valid templates | Pass | `pnpm astro check` 0 errors; `pnpm astro build` Complete. |
+| A12 no numeric ports | Pass | No new doc or config names a port; `tests/perf/p95.mjs` takes the base URL as an argument. |
+| T1 strict | Pass | `pnpm astro check` 0 errors. |
+| T2 no `any`/unsafe casts | Pass, one documented assertion | No `any`, `@ts-ignore` or `@ts-expect-error`. `time.ts` adds `isoMonth`, the month counterpart of the existing `isoWeekday` assertion, with its reason. |
+| T3 pure core | Pass | The new core modules import only siblings, `temporal-polyfill` and `officer-titles`; `no-restricted-imports` clean; `now` and `today` are parameters. |
+| T4 adapters as the boundary | Pass | `views.ts` parses EmDash entries before core sees them; `contact.ts` validates form fields with zod and reads its KV counter defensively. |
+| T5 branded ids | Pass | Views carry `BodyId` and `EntryId` from `parseBodyId`/`parseEntryId`; tags are `TagSlug`. |
+| T6 illegal states unrepresentable | Pass | `ContactOutcome` and `BodySchedule` are unions; `SHORT_NAME` is a `Record<BodyType, string>`, so a new body type fails to compile until it has a label. |
+| T7 pure, exhaustive acl policy | n/a | No acl change. |
+| T8 extensionless alias imports | Pass | `@core`, `@adapters`, `@plugins`; no `.js` suffixes. |
+
+## Local P95 server time (M4)
+A local indicator, not the NFR: `node tests/perf/p95.mjs https://m4run.localhost 50` on the dev server (Vite and workerd, local SQLite for D1, no route cache) with the e2e suites' data, 50 requests per route after 3 warm-up requests. Server time is EmDash's `Server-Timing: mw`; wall time adds portless and the loopback. What bounds it: 3 to 9 queries per page (`db.count`), 8 to 32 ms of database time. Production adds D1's network round trip per query, which this setup cannot show, and the route cache this setup lacks. The budget (P95 < 300 ms on cached pages, via Axiom) and Lighthouse are M7's.
+
+| Route | Server P50 ms | Server P95 ms | Wall P50 ms | Wall P95 ms |
+|---|---|---|---|---|
+| `/` | 58 | 70 | 86 | 104 |
+| `/bodies` | 51 | 64 | 79 | 101 |
+| `/bodies/commandery` | 48 | 66 | 75 | 109 |
+| `/bodies/eastern-star/news` | 40 | 56 | 65 | 82 |
+| `/news` | 44 | 63 | 68 | 92 |
+| `/calendar?month=2026-11` | 48 | 58 | 75 | 97 |
+| `/bodies/eastern-star/calendar?month=2026-11` | 40 | 51 | 65 | 82 |
+| `/calendar.ics` | 29 | 42 | 52 | 69 |
+| `/bodies/eastern-star/calendar.ics` | 23 | 28 | 45 | 54 |
+| `/pages/about` | 25 | 38 | 50 | 65 |
+| `/newsletters` | 30 | 37 | 55 | 66 |
+
 ## Workers Builds `SESSION` KV failure
 The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace must have a namespace_id specified`. Cause, read from wrangler 4.166 (`provisionBindings` in `wrangler-dist/cli.js`): the adapter adds a `SESSION` binding with no ID, and wrangler's auto-provisioning would create the namespace, but when listing KV namespaces returns a permission error it skips provisioning silently and uploads the binding without an ID. So the Workers Builds API token most likely lacks KV permission (inferred, not seen in the build log). No config-only fix exists that keeps EmDash sign-in working: EmDash stores users in the Astro session, and a different session driver needs other infrastructure. Two human fixes, either works: create the KV namespaces and paste their IDs (T0.12), or grant the Workers Builds token KV edit permission so provisioning runs. Workers Builds should also deploy with `CLOUDFLARE_ENV=staging` (see above); the top level is now local-only with IDs `local` and will not deploy.
 
@@ -158,7 +201,11 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - **T5.16 (HUMAN), Resend and Turnstile keys and objects:** from 1Password, set `RESEND_API_KEY` and `TURNSTILE_SECRET` as Worker secrets per environment. Fill `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID` and `NEWSLETTER_TEST_ALLOWLIST` in that environment's `vars` in `wrangler.jsonc` (a deploy overwrites dashboard values). `TURNSTILE_SITE_KEY` is built into the page: deploy with it set, e.g. `TURNSTILE_SITE_KEY=<staging key> pnpm run deploy:staging`. In Resend, verify the sending domain and create the `subscribers` Segment, a staging-only test Segment holding allowlisted addresses only, the newsletter Topic and one Topic per body with default "opt out"; save each body Topic's id in that body's **Resend topic id** field and publish the body. Create the Turnstile widget for the site's hostnames. The runbook's first table lists each one.
 - **T5.17 (HUMAN), staging send test:** on staging, follow `docs/runbooks/newsletter-send.md` end to end with `RESEND_SEGMENT_ID` set to the staging-only Segment: a test reaches the allowlist inbox, the approved Broadcast is received with a working unsubscribe link, an EmDash invite arrives by email (FR-8.1, and **Settings → Email** shows the newsletter plugin as provider), and a signup appears in Resend with its Topics. Two things only a real Resend can answer: whether `Idempotency-Key` is honoured on `POST /broadcasts` (the key-named lookup does not depend on it), and what adding an existing contact to its Segment returns.
 - **T5.18 (HUMAN), Checkly heartbeat:** create a Checkly `HeartbeatMonitor` for scheduled sends and wire it to the staging send (PLAN M5).
-- **Newsletter decisions (reversible):** compose in the admin page, not on the server (ADR-003: a headless editor needs `@tiptap/core` as a direct dependency, which moves EmDash admin's TipTap peers); article links go to `/bodies/<slug>/news#<news slug>` until M4 adds a news detail route (R8; one function in `src/lib/adapters/newsletter/content.ts`); a section whose event list the Admin deleted gets none back at approval; the public form never clears a contact's global unsubscribe; the email theme in `src/plugins/newsletter/theme.ts` is a placeholder for the M4 design.
+- **Newsletter decisions (reversible):** compose in the admin page, not on the server (ADR-003: a headless editor needs `@tiptap/core` as a direct dependency, which moves EmDash admin's TipTap peers); article links go to the news item's own page, `/bodies/<slug>/news/<news slug>` (R8, added in M4); a section whose event list the Admin deleted gets none back at approval; the public form never clears a contact's global unsubscribe; the email theme in `src/plugins/newsletter/theme.ts` is a placeholder for the M4 design.
+- **T4.1 (OPERATOR), design direction:** choose A (Framed Lodge), B (Temple) or C (Noticeboard). The restyle (T4.12) then touches `src/styles/theme.css` and `src/components/`; B and C also change the `astro.config.mjs` fonts and C adds a colour field to `bodies` (both PATH_ASK), and A needs FR-4.4 amended to "labelled by body". Calendar entries already carry `data-body` and a text label for the colour coding. Lighthouse ≥ 90 (T4.13) follows the restyle, in M7.
+- **Contact recipients (spec Q12):** an Admin fills each body's **Contact form recipients** and publishes the body. Until then the body's page says its form is not set up and the Contact page leaves the body out. Delivery needs the email transport (T5.16).
+- **FR-9.1 pages (M6):** the seed holds only About. Editors create `home` (its copy becomes the home page's intro), `scholarships` and `contact` (the Contact page shows the form for every body) in the pages collection; M6 migrates their copy. The primary menu has no Contact or Scholarships item; add them in the admin or the seed (PATH_ASK).
+- **M4 decisions (reversible):** (1) A body's current officer term is the latest term year it has entered that has begun: next year's officers wait for January, and a body whose term began last autumn keeps it, shown as "Officers for <year>". For an explicit term, add a `current_term` field to bodies (PATH_ASK). (2) The contact route lives in the newsletter plugin, which already owns Resend, Turnstile and the public signup, so `astro.config.mjs` is unchanged; one email goes to the first recipient with the rest in cc; the limit is five per sender and body an hour. (3) `/news/<slug>`, the news collection's `urlPattern` (admin "view" links, previews), answers 302 to the item's page under its body, keeping the query. (4) A timed event is listed on the day it starts; an all-day event on each of its days. (5) A body page's upcoming events include its stated meetings, as FR-1.1 reads. (6) Pages that show what comes next expire from the route cache after 15 minutes (`CLOCK_BOUND`).
 
 ## Log
 - 2026-11-23: Spec brainstorm Phases 0–5 complete (docs/spec/findlay-masonic-platform/). Planning decisions recorded (PLAN §2). Plan drafted.
@@ -173,3 +220,4 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - 2026-11-23: M5 agent work (T5.1–T5.12, T5.14, T5.15) on a local branch from `claude/happy-bell-oj5yoo`, ahead of M4's design gate: `resend` 6.39.0 added; core event refresh (R13), footer and archive transforms; Resend mailer, Turnstile, clock and dev-only fakes; the native `newsletter` plugin (issue routes, idempotent approval with a compare-and-set hold and key-named Broadcast lookup, public signup, `email:deliver`), the Newsletter admin page with the email editor, the archive and signup form; lint and a build check keep Resend and the fakes where they belong. ADR-003 and the send runbook. T5.13 waits on PATH_ASK approval, T5.16–T5.18 on a human, T5.19 on the critic.
 - 2026-11-23: M5 rebased onto the M3 red-team fixes (813667e) and pushed on `claude/happy-bell-oj5yoo`. Every newsletter and body-access plugin route is now classified by its guard in `route-table.ts` (T5.20). On a clean copy: 2639 unit tests and 55 e2e (48 from M3, 7 from M5) green.
 - 2026-11-23: M5 fix round (T5.21–T5.25) on `claude/happy-bell-oj5yoo`, after an independent verifier failed 6d49955. B1: anonymous visitors saw an empty archive and 404 issue pages because EmDash gives an anonymous page no database handle; the archive now reads through two public read-only plugin routes via EmDash's public dispatcher. N1: the four newsletter settings set as Worker variables were inlined by the build; they are now read at runtime and declared as `vars` per environment (PATH_ASK `astro.config.mjs`). N2: a globally unsubscribed address is never re-subscribed, and the form says so. N4: checked on the production build under `wrangler dev`; the email transport registers with the Worker's secrets, no change. N5, N6: check-dist scans source maps; a stale path fixed. On a clean copy and a fresh database: 2645 unit tests and 57 e2e green.
+- 2026-11-23: M4 functional half (T4.2–T4.11) on a local branch from `claude/happy-bell-oj5yoo`, ahead of the design gate: pure rules for month grids, agendas, meetings, officer terms, labels and paging; a site adapter that reads only through EmDash's public query functions; every public route in FR-1 to FR-4 and FR-9.1 plus the news detail page (R8) and ICS feeds; the per-body contact form through `email:deliver` (Q12); dead blog CSS and wording removed. On a clean copy with a fresh database: 2732 unit tests, 89 e2e with `CI=true` (15 public as a visitor, 19 axe), `astro check` 0 errors, lint and format clean, build and the 14 dist checks pass; local P95 server time 28 to 70 ms per route on the dev server. T4.1 waits on the operator; T4.12 to T4.14 on T4.1.

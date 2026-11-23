@@ -1,6 +1,6 @@
 This is the Findlay Masonic platform: an EmDash CMS site on Astro 7 and Cloudflare Workers that replaces findlaymason.org. Six Masonic bodies each maintain their own page, calendar and news, and an admin builds the newsletter.
 
-The design is pending the M4 design gate. Until then the site still runs the EmDash blog template; M1 removes its posts, categories, tags, search and RSS.
+The public pages (M4) are built in plain semantic markup on the EmDash starter's neutral styles; the visual design waits for the operator to choose a direction. A restyle belongs in `src/styles/theme.css` and the components in `src/components/`, not in the page data flow.
 
 ## Where decisions live
 
@@ -75,10 +75,17 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 - Taxonomy names in queries must match the seed's `"name"` field exactly.
 - `src/live.config.ts` is EmDash loader boilerplate. Don't modify it.
 
+### Public pages
+
+- Public pages read content only through EmDash's query functions (`getEmDashCollection`, `getEmDashEntry`), via the loaders in `src/lib/adapters/site/content.ts`. Never read `Astro.locals.emdash.db` on a public page: EmDash gives anonymous visitors a reduced `locals.emdash` with no `db`, so the page is empty for them while it works for a signed-in Admin.
+- Loaders parse entries into views (`src/lib/adapters/site/views.ts`); schedules, officer terms, month grids and paging are pure functions in `src/lib/core`. Links come from `paths` in `src/lib/adapters/site/paths.ts`.
+- `bodies.contact_recipients` never reaches a page: views carry only `acceptsMessages`. The contact form posts to the newsletter plugin's `contact` route, which sends through EmDash's email pipeline (`email:deliver`).
+- Each route registers its content hints with `cacheRoute`; pages that show what comes next (meetings, upcoming events, today) also pass `CLOCK_BOUND`.
+
 ### Tests
 
 - Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
-- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`. Tag smoke tests `@smoke`.
+- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) and axe in `tests/e2e/a11y/`. Tag smoke tests `@smoke`.
 - Assert what a user or caller can observe, not internals.
 
 ## Key files
@@ -103,7 +110,3 @@ Agent skills are in `.agents/skills/`. Load them for specific tasks:
 - **emdash-cli**: content management, seeding, type generation.
 
 The EmDash docs MCP server (`https://docs.emdashcms.com/mcp`, configured in `.mcp.json`) is blocked from cloud sessions. There, read `node_modules/emdash` (README, types, dist) and the skills instead.
-
-## Comments
-
-The blog template enables comments on posts. Configure moderation before publishing, or remove `commentsEnabled` and the comments UI together (M1 removes posts).

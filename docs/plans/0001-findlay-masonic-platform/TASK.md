@@ -1,7 +1,7 @@
-# TASK — 0001-findlay-masonic-platform (M0 to M3, M5)
+# TASK — 0001-findlay-masonic-platform (M0 to M5)
 **SDD phase:** 3 (TASKS)
 **Plan:** [PLAN.md](PLAN.md) (approved 2026-11-23) · **Status:** [STATUS.md](STATUS.md)
-**Scope:** M0 to M3, and M5 ahead of M4's design gate. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
+**Scope:** M0 to M5. M5 ran ahead of M4's design gate, and M4's functional half runs ahead of it too. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
 
 ## Conventions
 - One checkbox = one reviewable commit (or a small, coherent group of commits). Tick it only when its **Verify** line passes.
@@ -318,6 +318,61 @@ Two red teams reviewed feb8594. The code review found eight issues (five confirm
   Deps: T0.16. Verify: the runbook's step 4 passes for each sign-in method.
 - [ ] **T3.18 [AGENT] Close M3.** Exit check: FR-5 e2e green locally and in CI; task-critic PASS; update STATUS.md.
   Deps: all of M3. Verify: critic returns PASS.
+
+---
+
+## M4 — Public site
+The functional half of M4 runs ahead of its design gate: every route, the data flow and plain semantic markup on the template's classes, so the chosen direction restyles `theme.css` and the components in `src/components/` without touching the pages' data flow. Evidence below was run on a clean copy of the committed tree (`git archive HEAD` into `/tmp/m4run`, `pnpm install --frozen-lockfile`, a fresh database) on 2026-11-23. Every page check runs as an anonymous visitor; content is seeded through the API as Admin.
+
+### Design (operator)
+- [ ] **T4.1 [HUMAN] Choose the design direction (A Framed Lodge, B Temple or C Noticeboard).** Direction A needs FR-4.4 amended to "labelled by body"; B and C change `astro.config.mjs` fonts (PATH_ASK).
+  Verify: the operator names a direction.
+
+### Core and adapters
+- [x] **T4.2 [AGENT] Pure rules for the public pages.** `core/calendar/month` (Sunday-first grid, agenda, `?month=`), `core/recurrence/meetings` (schedule and next stated meetings, an ended rule names no schedule), `core/bodies/officers` (current term is the latest that has begun), `core/bodies/label` ("Lodge 227"), `core/news/paging` (ten a page).
+  Verify: `pnpm vitest run --coverage`.
+  Evidence: 2732 unit tests green in 43 files; `core/calendar`, `core/bodies`, `core/news` and `core/recurrence` (with `meetings.ts`) at 100% statements, branches, functions and lines, so the recurrence threshold holds.
+- [x] **T4.3 [AGENT] Site adapter.** `src/lib/adapters/site`: loaders through `getEmDashCollection`/`getEmDashEntry` (never `locals.emdash.db`, which anonymous visitors lack), throwing on a failed read; views (a body carries `acceptsMessages`, never the addresses); `paths`; `cacheRoute` with `CLOCK_BOUND` for pages that show what comes next; `calendarResponse` around core `buildCalendar`.
+  Verify: `tests/unit/adapters/site/views.test.ts`; the e2e below run as a visitor.
+  Evidence: green; `grep -rn "locals.emdash" src/components src/pages src/lib/adapters/site` finds nothing outside the newsletter archive pages (not M4's).
+
+### Routes and components
+- [x] **T4.4 [AGENT] Routes, all server-rendered.** `/`, `/bodies`, `/bodies/[slug]`, `/bodies/[slug]/news`, `/bodies/[slug]/news/[news]`, `/news`, `/news/[slug]` (redirect: the news `urlPattern` cannot name the body), `/calendar`, `/bodies/[slug]/calendar`, `/calendar.ics`, `/bodies/[slug]/calendar.ics` (`text/calendar`), `pages/[slug]` with the contact form on `contact`. Components: BodyCard, BodyCards, ScheduleBlock, OfficerList, NewsList, MonthGrid, Agenda, CalendarFilter, MonthNav, Pager, FeedLinks, ContactForm, Turnstile. Every list has an empty state, including FR-1.4's "Contact the secretary for meeting times." Calendar entries carry `data-body="<slug>"` and a text label, uncoloured until T4.12.
+  Verify: e2e `tests/e2e/public/*`; no `client:` directive, no `set:html`; page script tags.
+  Evidence: 15 `public` e2e green, every page as a visitor. The only scripts on the new pages are the layout's existing ones (theme, header height, search shortcut) and EmDash's LiveSearch; Turnstile's script loads only when `TURNSTILE_SITE_KEY` is set.
+- [x] **T4.5 [AGENT] News detail page and newsletter links (R8).** Newsletter article cards link to `/bodies/<body>/news/<news>` through `paths.newsItem`.
+  Verify: `tests/unit/adapters/newsletter/content.test.ts`; e2e "R8".
+  Evidence: the e2e assembles a real issue and finds the card's link, and the page answers 200 to a visitor; `/news/<slug>` answers 302 to it; the same slug under another body is 404.
+- [x] **T4.6 [AGENT] Per-body contact form (spec Q12).** Route `newsletter/contact` (public, classified in `PLUGIN_ROUTES`): Origin or `X-EmDash-Request`, zod, Turnstile, five messages per sender and body an hour (plugin KV, SHA-256 key, compare-and-set), then `ctx.email.send` through `email:deliver` to the body's `contact_recipients`, reply-to the visitor. The plugin gains `email:send`; `astro.config.mjs` is unchanged.
+  Verify: `tests/unit/plugins/newsletter/contact.test.ts`, `plugin.test.ts`, `route-table.test.ts`; e2e "Q12" (three tests) with the dev fake.
+  Evidence: green. The visitor's email reaches the recipient with reply-to set; the address appears on none of six public pages; the anonymous content API answers 401; another site's Origin and no Origin are 403; a missing token is `verification-failed`; the sixth message in an hour is `rate-limited`.
+
+### Leftovers from M1 and M2
+- [x] **T4.7 [AGENT] Dead blog CSS, stale wording, menu links.** Removed `.empty-state*` and `.icon-btn` from `Base.astro` (a script listed every class the layout and stylesheets define that nothing under `src/` uses; the rest are applied at runtime by EmDash's PortableText, LiveSearch and WidgetArea). `.post-grid` stays as the body card grid. README rewritten for the site; AGENTS.md loses the blog wording and the comments section and gains a "Public pages" rule; `resolveSiteIdentity` loses its blog name and defaults.
+  Verify: e2e "every main menu link resolves".
+  Evidence: Home, Bodies, Calendar, News and About each answer 200.
+
+### Tests, accessibility, performance and gates
+- [x] **T4.8 [AGENT] Playwright e2e for FR-1.x, 2.2, 3.3, 3.4, 4.3 to 4.5, 6.8 and 9.1.** Project `public`, after the newsletter suite (they share the dev outbox). FR-6.8's empty archive stays in M5's `newsletter-archive.empty.spec.ts`. FR-9.1 checks the routes render the pages collection's Home, About, Scholarships and Contact; the copy is migrated in M6, so the test creates the missing pages first.
+  Verify: `CI=true pnpm e2e --trace off` on a fresh database.
+  Evidence: 89 passed with `CI=true` on a fresh database: 55 from M3 and M5, 15 `public`, 19 `a11y`. The `public` tests by requirement: FR-1.1 and 1.3, FR-1.2, FR-1.4, FR-2.2, FR-3.3, FR-3.4, R8, FR-4.3, FR-4.4, FR-4.5 (the feed's `RRULE`, `EXDATE;TZID=America/New_York` and `VTIMEZONE` lines), FR-9.1, the main menu's links, and three for Q12.
+- [x] **T4.9 [AGENT] axe AA, zero violations.** `@axe-core/playwright` 4.14.0 pinned exactly (receipt in `context7-receipts.md`); project `a11y` runs after `public`, so lists hold content. 17 public routes in light and dark mode (asserting the dark palette really renders), and the Body Access and Newsletter admin pages scoped to each plugin's own page.
+  Verify: the `a11y` project.
+  Evidence: 19 green: 0 violations on each of 17 public routes in light and dark mode, and on the Body Access and Newsletter pages. EmDash's admin shell around the plugin pages has one finding of its own, `label-content-name-mismatch` on a base-ui control, the same on every admin page.
+- [x] **T4.10 [AGENT] Local P95 server time per route.** `node tests/perf/p95.mjs <url> 50` reads EmDash's `Server-Timing: mw`.
+  Verify: the table in STATUS.md.
+  Evidence: on the dev server with the e2e data, uncached, server P95 is 28 to 70 ms per route. A local indicator only: it runs local SQLite, not D1 over the network. The budget (P95 < 300 ms cached) is measured in M7.
+- [x] **T4.11 [AGENT] Astro Design Principles Gate (A1 to A12) and the TypeScript gate on `src/lib`.**
+  Verify: STATUS.md "Design principles gates (M4)".
+  Evidence: all pass.
+
+### Waiting on the design decision
+- [ ] **T4.12 [AGENT] Restyle to the chosen direction.** `theme.css` overrides and the components above; FR-4.4 colour coding on the existing `data-body` hooks (or the spec amendment, for direction A); the email theme in `src/plugins/newsletter/theme.ts`.
+  Deps: T4.1. Verify: axe still clean; screenshots at 1280 and 390 px in both colour schemes.
+- [ ] **T4.13 [AGENT] Lighthouse ≥ 90 (Performance, Accessibility, Best Practices, SEO).** Out of M4's functional half; carried to M7 with the P95 budget.
+  Deps: T4.12, T0.16. Verify: Lighthouse CI on staging.
+- [ ] **T4.14 [AGENT] Close M4.** Exit check: the e2e above green in CI, axe clean, Lighthouse ≥ 90 on staging; task-critic PASS; update STATUS.md.
+  Deps: all of M4. Verify: critic returns PASS.
 
 ---
 
