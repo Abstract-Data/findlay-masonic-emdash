@@ -42,7 +42,15 @@ const OPS: readonly (readonly [string, Operation])[] = [
 	["media uploaded by someone else", { kind: "media", uploader: userId("someone") }],
 	["media with no recorded uploader", { kind: "media", uploader: null }],
 	["admin-only", { kind: "admin-only", action: "use-mcp" }],
+	...STATE_CHANGES.map((change): readonly [string, Operation] => [
+		`${change} body page A`,
+		{ kind: "body-page", change, body: A },
+	]),
+	["discard on a body page with no body", { kind: "body-page", change: "discard", body: null }],
 ];
+
+/** ADR-002: taking a body's own page offline is for Admins. */
+const RETIRES_A_BODY: ReadonlySet<string> = new Set(["delete", "unpublish", "schedule"]);
 
 const CASES = PROFILES.flatMap((actorProfile) =>
 	[null, ...PROFILES].flatMap((coProfile) =>
@@ -71,6 +79,10 @@ function need(op: Operation, actor: Editor): Need {
 			return { kind: "uploader", user: op.uploader };
 		case "admin-only":
 			return { kind: "admin" };
+		case "body-page":
+			return RETIRES_A_BODY.has(op.change) || op.body === null
+				? { kind: "admin" }
+				: { kind: "bodies", bodies: [op.body] };
 		case "create":
 			if (op.body !== null) return { kind: "bodies", bodies: [op.body] };
 			return actor.grants.size === 1
@@ -140,10 +152,10 @@ function invariantFailures(
 }
 
 describe("authorize: exhaustive", () => {
-	it("enumerates 8 actor profiles x 9 co-editor options x 22 operations", () => {
+	it("enumerates 8 actor profiles x 9 co-editor options x 30 operations", () => {
 		expect(PROFILES).toHaveLength(8);
-		expect(OPS).toHaveLength(22);
-		expect(CASES).toHaveLength(1584);
+		expect(OPS).toHaveLength(30);
+		expect(CASES).toHaveLength(2160);
 	});
 
 	it.each(CASES)("$name", ({ actor, coEditors, op }) => {

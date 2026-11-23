@@ -7,7 +7,21 @@ export type RuleViolation =
 			readonly code: "title-not-for-body-type";
 			readonly title: string;
 			readonly bodyType: BodyType;
-	  };
+	  }
+	| { readonly code: "translation-in-another-body"; readonly body: BodyId };
+
+/**
+ * ADR-002: a translation joins its source's body, so no translation group spans two bodies and
+ * a group-wide write never reaches another body's entry. Applies to Admins too.
+ */
+export function checkTranslationBody(
+	body: BodyId,
+	sourceBody: BodyId,
+): Result<void, RuleViolation> {
+	return body === sourceBody
+		? ok(undefined)
+		: err({ code: "translation-in-another-body", body: sourceBody });
+}
 
 /** FR-3.2: every tag must be in the body's own vocabulary. Applies to Admins too. */
 export function checkTags(

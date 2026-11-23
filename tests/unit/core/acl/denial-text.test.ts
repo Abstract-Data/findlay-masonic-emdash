@@ -15,9 +15,11 @@ const reasons: readonly (DenyReason | RuleViolation)[] = [
 	{ code: "missing-body" },
 	{ code: "unknown-tags", body: LODGE, tags: [tag("bake-sale")] },
 	{ code: "title-not-for-body-type", title: "King", bodyType: "Blue Lodge" },
+	{ code: "translation-in-another-body", body: CHAPTER },
 	{ code: "not-uploader", user: userId("u1") },
 	{ code: "admin-only", user: userId("u1"), action: "use-mcp" },
 	{ code: "admin-only", user: userId("u1"), action: "add-body" },
+	{ code: "admin-only", user: userId("u1"), action: "retire-body" },
 	{ code: "admin-only", user: userId("u1"), action: "unlisted" },
 ];
 
@@ -58,15 +60,29 @@ describe("denialText", () => {
 		expect(text).toContain("Blue Lodge");
 	});
 
+	it("names the body a translation must stay in", () => {
+		const text = denialText({ code: "translation-in-another-body", body: CHAPTER }, names);
+		expect(text).toContain("Choose Findlay Chapter No. 58 as its body");
+	});
+
 	it("says only the uploader or an Admin may change a media item", () => {
 		const text = denialText({ code: "not-uploader", user: userId("u3") }, names);
 		expect(text).toContain("u3");
 		expect(text).toContain("uploader or a Temple administrator");
 	});
 
+	it("explains that uploading an identical file hands back the first uploader's item", () => {
+		const text = denialText({ code: "not-uploader", user: userId("u3") }, names);
+		expect(text).toContain("identical file");
+		expect(text).toContain("first uploaded it");
+	});
+
 	it("names the admin-only action that was refused", () => {
 		expect(adminOnlyText("use-mcp")).toContain("cannot use the MCP endpoint");
 		expect(adminOnlyText("add-body")).toContain("cannot add a body");
+		expect(adminOnlyText("retire-body")).toContain(
+			"cannot trash, unpublish or schedule a body's page",
+		);
 		expect(adminOnlyText("unlisted")).toContain("cannot make this change");
 		expect(adminOnlyText("unlisted")).toContain("u4");
 	});

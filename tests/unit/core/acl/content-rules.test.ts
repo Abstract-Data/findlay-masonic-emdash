@@ -1,9 +1,22 @@
-import { checkOfficerTitle, checkTags } from "@core/acl/content-rules";
+import { checkOfficerTitle, checkTags, checkTranslationBody } from "@core/acl/content-rules";
 import { TITLES_BY_BODY_TYPE } from "@core/acl/officer-titles";
 import { describe, expect, it } from "vitest";
-import { LODGE, tag } from "../../fixtures";
+import { CHAPTER, LODGE, tag } from "../../fixtures";
 
 const vocabulary = new Set([tag("ritual"), tag("degree-work"), tag("fellowship")]);
+
+describe("checkTranslationBody (ADR-002)", () => {
+	it("accepts a translation in its source's body", () => {
+		expect(checkTranslationBody(CHAPTER, CHAPTER)).toEqual({ ok: true, value: undefined });
+	});
+
+	it("rejects a translation in another body, naming the source's body", () => {
+		expect(checkTranslationBody(LODGE, CHAPTER)).toEqual({
+			ok: false,
+			error: { code: "translation-in-another-body", body: CHAPTER },
+		});
+	});
+});
 
 describe("checkTags (FR-3.2)", () => {
 	it("accepts an entry with no tags", () => {

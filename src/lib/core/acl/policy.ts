@@ -23,17 +23,22 @@ export type StateChange =
 	| "discard";
 
 /** What only an Admin may do, named in the denial text. */
-export type AdminAction = "use-mcp" | "add-body" | "unlisted";
+export type AdminAction = "use-mcp" | "add-body" | "retire-body" | "unlisted";
+
+/** State changes that take a body's own page offline, which only an Admin makes. */
+const RETIRES_A_BODY: ReadonlySet<StateChange> = new Set(["delete", "unpublish", "schedule"]);
 
 /**
  * `from` and `bodies` are an existing entry's stored bodies: its live body, then its draft's
  * body when an unpublished draft moves it. Empty means the entry has no body. A body change
- * is an update whose `to` is not among `from`.
+ * is an update whose `to` is not among `from`. A `body-page` change is a state change to a
+ * body's own page, which belongs to that body.
  */
 export type Operation =
 	| { readonly kind: "create"; readonly body: BodyId | null }
 	| { readonly kind: "update"; readonly from: readonly BodyId[]; readonly to: BodyId | null }
 	| { readonly kind: StateChange; readonly bodies: readonly BodyId[] }
+	| { readonly kind: "body-page"; readonly change: StateChange; readonly body: BodyId | null }
 	| { readonly kind: "upload" }
 	| { readonly kind: "media"; readonly uploader: UserId | null }
 	| { readonly kind: "admin-only"; readonly action: AdminAction };
@@ -83,6 +88,11 @@ function requirement(op: Operation, actor: Editor): Requirement {
 			return { kind: "uploader", user: op.uploader };
 		case "admin-only":
 			return { kind: "admins", denial: op.action };
+		case "body-page":
+			if (RETIRES_A_BODY.has(op.change)) return { kind: "admins", denial: "retire-body" };
+			return op.body === null
+				? { kind: "admins", denial: "missing-body" }
+				: { kind: "bodies", bodies: [op.body] };
 		case "create":
 			return op.body === null ? bodylessCreate(actor) : { kind: "bodies", bodies: [op.body] };
 		case "update":
@@ -139,6 +149,7 @@ export function denialText(
 const ADMIN_ACTIONS: Record<AdminAction, string> = {
 	"use-mcp": "use the MCP endpoint",
 	"add-body": "add a body",
+	"retire-body": "trash, unpublish or schedule a body's page",
 	unlisted: "make this change",
 };
 
@@ -151,11 +162,13 @@ function message(reason: DenyReason | RuleViolation, name: (body: BodyId) => str
 		case "missing-body":
 			return "Choose the body this entry belongs to. Every entry must belong to a body.";
 		case "not-uploader":
-			return `User ${reason.user} did not upload this file. Only its uploader or a Temple administrator can change or delete it.`;
+			return `User ${reason.user} did not upload this file. Only its uploader or a Temple administrator can change or delete it. If you uploaded an identical file, the library kept the copy of whoever first uploaded it. You can still use it in your content.`;
 		case "admin-only":
 			return `User ${reason.user} cannot ${ADMIN_ACTIONS[reason.action]}. Only a Temple administrator can.`;
 		case "unknown-tags":
 			return `These tags are not in the ${name(reason.body)} tag list: ${reason.tags.join(", ")}. Add them to the body's tag vocabulary first.`;
+		case "translation-in-another-body":
+			return `A translation belongs to the body of the entry it translates. Choose ${name(reason.body)} as its body.`;
 	}
 	return `"${reason.title}" is not on the officer title list for ${reason.bodyType}.`;
 }

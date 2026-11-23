@@ -182,13 +182,38 @@ describe("authorize: decision table", () => {
 	});
 
 	it("row 15 (ADR-002): admin-only actions deny every non-admin, naming the action", () => {
-		for (const action of ["use-mcp", "add-body", "unlisted"] as const) {
+		for (const action of ["use-mcp", "add-body", "retire-body", "unlisted"] as const) {
 			expect(authorize(user(admin), { kind: "admin-only", action })).toEqual({ outcome: "allow" });
 			expect(authorize(user(twoBodyEditor), { kind: "admin-only", action })).toEqual({
 				outcome: "deny",
 				reason: { code: "admin-only", user: twoBodyEditor.id, action },
 			});
 		}
+	});
+
+	it("row 16 (ADR-002): only an Admin trashes, unpublishes or schedules a body's own page", () => {
+		for (const change of ["delete", "unpublish", "schedule"] as const) {
+			const op = { kind: "body-page", change, body: LODGE } as const;
+			expect(authorize(user(admin), op)).toEqual({ outcome: "allow" });
+			expect(authorize(user(lodgeEditor), op)).toEqual({
+				outcome: "deny",
+				reason: { code: "admin-only", user: lodgeEditor.id, action: "retire-body" },
+			});
+		}
+	});
+
+	it("row 17 (ADR-002): the body's own editors make the page's other state changes", () => {
+		for (const change of ["restore", "publish", "unschedule", "discard"] as const) {
+			const op = { kind: "body-page", change, body: LODGE } as const;
+			expect(authorize(user(lodgeEditor), op)).toEqual({ outcome: "allow" });
+			expect(authorize(user(chapterEditor), op)).toEqual({
+				outcome: "deny",
+				reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
+			});
+		}
+		expect(
+			authorize(user(lodgeEditor), { kind: "body-page", change: "publish", body: null }),
+		).toEqual({ outcome: "deny", reason: { code: "missing-body" } });
 	});
 
 	it("row 11 (ADR-001): uploads need an Admin or at least one body grant", () => {
