@@ -1,0 +1,41 @@
+---
+import { archivedIssues } from "@adapters/newsletter/archive";
+import NewsletterSignup from "../../components/NewsletterSignup.astro";
+import Base from "../../layouts/Base.astro";
+
+// FR-6.8. Minimal until the M4 design gate restyles it.
+const issues = await archivedIssues(Astro.locals.emdash?.db);
+const dateFormat = new Intl.DateTimeFormat("en-US", {
+	dateStyle: "long",
+	timeZone: "America/New_York",
+});
+---
+
+<Base title="Quarterly Newsletters" description="Past issues of the Findlay Masonic newsletter.">
+	<section class="band newsletters">
+		<div class="frame">
+			<h1>Quarterly Newsletters</h1>
+			{issues.length === 0 ? (
+				<p data-testid="newsletter-archive-empty">
+					No newsletters have been sent yet. Sign up below to get the first issue by email.
+				</p>
+			) : (
+				<ul data-testid="newsletter-archive">
+					{issues.map((issue) => (
+						<li>
+							<a href={`/newsletters/${issue.slug}`}>{issue.subject}</a>,{" "}
+							<time datetime={issue.sentAt.toISOString()}>{dateFormat.format(issue.sentAt)}</time>
+						</li>
+					))}
+				</ul>
+			)}
+		</div>
+	</section>
+	<NewsletterSignup />
+</Base>
+
+<style>
+	.newsletters {
+		padding-block: var(--spacing-8);
+	}
+</style>

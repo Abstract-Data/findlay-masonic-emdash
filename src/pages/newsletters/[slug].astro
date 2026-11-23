@@ -1,0 +1,59 @@
+---
+import { archivedIssue } from "@adapters/newsletter/archive";
+import Base from "../../layouts/Base.astro";
+
+// FR-6.8. The stored email is a whole HTML document from the send, so it is shown in a
+// sandboxed frame (no scripts, no same-origin access) rather than spliced into this page.
+const slug = Astro.params.slug ?? "";
+const issue = await archivedIssue(
+	Astro.locals.emdash?.db,
+	slug,
+	new URL("/newsletters#signup", Astro.url).href,
+);
+if (issue === null) return Astro.rewrite("/404");
+const dateFormat = new Intl.DateTimeFormat("en-US", {
+	dateStyle: "long",
+	timeZone: "America/New_York",
+});
+---
+
+<Base
+	title={issue.subject}
+	description={`Findlay Masonic newsletter sent ${dateFormat.format(issue.sentAt)}.`}
+>
+	<article class="band newsletter">
+		<div class="frame">
+			<p>
+				<a href="/newsletters">All newsletters</a>
+			</p>
+			<h1>{issue.subject}</h1>
+			<p>
+				Sent <time datetime={issue.sentAt.toISOString()}>{dateFormat.format(issue.sentAt)}</time>
+			</p>
+			<iframe
+				class="newsletter__email"
+				title={`${issue.subject}, as emailed`}
+				srcdoc={issue.html}
+				sandbox="allow-popups allow-popups-to-escape-sandbox"
+				referrerpolicy="no-referrer"
+				data-testid="newsletter-email"
+			></iframe>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.newsletter {
+		padding-block: var(--spacing-8);
+	}
+
+	.newsletter__email {
+		display: block;
+		width: 100%;
+		max-width: 680px;
+		height: 80vh;
+		border: 1px solid var(--color-border);
+		border-radius: var(--radius-lg);
+		background: #ffffff;
+	}
+</style>

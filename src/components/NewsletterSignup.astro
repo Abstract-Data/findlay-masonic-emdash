@@ -1,0 +1,89 @@
+---
+import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
+import { TURNSTILE_SITE_KEY } from "astro:env/client";
+import { getEmDashCollection } from "emdash";
+
+// FR-7.1. A plain form post: the subscribe route answers with a redirect back here, so the
+// page needs no script of its own. Turnstile's widget script is the only one loaded.
+const { entries } = await getEmDashCollection("bodies");
+const bodies = entries
+	.map((entry) => ({
+		id: entry.data.id,
+		name:
+			typeof entry.data.number === "number"
+				? `${entry.data.name} No. ${entry.data.number}`
+				: entry.data.name,
+		order: entry.data.display_order ?? Number.MAX_SAFE_INTEGER,
+	}))
+	.toSorted((a, b) => a.order - b.order);
+
+const MESSAGES: Readonly<Record<string, string>> = {
+	ok: "Thank you. You are subscribed to the newsletter.",
+	invalid: "Enter a valid email address and choose only the bodies listed.",
+	"verification-failed": "We could not confirm you are a person. Please try again.",
+	unavailable: "Signups are not working right now. Please try again later.",
+};
+const outcome = Astro.url.searchParams.get("subscribe");
+const message = outcome === null ? undefined : MESSAGES[outcome];
+// Development only: stand in for the widget with Cloudflare's published test token.
+const devToken = import.meta.env.DEV && !TURNSTILE_SITE_KEY;
+---
+
+<section id="signup" class="band signup" aria-labelledby="signup-title">
+	<div class="frame signup__inner">
+		<h2 id="signup-title">Get the newsletter by email</h2>
+		{message && (
+			<p role="status" data-testid="signup-message">
+				{message}
+			</p>
+		)}
+		<form method="post" action="/_emdash/api/plugins/newsletter/subscribe" data-testid="signup">
+			<p>
+				<label for="signup-email">Email address</label>
+				<input id="signup-email" name="email" type="email" required autocomplete="email" />
+			</p>
+			{bodies.length > 0 && (
+				<fieldset>
+					<legend>Also tell me about these bodies (optional)</legend>
+					{bodies.map((body) => (
+						<label class="signup__body">
+							<input type="checkbox" name="body" value={body.id} /> {body.name}
+						</label>
+					))}
+				</fieldset>
+			)}
+			{TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={TURNSTILE_SITE_KEY} />}
+			{devToken && <input type="hidden" name={TURNSTILE_FIELD} value={DUMMY_TURNSTILE_TOKEN} />}
+			<p>
+				<button type="submit" class="btn">
+					Subscribe
+				</button>
+			</p>
+		</form>
+		{TURNSTILE_SITE_KEY && (
+			<script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer />
+		)}
+	</div>
+</section>
+
+<style>
+	.signup {
+		padding-block: var(--spacing-8);
+	}
+
+	.signup__inner {
+		display: grid;
+		gap: var(--spacing-4);
+		max-width: var(--content-width);
+	}
+
+	.signup__body {
+		display: block;
+	}
+
+	fieldset {
+		border: 0;
+		padding: 0;
+		margin: 0;
+	}
+</style>
