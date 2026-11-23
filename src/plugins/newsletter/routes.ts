@@ -1,5 +1,6 @@
 import { systemClock } from "@adapters/clock";
 import { parseEventSeries } from "@adapters/emdash/parse";
+import { ISSUE_NOT_FOUND } from "@adapters/newsletter/archive";
 import { parseBodies, parseNewsCandidate, type ListedItem } from "@adapters/newsletter/content";
 import { issueStore, parseDoc, type IssueRows } from "@adapters/newsletter/issues";
 import type { IssueId } from "@core/ids";
@@ -20,6 +21,7 @@ import {
 	getIssue,
 	listIssues,
 	newIssue,
+	publishedIssues,
 	saveIssue,
 	testSend,
 	type ContentSource,
@@ -108,6 +110,7 @@ function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: Newslett
 const id = z.string().min(1).max(64);
 const revision = z.number().int().min(1);
 const byId = z.object({ id });
+const bySlug = z.object({ slug: z.string().min(1).max(200) });
 const saveInput = z.object({
 	id,
 	revision,
@@ -188,6 +191,32 @@ export const routes: Record<string, PluginRoute> = {
 		input: byId,
 		handler: async (ctx: RouteContext<z.infer<typeof byId>>) =>
 			unwrap(await discardIssue(await deps(ctx), ctx.input.id)),
+	},
+	/**
+	 * FR-6.8: the public archive pages read through these. A visitor's page has no database
+	 * handle, only EmDash's public plugin route dispatcher, so the issues come from here.
+	 */
+	"archive/list": {
+		public: true,
+		methods: ["GET"],
+		handler: async (ctx: RouteContext) => ({
+			issues: (await publishedIssues(issueStore(issueRows(ctx)), systemClock.now())).map(
+				({ slug, subject, sentAt }) => ({ slug, subject, sentAt }),
+			),
+		}),
+	},
+	"archive/issue": {
+		public: true,
+		methods: ["GET"],
+		input: bySlug,
+		handler: async (ctx: RouteContext<z.infer<typeof bySlug>>) => {
+			const issues = await publishedIssues(issueStore(issueRows(ctx)), systemClock.now());
+			const found = issues.find((issue) => issue.slug === ctx.input.slug);
+			if (found === undefined) {
+				throw new PluginRouteError(ISSUE_NOT_FOUND, "No sent issue has that slug.", 404);
+			}
+			return found;
+		},
 	},
 	/** FR-7.1, FR-7.2: the public signup form posts here; the answer redirects back to it. */
 	subscribe: {

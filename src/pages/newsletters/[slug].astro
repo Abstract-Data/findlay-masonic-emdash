@@ -1,15 +1,11 @@
 ---
-import { archivedIssue } from "@adapters/newsletter/archive";
+import { archivedEmail } from "@adapters/newsletter/archive";
 import Base from "../../layouts/Base.astro";
 
 // FR-6.8. The stored email is a whole HTML document from the send, so it is shown in a
 // sandboxed frame (no scripts, no same-origin access) rather than spliced into this page.
 const slug = Astro.params.slug ?? "";
-const issue = await archivedIssue(
-	Astro.locals.emdash?.db,
-	slug,
-	new URL("/newsletters#signup", Astro.url).href,
-);
+const issue = await archivedEmail(Astro.locals, Astro.url, slug);
 if (issue === null) return Astro.rewrite("/404");
 const dateFormat = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "long",

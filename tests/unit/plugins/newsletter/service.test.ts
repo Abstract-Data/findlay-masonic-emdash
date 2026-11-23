@@ -8,6 +8,7 @@ import type { EventSeries } from "@core/recurrence/series";
 import {
 	approve,
 	newIssue,
+	publishedIssues,
 	saveIssue,
 	testSend,
 	type IssueView,
@@ -373,5 +374,36 @@ describe("event lists are re-read at approve time (R13)", () => {
 			value(await approve(deps, { id: retested.id, revision: retested.revision, sendAt: null }))
 				.status,
 		).toBe("sent");
+	});
+});
+
+describe("the public archive (FR-6.8)", () => {
+	it("shows a sent issue's subject, date, slug and sent email, and nothing of a draft", async () => {
+		const { deps, rows } = world();
+		const issue = await tested(deps);
+		expect(await publishedIssues(deps.store, NOW)).toEqual([]);
+
+		await approve(deps, { id: issue.id, revision: issue.revision, sendAt: null });
+		const published = await publishedIssues(deps.store, NOW);
+		expect(published).toEqual([
+			{
+				slug: "2027-04-15-findlay-masonic-newsletter-apr-15-2027",
+				subject: issue.subject,
+				sentAt: NOW.toString(),
+				html: expect.stringContaining("Brethren,"),
+			},
+		]);
+		const stored = await rows.getVersioned(issue.id);
+		expect(JSON.stringify(stored?.value)).toContain(JSON.stringify(published[0]?.html));
+	});
+
+	it("holds a scheduled issue back until its send time", async () => {
+		const { deps } = world();
+		const issue = await tested(deps);
+		const sendAt = instant("2027-04-20T13:00:00Z");
+		await approve(deps, { id: issue.id, revision: issue.revision, sendAt });
+		expect(await publishedIssues(deps.store, NOW)).toEqual([]);
+		const due = await publishedIssues(deps.store, sendAt);
+		expect(due.map((entry) => entry.sentAt)).toEqual([sendAt.toString()]);
 	});
 });

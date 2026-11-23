@@ -169,6 +169,28 @@ export async function getIssue(
 	return found === null ? NOT_FOUND : ok(view(found.record));
 }
 
+/** FR-6.8: all the public archive may show of an issue. */
+export interface PublishedIssue {
+	readonly slug: string;
+	readonly subject: string;
+	/** ISO instant the issue went (or was scheduled to go) to subscribers. */
+	readonly sentAt: string;
+	/** The footed email handed to Resend. */
+	readonly html: string;
+}
+
+/** FR-6.8: sent issues, and scheduled ones whose time has come, newest first. */
+export async function publishedIssues(
+	store: IssueStore,
+	now: Temporal.Instant,
+): Promise<PublishedIssue[]> {
+	return (await store.archive(now)).flatMap(({ lifecycle, slug, sent, content }) => {
+		if (slug === null || sent === null) return [];
+		if (lifecycle.status !== "sent" && lifecycle.status !== "scheduled") return [];
+		return [{ slug, subject: content.subject, sentAt: lifecycle.at.toString(), html: sent.html }];
+	});
+}
+
 async function upcoming(deps: NewsletterDeps, now: Temporal.Instant) {
 	return expand(await deps.content.series(), daysAhead(now, EVENT_DAYS));
 }

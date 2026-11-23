@@ -38,10 +38,16 @@ describe("newsletter plugin structure", () => {
 		expect(ADMIN_PERMISSION).toBe("settings:manage");
 	});
 
-	it("makes only the signup route public, as a form post answered with a redirect", () => {
+	it("makes public only the signup form post and the archive's read-only GETs", () => {
 		const { routes } = createPlugin();
 		const open = Object.entries(routes).filter(([, route]) => route.public === true);
-		expect(open.map(([name]) => name)).toEqual(["subscribe"]);
+		expect(open.map(([name]) => name).toSorted()).toEqual([
+			"archive/issue",
+			"archive/list",
+			"subscribe",
+		]);
+		expect(routes["archive/list"]).toMatchObject({ methods: ["GET"] });
+		expect(routes["archive/issue"]).toMatchObject({ methods: ["GET"] });
 		expect(routes.subscribe).toMatchObject({
 			methods: ["POST"],
 			request: { body: "form-data" },

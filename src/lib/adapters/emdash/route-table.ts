@@ -268,6 +268,8 @@ export const PLUGIN_ROUTES: ReadonlyMap<string, PluginRouteGuard> = new Map<
 	["newsletter/issues/discard", ADMIN_SETTINGS],
 	// Registered only by the dev server (src/plugins/newsletter/routes.ts).
 	["newsletter/dev/outbox", ADMIN_SETTINGS],
+	["newsletter/archive/list", { kind: "public", checks: "read-only GET of sent issues (FR-6.8)" }],
+	["newsletter/archive/issue", { kind: "public", checks: "read-only GET of sent issues (FR-6.8)" }],
 	[
 		"newsletter/subscribe",
 		{ kind: "public", checks: "site Origin or X-EmDash-Request, zod, Turnstile (FR-7.1, 7.2)" },
