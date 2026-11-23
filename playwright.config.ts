@@ -58,6 +58,13 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"] },
 			dependencies: ["setup", "newsletter-empty"],
 		},
+		{
+			// After the builder suite has approved an issue, so the archive has one to show.
+			name: "newsletter-archive",
+			testMatch: /newsletter-archive\.anon\.spec\.ts/,
+			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["newsletter"],
+		},
 	],
 	webServer: {
 		// Astro 7 backgrounds `astro dev` when it detects a coding agent, and the
