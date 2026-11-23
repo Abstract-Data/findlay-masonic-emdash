@@ -101,7 +101,9 @@ async function operationFor(
 		case "upload":
 			return { kind: "upload" };
 		case "media-item": {
-			const media = await emdash.handleMediaGet(params.id ?? "");
+			// A provider's item (media/providers/[providerId]/[itemId]) records no uploader.
+			if (params.id === undefined) return { kind: "media", uploader: null };
+			const media = await emdash.handleMediaGet(params.id);
 			return media.success
 				? { kind: "media", uploader: parseUserId(media.data.item.authorId) }
 				: null;
