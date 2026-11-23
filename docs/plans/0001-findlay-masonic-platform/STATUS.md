@@ -14,7 +14,7 @@
 | M0 | Foundation and toolchain | In progress: T0.1–T0.9, T0.13–T0.15 done (CI green, run 45241090879); T0.10, T0.11 built, awaiting PATH_ASK approval; T0.12, T0.16 human; T0.17 critic pending | CI green + staging deploy |
 | M1 | Content model and seed | In progress: T1.1, T1.3, T1.7, T1.9–T1.11 done; T1.4–T1.6, T1.8 built, awaiting PATH_ASK approval; T1.2 lodge; T1.12 critic pending | Collections in admin, FR-9.2 test |
 | M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
-| M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 done (39 e2e green locally and in CI run 45267387509; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
+| M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 done (40 e2e green locally and in CI on both legs; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
 | M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
 | M5 | Newsletter plugin | Not started | Staging send to allowlist + test Segment |
 | M6 | Content migration | Not started | Inventory resolved, redirects green |

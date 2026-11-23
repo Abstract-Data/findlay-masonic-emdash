@@ -252,7 +252,7 @@ Design: [ADR-002](../../adr/ADR-002-body-access-middleware.md). One policy, core
 ### Request middleware
 - [x] **T3.11 [AGENT] `src/middleware.ts`.** Wraps `next()` in the actor store; refuses below Admin through the route table: the data-less PUT, trash, restore, duplicate, discard, unschedule, revision restore, recovery revisions, locks, rooms, terms, plugin extensions, rejection clearing, uploads, media items and MCP; an unlisted unsafe `/_emdash` route fails closed.
   Verify: `middleware.spec.ts`, `mcp.spec.ts`; the bypass regression.
-  Evidence: green. With the PUT and restore rows set to pass, a Lodge editor re-slugs a published Chapter entry and restores a trashed one (200), and the matching tests fail; reverted.
+  Evidence: green. With the PUT and restore rows set to pass, a Lodge editor re-slugs a published Chapter entry and restores a trashed one (200), and the matching tests fail; reverted. Review found one more path: `duplicate` and `terms` resolve a slug without the request's locale, so a Chapter slug with `?locale=zz` slipped past the guard and was duplicated (201). The guard now reads the entry with and without the locale and refuses when neither finds it; the new test failed before the fix and passes after it.
 
 ### Configuration (PATH_ASK)
 - [ ] **T3.12 [PATH_ASK] `astro.config.mjs`.** The `body-access` plugin descriptor; `authProviders: [google(), microsoft()]` (FR-8.2); `MICROSOFT_TENANT_ID` in the env schema; `optimizeDeps.include` for `@cloudflare/kumo`, which the providers' sign-in buttons import from source.
@@ -266,9 +266,9 @@ Design: [ADR-002](../../adr/ADR-002-body-access-middleware.md). One policy, core
 - [x] **T3.14 [AGENT] Runbook `docs/runbooks/onboard-body-editor.md`.** Invite, accept, grant, check, change or remove, troubleshooting, sign-in options.
   Verify: the invite route returns a link when no email provider is configured (read from EmDash 1.6.0).
   Evidence: written.
-- [x] **T3.15 [AGENT] Playwright per-role suites.** The setup project signs in seven accounts through the dev-only bypass (each borrows the dev address in turn) and saves their storage states; 35 tests in `tests/e2e/body-access/`; CI runs every suite.
+- [x] **T3.15 [AGENT] Playwright per-role suites.** The setup project signs in seven accounts through the dev-only bypass (each borrows the dev address in turn) and saves their storage states; 36 tests in `tests/e2e/body-access/`; CI runs every suite.
   Verify: `CI=true pnpm e2e --trace off`; CI green on both legs.
-  Evidence: 39 passed locally on a fresh database; CI run 45267387509 green.
+  Evidence: 40 passed locally on a fresh database (36 in `tests/e2e/body-access/`); CI green on both legs.
 - [x] **T3.16 [AGENT] ADR-002.** Why hooks alone are not enough, the middleware design, the media default, MCP denial, residual risks.
   Verify: `docs/adr/ADR-002-body-access-middleware.md`.
   Evidence: written, status Proposed until the PR lands.
