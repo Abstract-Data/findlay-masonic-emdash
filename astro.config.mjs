@@ -16,6 +16,8 @@ const isVitest = process.env.VITEST === "true";
 // the paths are absolute.
 const bodyAccess = (file) =>
 	fileURLToPath(new URL(`./src/plugins/body-access/${file}`, import.meta.url));
+const newsletter = (file) =>
+	fileURLToPath(new URL(`./src/plugins/newsletter/${file}`, import.meta.url));
 
 export default defineConfig({
 	output: "server",
@@ -49,6 +51,16 @@ export default defineConfig({
 				context: "server",
 				access: "public",
 				optional: true,
+			}),
+			// The sender of newsletters and system email, on the Resend-verified domain.
+			RESEND_FROM: envField.string({ context: "server", access: "public", optional: true }),
+			// Dev server only: use the in-memory Resend fake even when RESEND_API_KEY is set.
+			// Builds ignore it (src/plugins/newsletter/runtime.ts).
+			RESEND_FAKE: envField.boolean({
+				context: "server",
+				access: "public",
+				optional: true,
+				default: false,
 			}),
 			TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", optional: true }),
 		},
@@ -89,6 +101,13 @@ export default defineConfig({
 					format: "native",
 					entrypoint: bodyAccess("index.ts"),
 					adminEntry: bodyAccess("admin.tsx"),
+				},
+				{
+					id: "newsletter",
+					version: "1.0.0",
+					format: "native",
+					entrypoint: newsletter("index.ts"),
+					adminEntry: newsletter("admin.tsx"),
 				},
 			],
 			// portless serves dev over HTTPS at a named .localhost origin and sets
