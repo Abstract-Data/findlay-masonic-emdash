@@ -14,6 +14,7 @@ RESEND_SEGMENT_ID=
 RESEND_NEWSLETTER_TOPIC_ID=
 NEWSLETTER_TEST_ALLOWLIST=
 RESEND_FROM=
+TURNSTILE_SITE_KEY=
 
 # Server values (context: server, access: public)
 GOOGLE_CLIENT_ID=
@@ -22,7 +23,3 @@ MICROSOFT_TENANT_ID=
 # Dev server only: keeps the in-memory Resend fake even with RESEND_API_KEY set.
 # Leave it commented out otherwise; an empty value is not a boolean.
 # RESEND_FAKE=true
-
-# Client value (context: client, access: public), inlined at build time: a deploy's build
-# must have its environment's key set (docs/runbooks/newsletter-send.md).
-TURNSTILE_SITE_KEY=

@@ -64,9 +64,9 @@ export default defineConfig({
 				optional: true,
 				default: false,
 			}),
-			// Inlined into the build, so each environment's build must receive its own site key
-			// (docs/runbooks/newsletter-send.md).
-			TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", optional: true }),
+			// The Turnstile widget's public site key, a Worker variable like the settings above: only
+			// server-rendered forms read it, so it need not be built into the client.
+			TURNSTILE_SITE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
 		},
 	},
 	image: {

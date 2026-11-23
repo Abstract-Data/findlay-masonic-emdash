@@ -17,13 +17,13 @@ A human sets these up in Resend, Cloudflare and the Worker's settings. Nothing i
 | `RESEND_SEGMENT_ID` | The `subscribers` Segment every Broadcast goes to | `vars` of the environment in `wrangler.jsonc` |
 | `RESEND_NEWSLETTER_TOPIC_ID` | The newsletter Topic every Broadcast is sent under | `vars` of the environment in `wrangler.jsonc` |
 | `NEWSLETTER_TEST_ALLOWLIST` | The inboxes test sends go to, comma-separated. Never a subscriber list | `vars` of the environment in `wrangler.jsonc` |
-| `TURNSTILE_SECRET` | The secret of the signup form's Turnstile widget | Worker secret, as for `RESEND_API_KEY` |
-| `TURNSTILE_SITE_KEY` | The signup form's Turnstile widget | The shell that runs the deploy (see below). Not a Worker variable |
+| `TURNSTILE_SECRET` | The secret of the Turnstile widget on the signup and contact forms | Worker secret, as for `RESEND_API_KEY` |
+| `TURNSTILE_SITE_KEY` | The public site key of that widget | `vars` of the environment in `wrangler.jsonc` |
 | Body Topics | One Resend Topic per body, default "opt out", its id saved in that body's **Resend topic id** field | Resend dashboard, then the body's entry in the admin |
 
-The Worker reads the four `vars` and both secrets at runtime, not at build time. The `vars` are identifiers, not secrets, so they are committed in `wrangler.jsonc` under `env.staging.vars` and `env.production.vars`. Each deploy replaces the Worker's variables with these, so a value typed into the Cloudflare dashboard is lost on the next deploy; change the file instead. An empty value means "not set", and the builder names it.
+The Worker reads the five `vars` and both secrets at runtime, not at build time. The `vars` are identifiers, not secrets, so they are committed in `wrangler.jsonc` under `env.staging.vars` and `env.production.vars`. Each deploy replaces the Worker's variables with these, so a value typed into the Cloudflare dashboard is lost on the next deploy; change the file instead. An empty value means "not set", and the builder names it.
 
-`TURNSTILE_SITE_KEY` is different: the build writes it into the page, so the Worker's settings cannot change it, and each environment's build must be given its own key. Deploy with the key in the environment, for example `TURNSTILE_SITE_KEY=<staging site key> pnpm run deploy:staging`. A build without it serves a form with no Turnstile widget, and every signup is refused as unverified. Check the deployed `/newsletters` page shows the widget.
+`TURNSTILE_SITE_KEY` is public, but it too is read at runtime: only the server renders the forms, so the key is never built into the page and one build serves every environment. Without it the forms render with no Turnstile widget, and every signup and contact message is refused as unverified. Check the deployed `/newsletters` page and a body page show the widget.
 
 Staging uses its own Segment (a staging-only test Segment holding only allowlisted addresses) and its own Topics, so a staging approval never reaches a real subscriber.
 

@@ -68,7 +68,7 @@ describe("wrangler.jsonc environments (constitution amendment 1)", () => {
 	// Wrangler does not inherit top-level vars into an environment, and astro:env reads these
 	// from the Worker's env at runtime (tests/build/check-runtime-env.mjs).
 	it.each(["staging", "production"])(
-		"%s declares the newsletter settings as vars, and no secret",
+		"%s declares the newsletter and form settings as vars, and no secret",
 		(env) => {
 			const environment: unknown = Reflect.get(Object(Reflect.get(Object(config), "env")), env);
 			expect(Object.keys(Object(Reflect.get(Object(environment), "vars"))).toSorted()).toEqual([
@@ -76,6 +76,7 @@ describe("wrangler.jsonc environments (constitution amendment 1)", () => {
 				"RESEND_FROM",
 				"RESEND_NEWSLETTER_TOPIC_ID",
 				"RESEND_SEGMENT_ID",
+				"TURNSTILE_SITE_KEY",
 			]);
 		},
 	);

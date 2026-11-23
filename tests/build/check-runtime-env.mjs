@@ -2,8 +2,10 @@
 // runtime, then fails if any sentinel is in the bundle: a value there was fixed at build time,
 // and a Worker variable set later would never be read. Run from the repository root:
 //   node tests/build/check-runtime-env.mjs
-// TURNSTILE_SITE_KEY is the control: a client value is inlined, so its sentinel must be found,
-// which shows the build received the sentinels and the scan can see them.
+// PORTLESS_URL is the control: astro.config.mjs passes it to EmDash's siteUrl, which the build
+// writes into the bundle, so its sentinel must be found. That shows the build received the
+// sentinels and the scan can see them. (No astro:env field is inlined any more: every public
+// server field the code imports is a boolean.)
 import { execFileSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
@@ -17,12 +19,16 @@ const RUNTIME = [
 	"RESEND_NEWSLETTER_TOPIC_ID",
 	"NEWSLETTER_TEST_ALLOWLIST",
 	"TURNSTILE_SECRET",
+	"TURNSTILE_SITE_KEY",
 ];
-const INLINED = ["TURNSTILE_SITE_KEY"];
+const INLINED = ["PORTLESS_URL"];
 
 const sentinels = new Map(
 	[...RUNTIME, ...INLINED].map((name) => [name, `sentinel-${randomUUID()}`]),
 );
+// siteUrl must parse as a URL, so the control's sentinel goes in as a host name.
+const buildValue = (name, sentinel) =>
+	INLINED.includes(name) ? `https://${sentinel}.invalid` : sentinel;
 const outDir = mkdtempSync(join(tmpdir(), "runtime-env-build-"));
 // The build points Wrangler's deploy redirect at its outDir; put back the one for dist/.
 const REDIRECT = ".wrangler/deploy/config.json";
@@ -31,7 +37,10 @@ const redirect = existsSync(REDIRECT) ? readFileSync(REDIRECT, "utf8") : null;
 try {
 	execFileSync("pnpm", ["astro", "build", "--outDir", outDir], {
 		stdio: ["ignore", "ignore", "inherit"],
-		env: { ...process.env, ...Object.fromEntries(sentinels) },
+		env: {
+			...process.env,
+			...Object.fromEntries([...sentinels].map(([name, value]) => [name, buildValue(name, value)])),
+		},
 	});
 	const files = readdirSync(outDir, { withFileTypes: true, recursive: true })
 		.filter((entry) => entry.isFile() && /\.(?:m?js|map|json|html|css)$/.test(entry.name))

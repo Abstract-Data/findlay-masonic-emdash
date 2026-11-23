@@ -331,7 +331,7 @@ The functional half of M4 runs ahead of its design gate: every route, the data f
 ### Core and adapters
 - [x] **T4.2 [AGENT] Pure rules for the public pages.** `core/calendar/month` (Sunday-first grid, agenda, `?month=`), `core/recurrence/meetings` (schedule and next stated meetings, an ended rule names no schedule), `core/bodies/officers` (current term is the latest that has begun), `core/bodies/label` ("Lodge 227"), `core/news/paging` (ten a page).
   Verify: `pnpm vitest run --coverage`.
-  Evidence: 2732 unit tests green in 43 files; `core/calendar`, `core/bodies`, `core/news` and `core/recurrence` (with `meetings.ts`) at 100% statements, branches, functions and lines, so the recurrence threshold holds.
+  Evidence: 2738 unit tests green in 43 files; `core/calendar`, `core/bodies`, `core/news` and `core/recurrence` (with `meetings.ts`) at 100% statements, branches, functions and lines, so the recurrence threshold holds.
 - [x] **T4.3 [AGENT] Site adapter.** `src/lib/adapters/site`: loaders through `getEmDashCollection`/`getEmDashEntry` (never `locals.emdash.db`, which anonymous visitors lack), throwing on a failed read; views (a body carries `acceptsMessages`, never the addresses); `paths`; `cacheRoute` with `CLOCK_BOUND` for pages that show what comes next; `calendarResponse` around core `buildCalendar`.
   Verify: `tests/unit/adapters/site/views.test.ts`; the e2e below run as a visitor.
   Evidence: green; `grep -rn "locals.emdash" src/components src/pages src/lib/adapters/site` finds nothing outside the newsletter archive pages (not M4's).
@@ -355,7 +355,7 @@ The functional half of M4 runs ahead of its design gate: every route, the data f
 ### Tests, accessibility, performance and gates
 - [x] **T4.8 [AGENT] Playwright e2e for FR-1.x, 2.2, 3.3, 3.4, 4.3 to 4.5, 6.8 and 9.1.** Project `public`, after the newsletter suite (they share the dev outbox). FR-6.8's empty archive stays in M5's `newsletter-archive.empty.spec.ts`. FR-9.1 checks the routes render the pages collection's Home, About, Scholarships and Contact; the copy is migrated in M6, so the test creates the missing pages first.
   Verify: `CI=true pnpm e2e --trace off` on a fresh database.
-  Evidence: 89 passed with `CI=true` on a fresh database: 55 from M3 and M5, 15 `public`, 19 `a11y`. The `public` tests by requirement: FR-1.1 and 1.3, FR-1.2, FR-1.4, FR-2.2, FR-3.3, FR-3.4, R8, FR-4.3, FR-4.4, FR-4.5 (the feed's `RRULE`, `EXDATE;TZID=America/New_York` and `VTIMEZONE` lines), FR-9.1, the main menu's links, and three for Q12.
+  Evidence: 91 passed with `CI=true` on a fresh database: 57 from M3 and M5, 15 `public`, 19 `a11y`. The `public` tests by requirement: FR-1.1 and 1.3, FR-1.2, FR-1.4, FR-2.2, FR-3.3, FR-3.4, R8, FR-4.3, FR-4.4, FR-4.5 (the feed's `RRULE`, `EXDATE;TZID=America/New_York` and `VTIMEZONE` lines), FR-9.1, the main menu's links, and three for Q12.
 - [x] **T4.9 [AGENT] axe AA, zero violations.** `@axe-core/playwright` 4.14.0 pinned exactly (receipt in `context7-receipts.md`); project `a11y` runs after `public`, so lists hold content. 17 public routes in light and dark mode (asserting the dark palette really renders), and the Body Access and Newsletter admin pages scoped to each plugin's own page.
   Verify: the `a11y` project.
   Evidence: 19 green: 0 violations on each of 17 public routes in light and dark mode, and on the Body Access and Newsletter pages. EmDash's admin shell around the plugin pages has one finding of its own, `label-content-name-mismatch` on a base-ui control, the same on every admin page.
@@ -365,6 +365,10 @@ The functional half of M4 runs ahead of its design gate: every route, the data f
 - [x] **T4.11 [AGENT] Astro Design Principles Gate (A1 to A12) and the TypeScript gate on `src/lib`.**
   Verify: STATUS.md "Design principles gates (M4)".
   Evidence: all pass.
+
+- [ ] **T4.15 [PATH_ASK] `TURNSTILE_SITE_KEY` read at runtime.** `astro.config.mjs`: `server`/`secret` instead of `client`/`public`, read from `astro:env/server` in `Turnstile.astro`, the only reader (server-rendered). `wrangler.jsonc` declares it in both environments' `vars`; `worker-configuration.d.ts` regenerated; the runbook, `.dev.vars.example` and ADR-003 updated. `tests/build/check-runtime-env.mjs` lists it as runtime, with `PORTLESS_URL` (passed to EmDash's `siteUrl`, which the build writes into the bundle) as the new inlined control, since no string `astro:env` field is inlined any more.
+  Verify: `node tests/build/check-runtime-env.mjs`; `tests/unit/wrangler-envs.test.ts`; the e2e signup and contact suites; the human approves the PR.
+  Agent part done, awaiting approval: all 8 checks pass and the control is found in 3 files. With the old `client` field put back, the check fails: `FAIL TURNSTILE_SITE_KEY is read at runtime, not inlined: server/chunks/Turnstile_*.mjs`.
 
 ### Waiting on the design decision
 - [ ] **T4.12 [AGENT] Restyle to the chosen direction.** `theme.css` overrides and the components above; FR-4.4 colour coding on the existing `data-body` hooks (or the spec amendment, for direction A); the email theme in `src/plugins/newsletter/theme.ts`.
@@ -456,7 +460,7 @@ An independent verifier failed 6d49955 on one blocking item (B1) and five findin
   Evidence: 612 of 1390 scanned files are maps; a marker planted in one map fails the fake check; removed, it passes.
 
 ### Human and close-out
-- [ ] **T5.16 [HUMAN] Resend and Turnstile on staging.** Verify the sending domain; create the `subscribers` Segment (and a staging-only test Segment), the newsletter Topic and one Topic per body (default opt-out), and save each body Topic's id on the body; set the secrets `RESEND_API_KEY` and `TURNSTILE_SECRET`, fill `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID` and `NEWSLETTER_TEST_ALLOWLIST` in `env.staging.vars`, and deploy with `TURNSTILE_SITE_KEY` in the build's environment.
+- [ ] **T5.16 [HUMAN] Resend and Turnstile on staging.** Verify the sending domain; create the `subscribers` Segment (and a staging-only test Segment), the newsletter Topic and one Topic per body (default opt-out), and save each body Topic's id on the body; set the secrets `RESEND_API_KEY` and `TURNSTILE_SECRET`, fill `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `NEWSLETTER_TEST_ALLOWLIST` and `TURNSTILE_SITE_KEY` (read at runtime since T4.15) in `env.staging.vars`.
   Deps: T0.16. Verify: the runbook's "Before the first send" table is complete on staging.
 - [ ] **T5.17 [HUMAN] Staging send test (PLAN M5 exit check).** A test send reaches the allowlisted inbox; an approved Broadcast to the staging-only Segment is received with a working unsubscribe link; an EmDash invite arrives by email (FR-8.1); a signup appears in Resend with its Topics. Note whether Resend honoured `Idempotency-Key` on the Broadcast and how it answered adding an existing contact to the Segment.
   Deps: T5.16. Verify: the runbook passes end to end on staging.

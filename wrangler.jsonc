@@ -46,7 +46,7 @@
 			"triggers": {
 				"crons": ["* * * * *"],
 			},
-			// Newsletter settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
+			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
 			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
 			// Staging's Segment holds allowlisted test addresses only.
 			"vars": {
@@ -54,6 +54,7 @@
 				"RESEND_SEGMENT_ID": "",
 				"RESEND_NEWSLETTER_TOPIC_ID": "",
 				"NEWSLETTER_TEST_ALLOWLIST": "",
+				"TURNSTILE_SITE_KEY": "",
 			},
 			"observability": {
 				"enabled": true,
@@ -87,13 +88,14 @@
 			"triggers": {
 				"crons": ["* * * * *"],
 			},
-			// Newsletter settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
+			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
 			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
 			"vars": {
 				"RESEND_FROM": "",
 				"RESEND_SEGMENT_ID": "",
 				"RESEND_NEWSLETTER_TOPIC_ID": "",
 				"NEWSLETTER_TEST_ALLOWLIST": "",
+				"TURNSTILE_SITE_KEY": "",
 			},
 			"observability": {
 				"enabled": true,
