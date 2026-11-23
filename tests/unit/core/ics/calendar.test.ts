@@ -94,6 +94,22 @@ describe("buildCalendar (FR-4.5)", () => {
 		expect(lines(ics)).toContain("LOCATION:Findlay Masonic Temple\\, Lodge Room");
 	});
 
+	it("keeps a hostile calendar name on one escaped NAME line", () => {
+		const hostile = buildCalendar({
+			...feed,
+			name: "Lodge\r\nBEGIN:VEVENT\r\nSUMMARY:Injected; a,b\\c\nEND:VEVENT",
+			series: [],
+		});
+		const unfolded = lines(hostile.replaceAll("\r\n ", ""));
+		expect(unfolded.filter((l) => l.startsWith("BEGIN:") || l.startsWith("END:"))).toEqual([
+			"BEGIN:VCALENDAR",
+			"END:VCALENDAR",
+		]);
+		const name = "Lodge BEGIN:VEVENT SUMMARY:Injected\\; a\\,b\\\\c END:VEVENT";
+		expect(unfolded).toContain(`NAME:${name}`);
+		expect(unfolded).toContain(`X-WR-CALNAME:${name}`);
+	});
+
 	it("produces an empty but valid calendar for a body with no events", () => {
 		expect(lines(buildCalendar({ ...feed, series: [] }))).toEqual([
 			"BEGIN:VCALENDAR",

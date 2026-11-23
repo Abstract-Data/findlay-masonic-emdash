@@ -1,4 +1,4 @@
-import ical, { type ICalEventData } from "ical-generator";
+import ical, { escape, type ICalEventData } from "ical-generator";
 import type { Temporal } from "temporal-polyfill";
 import { tzlib_get_ical_block } from "timezones-ical-library";
 import type { EntryId } from "../ids";
@@ -17,7 +17,10 @@ export interface CalendarFeed {
 
 /** FR-4.5. Pure: the M4 endpoint wraps the result in a text/calendar Response. */
 export function buildCalendar(feed: CalendarFeed): string {
-	const calendar = ical({ prodId: `//${feed.uidDomain}//calendar//EN`, name: feed.name });
+	const calendar = ical({
+		prodId: `//${feed.uidDomain}//calendar//EN`,
+		name: calendarName(feed.name),
+	});
 	// The generator form keeps DTSTAMP in UTC; the plain timezone("...") form drops the Z.
 	calendar.timezone({ name: null, generator: vtimezone });
 	for (const series of feed.series) {
@@ -33,6 +36,12 @@ export function buildCalendar(feed: CalendarFeed): string {
 	}
 	// RFC 5545 ends every content line, the last one included, with CRLF.
 	return `${calendar.toString()}\r\n`;
+}
+
+// ical-generator escapes event text but writes NAME and X-WR-CALNAME verbatim, so a
+// line break in a body's name would start new content lines in every subscriber's feed.
+function calendarName(name: string): string {
+	return escape(name.replaceAll(/\s+/g, " ").trim(), false);
 }
 
 function vtimezone(timezone: string): string | null {
