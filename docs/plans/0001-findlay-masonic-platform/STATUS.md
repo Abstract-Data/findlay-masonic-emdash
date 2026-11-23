@@ -2,9 +2,9 @@
 | Field | Value |
 |---|---|
 | SDD phase | 3 — TASKS |
-| State | **M0 verified; M1 agent tasks done, schema awaiting PATH_ASK approval and the M1 critic** |
+| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 agent tasks done, awaiting the M2 critic** |
 | Last updated | 2026-11-23 |
-| Current milestone | M1 — Content model and seed (T1.4–T1.6, T1.8 PATH_ASK; T1.2 lodge; T1.12 critic pending) |
+| Current milestone | M2 — Pure core (T2.17 critic pending); M1 PATH_ASK items and T1.2 still open |
 | Tasks | [TASK.md](TASK.md) |
 | ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted |
 
@@ -13,7 +13,7 @@
 |---|---|---|---|
 | M0 | Foundation and toolchain | In progress: T0.1–T0.9, T0.13–T0.15 done (CI green, run 45241090879); T0.10, T0.11 built, awaiting PATH_ASK approval; T0.12, T0.16 human; T0.17 critic pending | CI green + staging deploy |
 | M1 | Content model and seed | In progress: T1.1, T1.3, T1.7, T1.9–T1.11 done; T1.4–T1.6, T1.8 built, awaiting PATH_ASK approval; T1.2 lodge; T1.12 critic pending | Collections in admin, FR-9.2 test |
-| M2 | Pure core | Not started | Vitest green, 100% branch on acl/recurrence |
+| M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
 | M3 | Auth + body-access | Not started | FR-5 per-role e2e green |
 | M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
 | M5 | Newsletter plugin | Not started | Staging send to allowlist + test Segment |
@@ -66,6 +66,20 @@ Gate text: [docs/gates/astro-design-principles.md](../../gates/astro-design-prin
 | T7 pure, exhaustive acl policy | n/a | Policy arrives in M2. |
 | T8 extensionless alias imports | Pass | Tests import `@core/acl/officer-titles`; no `.js` suffixes. |
 
+## TypeScript Design Principles Gate (M2)
+Gate text: [docs/gates/astro-design-principles.md](../../gates/astro-design-principles.md). Run 2026-11-23 over `src/lib/**` (every file is new in M2 except `officer-titles.ts`). The Astro gate is n/a for M2: no `.astro` or route file changed; the config changes are lint and test settings.
+
+| Rule | Result | Evidence |
+|---|---|---|
+| T1 strict | Pass | `pnpm astro check` 0 errors. |
+| T2 no `any`/unsafe casts | Pass, with documented brand mints | No `any`, `@ts-ignore` or `@ts-expect-error` in `src/lib`. oxlint `no-unsafe-type-assertion` is clean. Seven assertions mint core-owned brands where no runtime check could fail, each with a disable comment giving the reason: `time.ts` (ISO weekday and month ranges), `recurrence/rrule.ts` (the validated `RRule` and its weekday code), `newsletter/key.ts` (`Revision` counter and `BroadcastKey`). Adapter brands are minted by validating type predicates, without assertions. |
+| T3 pure core | Pass | `src/lib/core` imports only sibling modules, `temporal-polyfill`, `rrule-temporal`, `ical-generator` and `timezones-ical-library`; oxlint `no-restricted-imports` enforces it. No clock reads: `now` is a parameter everywhere. |
+| T4 adapters as the boundary | Pass | `src/lib/adapters/emdash/parse.ts` takes `unknown` entry data and returns `Result` with the failing field; core never sees raw EmDash data. |
+| T5 branded ids | Pass | `BodyId`, `UserId`, `EntryId`, `IssueId`, `TagSlug`, `AbsoluteUrl`, `RRule`, `Revision`, `BroadcastKey`; tests mint them only in `tests/unit/fixtures.ts`. |
+| T6 illegal states unrepresentable | Pass | Discriminated unions for `Principal`, `Operation`, `Decision`, `EventTiming`, `IssueWindow`, `Issue` (a state machine with fail-closed transitions) and the TipTap node tuples; `RRule` carries its parsed parts so nothing re-parses. |
+| T7 pure, exhaustive acl policy | Pass | `authorize` is pure; 864 exhaustive cases plus the decision table; 100% branch coverage on `src/lib/core/acl` is a Vitest threshold. |
+| T8 extensionless alias imports | Pass | No `.js` suffixes. Core uses relative imports within itself; adapters and tests use `@core` and `@adapters`. |
+
 ## Workers Builds `SESSION` KV failure
 The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace must have a namespace_id specified`. Cause, read from wrangler 4.166 (`provisionBindings` in `wrangler-dist/cli.js`): the adapter adds a `SESSION` binding with no ID, and wrangler's auto-provisioning would create the namespace, but when listing KV namespaces returns a permission error it skips provisioning silently and uploads the binding without an ID. So the Workers Builds API token most likely lacks KV permission (inferred, not seen in the build log). No config-only fix exists that keeps EmDash sign-in working: EmDash stores users in the Astro session, and a different session driver needs other infrastructure. Two human fixes, either works: create the KV namespaces and paste their IDs (T0.12), or grant the Workers Builds token KV edit permission so provisioning runs. Workers Builds should also deploy with `CLOUDFLARE_ENV=staging` (see above); the top level is now local-only with IDs `local` and will not deploy.
 
@@ -87,3 +101,4 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - 2026-11-23: M0 agent work for T0.1–T0.11 and T0.13–T0.15 pushed on `claude/happy-bell-oj5yoo`. oxlint/oxfmt pinned one release back because of pnpm's release-age cooldown (receipts log). Astro 7 verified with no blocker. T0.12 and T0.16 wait on a human; T0.17 waits on the critic.
 - 2026-11-23: M0 independently verified at e218b68. M0 follow-ups: ESLint ignores coverage and Playwright output; CI runs a Node matrix (22.23.4, the real floor astro 7.4 declares, and latest 22; constitution amendment 3); `tests/unit/wrangler-envs.test.ts` keeps staging and production resources apart; Playwright reads the portless name from `package.json`; T8.0 carries the production resources. Constitution amendment 2 replaces `locals.runtime.env`.
 - 2026-11-23: M1 agent work pushed on `claude/happy-bell-oj5yoo`: officer titles drafted, four collections and six bodies seeded (PATH_ASK), blog removed, types regenerated, seed and admin tests green. Design principles gates recorded for M0 and M1.
+- 2026-11-23: M2 agent work (T2.1–T2.16) on `claude/happy-bell-oj5yoo`: pure acl, recurrence, ics and newsletter core with an EmDash parse adapter; 1107 unit tests, 100% coverage gate on acl and recurrence, core import restrictions in oxlint, TypeScript gate pass. Follow-ups from the M1 verification: exact pin of each officer title list and a fixture for the seed `$ref` check. T2.17 waits on the critic.

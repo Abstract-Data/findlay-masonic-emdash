@@ -1,7 +1,7 @@
-# TASK — 0001-findlay-masonic-platform (M0, M1)
+# TASK — 0001-findlay-masonic-platform (M0, M1, M2)
 **SDD phase:** 3 (TASKS)
 **Plan:** [PLAN.md](PLAN.md) (approved 2026-11-23) · **Status:** [STATUS.md](STATUS.md)
-**Scope:** M0 and M1 only. M2 is tasked after the M1 exit check passes (PLAN §8).
+**Scope:** M0, M1 and M2. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
 
 ## Conventions
 - One checkbox = one reviewable commit (or a small, coherent group of commits). Tick it only when its **Verify** line passes.
@@ -136,6 +136,77 @@
 ### M1 exit
 - [ ] **T1.12 [AGENT] Close M1.** Exit check: local seeded site shows all collections; `astro check` passes against generated types; T1.10 green. Run the task-critic subagent; update STATUS.md; then task M2 in this file (PLAN §8).
   Deps: all of M1. Verify: critic returns PASS.
+
+---
+
+## M2 — Pure core (no I/O)
+Design: every business rule is a pure function in `src/lib/core`, typed by branded ids and discriminated unions; `now` is always a parameter. Adapters in `src/lib/adapters/emdash` parse raw EmDash data into those types. Evidence below was run on a clean copy of the branch (`pnpm install --frozen-lockfile`) on 2026-11-23.
+
+### Dependencies
+- [x] **T2.1 [AGENT] Add the recurrence and calendar libraries.** `pnpm add -E rrule-temporal@2.3.0 ical-generator@11.1.4 timezones-ical-library@3.0.0 temporal-polyfill@1.0.8`; append a receipt for temporal-polyfill and timezones-ical-library to `context7-receipts.md`.
+  Verify: frozen install passes; versions are exact in `package.json`; the receipt names versions, APIs and probe evidence.
+  Evidence: all four pinned exactly, no release-age deviation (published 2026-11-04 to 2026-11-18). Receipt appended, including the rrule-temporal behaviors core works around.
+
+### Shared shapes
+- [x] **T2.2 [AGENT] `ids.ts` and `time.ts`.** Branded `BodyId`, `UserId`, `EntryId`, `IssueId`, `TagSlug`, `AbsoluteUrl`; `Result<T, E>`; `SITE_TZ`; half-open `TimeWindow`; fixed-English date and time formatting (no Intl).
+  Verify: `pnpm astro check` 0 errors; no core function reads a clock (`grep -rn "Temporal.Now\|Date.now\|new Date" src/lib` is empty).
+  Evidence: both hold.
+
+### acl
+- [x] **T2.3 [AGENT] Grant policy `authorize` + `denialText`.** Requirement per operation, then one per-editor check over the actor and `editedBy` (Admins skipped, actor first, `from` before `to`). Covers FR-5.2–5.8, D1 (an Admin actor does not launder a co-editor) and D2 (internal writes allowed).
+  Verify: `tests/unit/core/acl/policy.table.test.ts`, one named test per decision-table row 0–11 with its FR id.
+  Evidence: 21 table and editor-set tests green.
+- [x] **T2.4 [AGENT] Exhaustive policy test.** 8 actor profiles x 9 co-editor options x 12 operations, plus internal x 12, against invariants I1 soundness, I2 named culprit, I3 Admin, I4 assign, I5 completeness, I6 no assignable body.
+  Verify: `tests/unit/core/acl/policy.exhaustive.test.ts` reports 877 tests (864 cases, the count check and 12 internal) with no invariant failure; breaking the policy fails it.
+  Evidence: 877 passed. Mutation: making a body change skip its `from` grant failed 14 tests (I1 soundness), then reverted.
+- [x] **T2.5 [AGENT] Content rules and the title table pin.** `checkTags` (FR-3.2) and `checkOfficerTitle` (FR-2.1) against M1's `TITLES_BY_BODY_TYPE`; `denialText` is 1–500 characters with no `<` or `>`.
+  Verify: `content-rules.test.ts`, `denial-text.test.ts`; a test pins every `TITLES_BY_BODY_TYPE` list exactly, since `seed.test.ts` pins only their union.
+  Evidence: green. Moving "Treasurer" out of one list now fails the pin.
+
+### recurrence
+- [x] **T2.6 [AGENT] `parseRRule` (FR-4.2).** Charset check (blocks ICS injection), part whitelist with ranges, FREQ DAILY/WEEKLY/MONTHLY/YEARLY, COUNT+UNTIL, 02:xx starts refused, library validation in strict mode from an RFC 5545 DTSTART line, at least one occurrence in 5 years. The result carries the parsed parts.
+  Verify: `rrule.test.ts` accepts and rejects the design's list, including `GARBAGE=1`, `BYMONTHDAY=40`, `COUNT=-3`, `FREQ=HOURLY`, an embedded `\r\nBEGIN:VEVENT`, `BYMONTH=2;BYMONTHDAY=30` and a 02:30 start.
+  Evidence: green.
+- [x] **T2.7 [AGENT] `expand`, `nextOccurrences`, `monthWindow`, `daysAhead` (FR-1.1, 4.3, 4.4, 4.6).** EXDATEs are local dates placed at the series' start time; occurrences overlapping the half-open window, sorted by start then title.
+  Verify: `expand.test.ts` (one-off, recurring, EXDATE, both window edges, all-day, sorting, empty window) and `dst.test.ts` (the six measured DST rows as offset and wall time); dropping EXDATE removal fails tests.
+  Evidence: green. Mutation: passing no EXDATEs to the library failed 2 tests, then reverted.
+- [x] **T2.8 [AGENT] `describeSchedule`, `bodySchedule`, `formatOccurrence` (FR-1.3, 1.4).** "2nd Tuesday of each month, 7:30 PM", ordinal lists, last and n-th-to-last, every / every other weekday, day of month, up to four recess months, all-day without time; rrule-temporal's text otherwise.
+  Verify: `describe.test.ts` asserts each shape's exact string, every fallback and the three `bodySchedule` variants.
+  Evidence: green.
+- [x] **T2.9 [AGENT] 100% coverage gate on acl and recurrence.** `vitest.config.ts` thresholds of 100 for branches, functions, lines and statements on `src/lib/core/acl/**` and `src/lib/core/recurrence/**`.
+  Verify: `pnpm vitest run --coverage` passes and the table shows 100 on both folders.
+  Evidence: acl and recurrence 100/100/100/100. Overall 100% statements, 99.39% branches; the two uncovered branches are `ics/calendar.ts:40`, a guard on timezones-ical-library's `string[] | string` return type.
+
+### ics
+- [x] **T2.10 [AGENT] `buildCalendar` (FR-4.5, Q8).** One VTIMEZONE from timezones-ical-library, DTSTAMP in UTC, RRULE verbatim, EXDATE at the series' wall time with TZID (or `VALUE=DATE` for all-day), CRLF on every line.
+  Verify: `calendar.test.ts` compares against the reviewed golden `__fixtures__/blue-lodge.ics` byte for byte and checks each property separately.
+  Evidence: green. `.gitattributes` keeps `*.ics` CRLF bytes as committed.
+
+### newsletter
+- [x] **T2.11 [AGENT] `nodes`, `assemble`, `issueWindow`, `excerpt` (FR-6.1).** TipTap JSON with a `container` root, one `bodySection` per body in display order, `articleCard`s newest first, then the body's events; first issue covers 90 local days, later issues start at the last issue's coverage end.
+  Verify: `assemble.test.ts`, `window.test.ts`, `excerpt.test.ts`.
+  Evidence: green.
+- [x] **T2.12 [AGENT] `broadcastKey` and the issue lifecycle (FR-6.5–6.7).** Key `fm-issue:<id>:rev:<n>`; approve refuses an issue not test-sent at its current revision; unlisted transitions are refused.
+  Verify: `key.test.ts`, `lifecycle.test.ts`.
+  Evidence: green.
+
+### Adapters and structure
+- [x] **T2.13 [AGENT] `src/lib/adapters/emdash/parse.ts`.** Mints brands from raw entry data: ULID ids, `[{ tag }]` and `[{ slug, label }]` repeaters, UTC instants to SITE_TZ wall time, events (all-day midnight end is exclusive, end before start refused, rule parsed with its timing), editors (role >= 50 is Admin).
+  Verify: `tests/unit/adapters/emdash/parse.test.ts`.
+  Evidence: green, 100% branch coverage.
+- [x] **T2.14 [AGENT] Keep the core pure by lint.** oxlint `no-restricted-imports` on `src/lib/core/**` bans `emdash`, `@emdash-cms/*`, `resend`, `astro`, `astro:*`, `node:*` and `cloudflare:*`, subpaths included.
+  Verify: a probe file in `src/lib/core` importing each one fails `oxlint`; the same file under `src/lib/adapters` passes.
+  Evidence: 9 of 9 probe imports flagged (`node:fs`, `node:fs/promises`, `emdash`, `emdash/ui`, `cloudflare:workers`, `astro:env/server`, `resend`, `astro/config`, `@emdash-cms/cloudflare`); `temporal-polyfill` allowed; probe deleted.
+- [x] **T2.15 [AGENT] M1 test follow-ups.** The `$ref` body assertion in `seed.test.ts` also runs on `tests/unit/__fixtures__/seed-body-refs.json` (one officer, event and news item), and a broken copy proves it reports a raw id and a dangling `$ref`.
+  Verify: `pnpm vitest run tests/unit/seed.test.ts`.
+  Evidence: green.
+
+### M2 exit
+- [x] **T2.16 [AGENT] TypeScript Design Principles Gate on `src/lib/**`.** Record T1–T8 in STATUS.md.
+  Verify: STATUS.md table.
+  Evidence: T1–T8 pass; T2 notes seven documented brand-mint assertions in core.
+- [ ] **T2.17 [AGENT] Close M2.** Exit check: `vitest run` green with 100% branch coverage on acl and recurrence; CI green; task-critic PASS; update STATUS.md.
+  Deps: all of M2. Verify: critic returns PASS.
 
 ---
 
