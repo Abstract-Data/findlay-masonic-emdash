@@ -1,4 +1,4 @@
-import { chooseProvider } from "@adapters/providers";
+import { chooseProvider, deliversEmail } from "@adapters/providers";
 import { resendMailer, type Mailer } from "@adapters/resend-mailer";
 import { siteverify, type TurnstileVerifier } from "@adapters/turnstile";
 import {
@@ -20,6 +20,16 @@ export interface Runtime {
 
 const blank = (value: string | undefined) =>
 	value === undefined || value.trim() === "" ? null : value;
+
+/** Read once, when EmDash builds its plugins: register the email transport or not. */
+export function registersEmailTransport(): boolean {
+	return deliversEmail({
+		dev: import.meta.env.DEV,
+		fakeRequested: RESEND_FAKE,
+		secret: RESEND_API_KEY,
+		from: RESEND_FROM,
+	});
+}
 
 /**
  * The Resend and Turnstile clients for this request. `import.meta.env.DEV` is false in every

@@ -17,3 +17,15 @@ export function chooseProvider(input: ProviderInput): ProviderChoice {
 	if (input.dev && (input.fakeRequested || !hasSecret)) return "fake";
 	return hasSecret ? "real" : "unconfigured";
 }
+
+/**
+ * Whether the plugin should be EmDash's email provider. Until Resend can send, it stays out of
+ * the way, so EmDash keeps showing invite links for an Admin to share instead of failing.
+ */
+export function deliversEmail(
+	input: ProviderInput & { readonly from: string | undefined },
+): boolean {
+	const choice = chooseProvider(input);
+	const hasFrom = input.from !== undefined && input.from.trim() !== "";
+	return choice === "fake" || (choice === "real" && hasFrom);
+}

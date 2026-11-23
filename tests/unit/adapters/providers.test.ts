@@ -1,5 +1,27 @@
-import { chooseProvider } from "@adapters/providers";
+import { chooseProvider, deliversEmail } from "@adapters/providers";
 import { describe, expect, it } from "vitest";
+
+describe("the plugin becomes EmDash's email provider only when Resend can send", () => {
+	const FROM = "Findlay Masonic Temple <noreply@example.test>";
+
+	it("stays out of a build without a key or sender, so invites fall back to a shared link", () => {
+		expect(deliversEmail({ dev: false, fakeRequested: true, secret: undefined, from: FROM })).toBe(
+			false,
+		);
+		expect(
+			deliversEmail({ dev: false, fakeRequested: false, secret: "re_live_key", from: " " }),
+		).toBe(false);
+		expect(
+			deliversEmail({ dev: false, fakeRequested: false, secret: "re_live_key", from: FROM }),
+		).toBe(true);
+	});
+
+	it("delivers through the fake on the dev server", () => {
+		expect(
+			deliversEmail({ dev: true, fakeRequested: false, secret: undefined, from: undefined }),
+		).toBe(true);
+	});
+});
 
 const SECRETS = [undefined, "", "   ", "re_live_key"] as const;
 const FLAGS = [false, true] as const;
