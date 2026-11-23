@@ -4,6 +4,7 @@ import type { Editor } from "@core/acl/policy";
 import type { AbsoluteUrl, BodyId, EntryId, IssueId, TagSlug, UserId } from "@core/ids";
 import { parseRRule } from "@core/recurrence/rrule";
 import type { EventSeries, EventTiming, RRule, RuleParts } from "@core/recurrence/series";
+import type { Revision } from "@core/newsletter/key";
 import { Temporal } from "temporal-polyfill";
 
 /** Fake ULIDs: valid Crockford base32, readable in failure output. */
@@ -15,6 +16,7 @@ export const issueId = (n: number) => ulid("N", n) as IssueId;
 export const userId = (name: string) => name as UserId;
 export const tag = (slug: string) => slug as TagSlug;
 export const url = (href: string) => href as AbsoluteUrl;
+export const revision = (n: number) => n as Revision;
 
 export const LODGE = bodyId(1);
 export const CHAPTER = bodyId(2);
