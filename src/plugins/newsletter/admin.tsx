@@ -80,7 +80,8 @@ function IssueEditor(props: { initial: IssueView; onClose: () => void }): ReactE
 	const [loaded, setLoaded] = useState(0);
 	const [subject, setSubject] = useState(issue.subject);
 	const [previewText, setPreviewText] = useState(issue.previewText);
-	const [dirty, setDirty] = useState(false);
+	// An issue never saved from the editor has no composed email to test or send yet.
+	const [dirty, setDirty] = useState(!issue.composed);
 	const [busy, setBusy] = useState(false);
 	const [sendAt, setSendAt] = useState("");
 	const [status, setStatus] = useState("");
@@ -108,7 +109,7 @@ function IssueEditor(props: { initial: IssueView; onClose: () => void }): ReactE
 		setIssue(fresh);
 		setSubject(fresh.subject);
 		setPreviewText(fresh.previewText);
-		setDirty(false);
+		setDirty(!fresh.composed);
 		setLoaded((n) => n + 1);
 	};
 

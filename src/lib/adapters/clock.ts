@@ -6,7 +6,3 @@ export interface Clock {
 }
 
 export const systemClock: Clock = { now: () => Temporal.Now.instant() };
-
-export function fixedClock(at: Temporal.Instant): Clock {
-	return { now: () => at };
-}

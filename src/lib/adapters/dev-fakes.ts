@@ -1,4 +1,5 @@
 import { ok } from "@core/ids";
+import { hasUnsubscribeLink } from "@core/newsletter/email-html";
 import type {
 	BroadcastDraft,
 	ContactSignup,
@@ -113,7 +114,7 @@ export function outboxSummary(outbox: Outbox = devOutbox()) {
 			cc: cc ?? [],
 			replyTo: replyTo ?? null,
 			subject,
-			hasUnsubscribeLink: html?.includes("{{{RESEND_UNSUBSCRIBE_URL}}}") ?? false,
+			hasUnsubscribeLink: html !== undefined && hasUnsubscribeLink(html),
 		})),
 		broadcasts: outbox.broadcasts.map(
 			({ id, name, status, segmentId, topicId, subject, html, scheduledAt }) => ({
@@ -124,7 +125,7 @@ export function outboxSummary(outbox: Outbox = devOutbox()) {
 				topicId,
 				subject,
 				scheduledAt,
-				hasUnsubscribeLink: html.includes("{{{RESEND_UNSUBSCRIBE_URL}}}"),
+				hasUnsubscribeLink: hasUnsubscribeLink(html),
 			}),
 		),
 		contacts: [...outbox.contacts].map(([email, contact]) => ({

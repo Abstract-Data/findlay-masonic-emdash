@@ -8,7 +8,7 @@ import { describe, expect, it } from "vitest";
 const FROM = "Findlay Masonic Temple <noreply@example.test>";
 
 function event(message: EmailDeliverEvent["message"]): EmailDeliverEvent {
-	return { message, source: "system", userAgent: null, referer: null, geo: null };
+	return { message, source: "system" };
 }
 
 describe("email:deliver transport (FR-8.1)", () => {

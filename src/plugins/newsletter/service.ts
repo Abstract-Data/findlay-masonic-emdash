@@ -121,7 +121,6 @@ function fromMailer(error: MailerError): Result<never, NewsletterError> {
 			);
 }
 
-/** What the admin page reads. */
 export interface IssueView {
 	readonly id: IssueId;
 	readonly status: Issue["status"];
