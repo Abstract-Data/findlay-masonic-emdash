@@ -12,7 +12,7 @@ import { DUMMY_TURNSTILE_TOKEN, type TurnstileVerifier } from "./turnstile";
 /**
  * Development and test stand-ins for Resend and Turnstile. Nothing here reaches the network.
  * Only `import.meta.env.DEV` code paths import this module, so production builds never
- * contain it (scripts/check-dist.mjs proves the built bundle has no FAKE_MARKER).
+ * contain it (tests/build/check-dist.mjs proves the built bundle has no FAKE_MARKER).
  */
 export const FAKE_MARKER = "findlay-dev-fake-mailer";
 

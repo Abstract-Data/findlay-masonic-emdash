@@ -18,7 +18,8 @@ const KEYS = [
 const FAKE_MARKER = /findlay-dev-fake-mailer/;
 const DEV_ROUTE = /"dev\/outbox"/;
 
-const TEXT = /\.(?:m?js|css|html|json|txt|xml|svg)$/;
+// Source maps embed the original sources, so a key or the fake reaching them is caught too.
+const TEXT = /\.(?:m?js|css|html|json|txt|xml|svg|map)$/;
 function files(dir) {
 	return readdirSync(dir, { withFileTypes: true, recursive: true })
 		.filter((entry) => entry.isFile() && TEXT.test(entry.name))
@@ -40,14 +41,24 @@ const check = (label, found, expectFound = false) => {
 	if (!ok) failures.push(label);
 };
 
-console.log(`scanned ${client.length} client and ${server.length} server files`);
+const maps = [...client, ...server].filter((file) => file.endsWith(".map")).length;
+console.log(
+	`scanned ${client.length} client and ${server.length} server files, ${maps} of them source maps`,
+);
 for (const pattern of SDK) check(`client has no Resend SDK ${pattern}`, matching(client, pattern));
 for (const pattern of KEYS)
 	check(`client has no key shaped like ${pattern}`, matching(client, pattern));
 for (const pattern of KEYS)
 	check(`server has no key shaped like ${pattern}`, matching(server, pattern));
 check("server has no dev fake (FAKE_MARKER)", matching(server, FAKE_MARKER));
-check("server has no dev-only outbox route", matching(server, DEV_ROUTE));
+// Code only: routes.ts's source, which a map embeds, declares the route inside its DEV branch.
+check(
+	"server has no dev-only outbox route",
+	matching(
+		server.filter((file) => !file.endsWith(".map")),
+		DEV_ROUTE,
+	),
+);
 for (const pattern of SDK)
 	check(`server has the Resend SDK ${pattern} (scan sees it)`, matching(server, pattern), true);
 
