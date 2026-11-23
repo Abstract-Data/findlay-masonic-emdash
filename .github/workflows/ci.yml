@@ -43,6 +43,10 @@ jobs:
 
       - run: pnpm exec playwright install --with-deps chromium
 
+      # portless run refuses to sudo without a TTY; proxy start elevates
+      # through the runner's passwordless sudo and leaves the proxy up.
+      - run: pnpm exec portless proxy start --https
+
       - run: pnpm e2e --grep @smoke --trace off
 
       - if: failure()
