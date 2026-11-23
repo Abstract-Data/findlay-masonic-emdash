@@ -7,13 +7,15 @@
 	"d1_databases": [
 		{
 			"binding": "DB",
-			"database_name": "findlay-masonic-site","database_id": "e973aaf5-ee02-44d0-b8e9-ca291cbd35f9",
+			"database_name": "findlay-masonic-site",
+			"database_id": "e973aaf5-ee02-44d0-b8e9-ca291cbd35f9",
 		},
 	],
 	"r2_buckets": [
 		{
 			"binding": "MEDIA",
-			"bucket_name": "findlay-masonic-media","preview_bucket_name": "findlay-masonic-media",
+			"bucket_name": "findlay-masonic-media",
+			"preview_bucket_name": "findlay-masonic-media",
 		},
 	],
 	// Co-editing rooms, one Durable Object per entry being edited
