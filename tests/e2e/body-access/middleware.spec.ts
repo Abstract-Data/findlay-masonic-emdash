@@ -1,0 +1,199 @@
+import type { APIRequestContext } from "@playwright/test";
+import { NEWS, createNews, data, expect, expectDenied, test, unique } from "../body-access";
+import { BODY_NAMES } from "../roles";
+
+const CHAPTER = BODY_NAMES.chapter;
+// A 1x1 transparent PNG.
+const PNG = Buffer.from(
+	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+	"base64",
+);
+
+async function upload(client: APIRequestContext) {
+	return client.post("/_emdash/api/media", {
+		multipart: { file: { name: `${unique("logo")}.png`, mimeType: "image/png", buffer: PNG } },
+	});
+}
+
+async function revisionIds(client: APIRequestContext, id: string): Promise<string[]> {
+	const list = await data<{ items: { id: string }[] }>(client.get(`${NEWS}/${id}/revisions`));
+	return list.items.map((revision) => revision.id);
+}
+
+test.describe("middleware guard: writes no content hook sees (ADR-002)", () => {
+	test("PUT without data cannot re-slug or unpublish Chapter content", async ({ as, bodies }) => {
+		const chapter = await as("chapter");
+		const id = await createNews(chapter, bodies.chapter);
+		await data(chapter.post(`${NEWS}/${id}/publish`, { data: {} }));
+		const lodge = await as("blue-lodge");
+		await expectDenied(lodge.put(`${NEWS}/${id}`, { data: { slug: "taken-over" } }), CHAPTER);
+		await expectDenied(lodge.put(`${NEWS}/${id}`, { data: { status: "draft" } }), CHAPTER);
+		const after = await data<{ item: { slug: string; status: string } }>(
+			chapter.get(`${NEWS}/${id}`),
+		);
+		expect(after.item).toMatchObject({ status: "published" });
+		expect(after.item.slug).not.toBe("taken-over");
+	});
+
+	test("trash (DELETE) is refused with a readable reason", async ({ as, bodies }) => {
+		const id = await createNews(await as("chapter"), bodies.chapter);
+		await expectDenied((await as("blue-lodge")).delete(`${NEWS}/${id}`), CHAPTER);
+	});
+
+	test("restore from the trash is refused", async ({ as, bodies }) => {
+		const chapter = await as("chapter");
+		const id = await createNews(chapter, bodies.chapter);
+		await data(chapter.delete(`${NEWS}/${id}`));
+		await expectDenied(
+			(await as("blue-lodge")).post(`${NEWS}/${id}/restore`, { data: {} }),
+			CHAPTER,
+		);
+		await data(chapter.post(`${NEWS}/${id}/restore`, { data: {} }));
+	});
+
+	test("duplicate is refused", async ({ as, bodies }) => {
+		const id = await createNews(await as("chapter"), bodies.chapter);
+		await expectDenied(
+			(await as("blue-lodge")).post(`${NEWS}/${id}/duplicate`, { data: {} }),
+			CHAPTER,
+		);
+	});
+
+	test("discard-draft is refused", async ({ as, bodies }) => {
+		const chapter = await as("chapter");
+		const id = await createNews(chapter, bodies.chapter);
+		await data(chapter.post(`${NEWS}/${id}/publish`, { data: {} }));
+		await data(chapter.put(`${NEWS}/${id}`, { data: { data: { title: "Pending edit" } } }));
+		await expectDenied(
+			(await as("blue-lodge")).post(`${NEWS}/${id}/discard-draft`, { data: {} }),
+			CHAPTER,
+		);
+	});
+
+	test("unschedule (DELETE schedule) is refused", async ({ as, bodies }) => {
+		const chapter = await as("chapter");
+		const id = await createNews(chapter, bodies.chapter);
+		await data(
+			chapter.post(`${NEWS}/${id}/schedule`, { data: { scheduledAt: "2027-01-01T12:00:00Z" } }),
+		);
+		await expectDenied((await as("blue-lodge")).delete(`${NEWS}/${id}/schedule`), CHAPTER);
+	});
+
+	test("revision restore is refused, including one that moves the entry back", async ({
+		as,
+		bodies,
+	}) => {
+		const chapter = await as("chapter");
+		const id = await createNews(chapter, bodies.chapter);
+		await data(chapter.put(`${NEWS}/${id}`, { data: { data: { title: "Second" } } }));
+		const lodge = await as("blue-lodge");
+		const [newest] = await revisionIds(chapter, id);
+		await expectDenied(
+			lodge.post(`/_emdash/api/revisions/${newest}/restore`, { data: {} }),
+			CHAPTER,
+		);
+
+		const twoBody = await as("two-body");
+		const moved = await createNews(twoBody, bodies.chapter);
+		await data(twoBody.post(`${NEWS}/${moved}/publish`, { data: {} }));
+		await data(twoBody.put(`${NEWS}/${moved}`, { data: { data: { body: bodies["blue-lodge"] } } }));
+		await data(twoBody.post(`${NEWS}/${moved}/publish`, { data: {} }));
+		const revisions = await revisionIds(twoBody, moved);
+		const chapterRevision = revisions.at(-1) ?? "";
+		await expectDenied(
+			lodge.post(`/_emdash/api/revisions/${chapterRevision}/restore`, { data: {} }),
+			CHAPTER,
+		);
+	});
+
+	test("recovery revisions, locks, rooms, terms and plugin extensions are refused", async ({
+		as,
+		bodies,
+	}) => {
+		const entry = `${NEWS}/${await createNews(await as("chapter"), bodies.chapter)}`;
+		const lodge = await as("blue-lodge");
+		await expectDenied(lodge.post(`${entry}/revisions`, { data: {} }), CHAPTER);
+		await expectDenied(lodge.post(`${entry}/lock`, { data: {} }), CHAPTER);
+		await expectDenied(lodge.delete(`${entry}/lock`), CHAPTER);
+		await expectDenied(lodge.post(`${entry}/room`, { data: {} }), CHAPTER);
+		await expectDenied(lodge.post(`${entry}/terms/tag`, { data: { termIds: [] } }), CHAPTER);
+		await expectDenied(
+			lodge.post(`${entry}/plugin-extensions/body-access/panel/any`, { data: {} }),
+			CHAPTER,
+		);
+	});
+
+	test("clearing a scheduled-publish rejection is refused", async ({ as, bodies }) => {
+		const id = await createNews(await as("chapter"), bodies.chapter);
+		await expectDenied(
+			(await as("blue-lodge")).delete(`/_emdash/api/admin/scheduled-policy-rejections/news/${id}`),
+			CHAPTER,
+		);
+	});
+
+	test("an unlisted method on an EmDash route fails closed below Admin", async ({ as, bodies }) => {
+		const id = await createNews(await as("blue-lodge"), bodies["blue-lodge"]);
+		await expectDenied(
+			(await as("blue-lodge")).patch(`${NEWS}/${id}`, { data: {} }),
+			"cannot make this change",
+		);
+		// An Admin passes the guard; EmDash itself then refuses the method.
+		const admin = await (await as("admin")).patch(`${NEWS}/${id}`, { data: {} });
+		expect(admin.ok()).toBe(false);
+		expect(await admin.text()).not.toContain("BODY_ACCESS_DENIED");
+	});
+
+	test("admin-only features are refused to Editors", async ({ as }) => {
+		const lodge = await as("blue-lodge");
+		await expectDenied(
+			lodge.post("/_emdash/api/taxonomies", { data: { name: unique("tax"), label: "Tax" } }),
+			"cannot make this change",
+		);
+		await expectDenied(
+			lodge.post("/_emdash/api/taxonomies/bulk-tag", { data: {} }),
+			"cannot make this change",
+		);
+	});
+});
+
+test.describe("middleware guard: media (ADR-002 O1)", () => {
+	test("an Editor with no grant cannot upload", async ({ as }) => {
+		const unassigned = await as("unassigned-editor");
+		await expectDenied(upload(unassigned), "has no body grants");
+		await expectDenied(
+			unassigned.post("/_emdash/api/media/upload-url", {
+				data: { filename: "x.png", contentType: "image/png", size: PNG.length },
+			}),
+			"has no body grants",
+		);
+		await expectDenied(
+			unassigned.post("/_emdash/api/media/providers/any", { data: {} }),
+			"has no body grants",
+		);
+	});
+
+	test("only the uploader or an Admin edits, replaces or deletes a media item", async ({ as }) => {
+		const lodge = await as("blue-lodge");
+		const uploaded = await data<{ item: { id: string } }>(upload(lodge));
+		const media = `/_emdash/api/media/${uploaded.item.id}`;
+		const chapter = await as("chapter");
+		await expectDenied(
+			chapter.put(media, { data: { alt: "Not mine" } }),
+			"did not upload this file",
+		);
+		await expectDenied(chapter.put(`${media}/replace`, { data: {} }), "did not upload this file");
+		await expectDenied(chapter.put(`${media}/upload`, { data: {} }), "did not upload this file");
+		await expectDenied(chapter.post(`${media}/confirm`, { data: {} }), "did not upload this file");
+		await expectDenied(chapter.delete(media), "did not upload this file");
+		await data(lodge.put(media, { data: { alt: "Lodge emblem" } }));
+		await data((await as("admin")).put(media, { data: { alt: "Checked by an Admin" } }));
+		await data(lodge.delete(media));
+	});
+
+	test("a provider item with no recorded uploader is for Admins", async ({ as }) => {
+		await expectDenied(
+			(await as("blue-lodge")).delete("/_emdash/api/media/providers/any/item"),
+			"did not upload this file",
+		);
+	});
+});

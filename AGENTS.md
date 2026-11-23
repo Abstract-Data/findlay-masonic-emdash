@@ -27,7 +27,7 @@ pnpm lint                        # oxlint (type-aware) + ESLint's two Astro rule
 pnpm format                      # oxfmt for JS/TS/JSON/YAML/MD, Prettier for *.astro
 pnpm format:check                # the same, check only
 pnpm test                        # vitest run (tests/unit); add --coverage for a report in coverage/
-pnpm e2e                         # Playwright; starts pnpm dev itself. CI: pnpm e2e --grep @smoke --trace off
+pnpm e2e                         # Playwright; starts pnpm dev itself. CI: pnpm e2e --trace off
 pnpm astro build                 # production build into dist/
 pnpm wrangler d1 execute DB --local --command "select 1"   # local D1 only
 pnpm wrangler types              # regenerate worker-configuration.d.ts after editing wrangler.jsonc
@@ -57,7 +57,7 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 ### TypeScript and modules
 
 - `tsconfig.json` extends `astro/tsconfigs/strict` with `noUncheckedIndexedAccess`. Keep `pnpm astro check` at 0 errors.
-- Extensionless imports. Use the aliases `@core/*` (`src/lib/core`), `@adapters/*` (`src/lib/adapters`) and `@plugins/*` (`plugins/`), never NodeNext `.js` suffixes.
+- Extensionless imports. Use the aliases `@core/*` (`src/lib/core`), `@adapters/*` (`src/lib/adapters`) and `@plugins/*` (`src/plugins`), never NodeNext `.js` suffixes.
 - Pure domain logic (acl, recurrence, newsletter, ics) lives in `src/lib/core` with no I/O. Adapters (EmDash repo, Resend, clock) live in `src/lib/adapters`. Plugin hooks and routes stay thin callers.
 - Runtime code uses Web-standard and Workers APIs only. Read bindings with `import { env } from "cloudflare:workers"`; `Astro.locals.runtime` was removed in Astro 6 and throws.
 - Read configuration through `astro:env` (`astro:env/server`, `astro:env/client`). The schema is in `astro.config.mjs`; `.dev.vars.example` lists the names. Never commit a value, and never declare a field both `secret` and `client`.
@@ -78,7 +78,7 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 ### Tests
 
 - Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
-- End-to-end: Playwright in `tests/e2e`. The `setup` project writes one `storageState` per role to `tests/e2e/.auth/` (git-ignored); only `anon` exists until M3. Tag CI smoke tests `@smoke`.
+- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`. Tag smoke tests `@smoke`.
 - Assert what a user or caller can observe, not internals.
 
 ## Key files
@@ -92,7 +92,7 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 | `src/layouts/Base.astro`    | Base layout with EmDash wiring (menus, search, page contributions)              |
 | `emdash-env.d.ts`           | Generated collection types (regenerated on dev server start)                    |
 | `worker-configuration.d.ts` | Generated binding types (`pnpm wrangler types`)                                 |
-| `.github/workflows/ci.yml`  | CI: install, astro check, lint, format:check, vitest, build, smoke e2e          |
+| `.github/workflows/ci.yml`  | CI: install, astro check, lint, format:check, vitest, build, e2e                |
 
 ## EmDash reference
 

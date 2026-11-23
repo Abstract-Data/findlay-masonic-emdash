@@ -51,7 +51,10 @@ jobs:
       # through the runner's passwordless sudo and leaves the proxy up.
       - run: pnpm exec portless proxy start --https
 
-      - run: pnpm e2e --grep @smoke --trace off
+      # Every suite, the per-role body-access suites included: they sign in
+      # through EmDash's dev-only bypass, which the dev server Playwright starts
+      # provides.
+      - run: pnpm e2e --trace off
 
       - if: failure()
         uses: actions/upload-artifact@v4

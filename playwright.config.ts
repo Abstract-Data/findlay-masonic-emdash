@@ -33,7 +33,15 @@ export default defineConfig({
 		{ name: "setup", testMatch: /.*\.setup\.ts/ },
 		{
 			name: "anon",
+			testMatch: /(smoke|admin)\.spec\.ts/,
 			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["setup"],
+		},
+		{
+			// Per-role suites: each test signs in with a storage state the setup project wrote.
+			name: "roles",
+			testDir: "tests/e2e/body-access",
+			use: { ...devices["Desktop Chrome"] },
 			dependencies: ["setup"],
 		},
 	],
