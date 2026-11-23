@@ -1,5 +1,14 @@
 import type { APIRequestContext } from "@playwright/test";
-import { NEWS, createNews, data, expect, expectDenied, test, unique } from "../body-access";
+import {
+	NEWS,
+	createNews,
+	data,
+	expect,
+	expectDenied,
+	newsData,
+	test,
+	unique,
+} from "../body-access";
 import { BODY_NAMES } from "../roles";
 
 const CHAPTER = BODY_NAMES.chapter;
@@ -55,6 +64,23 @@ test.describe("middleware guard: writes no content hook sees (ADR-002)", () => {
 		const id = await createNews(await as("chapter"), bodies.chapter);
 		await expectDenied(
 			(await as("blue-lodge")).post(`${NEWS}/${id}/duplicate`, { data: {} }),
+			CHAPTER,
+		);
+	});
+
+	test("an entry named by slug with a locale it is not in is still guarded", async ({
+		as,
+		bodies,
+	}) => {
+		// duplicate and terms resolve a slug without the locale, so the guard must too.
+		const slug = unique("chapter-news");
+		await data(
+			(await as("chapter")).post(NEWS, { data: { data: newsData(bodies.chapter), slug } }),
+		);
+		const lodge = await as("blue-lodge");
+		await expectDenied(lodge.post(`${NEWS}/${slug}/duplicate?locale=zz`, { data: {} }), CHAPTER);
+		await expectDenied(
+			lodge.post(`${NEWS}/${slug}/terms/tag?locale=zz`, { data: { termIds: [] } }),
 			CHAPTER,
 		);
 	});

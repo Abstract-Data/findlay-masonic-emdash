@@ -2,7 +2,13 @@ import { authorize, denialText, type Operation } from "@core/acl/policy";
 import type { BodyId } from "@core/ids";
 import { PluginStorageRepository } from "emdash";
 import type { RequestActor } from "./actor-context";
-import { entryOperation, revisionRestoreOperation, scopeOf, type StoredEntry } from "./entries";
+import {
+	entryOperation,
+	revisionRestoreOperation,
+	scopeOf,
+	type EntryAction,
+	type StoredEntry,
+} from "./entries";
 import { GRANTS, grantsOf, principalFor, type Directory } from "./grants";
 import { isAdminRole, parseBodyRecord, parseUserId } from "./parse";
 import { ruleFor, type RouteRule } from "./route-table";
@@ -32,17 +38,21 @@ export async function guardRequest(request: GuardedRequest): Promise<Response | 
 	if (actor === null || isAdminRole(actor.role) || emdash === undefined) return null;
 	const rule = ruleFor(request.routePattern, request.method);
 	if (rule === null) return null;
-	const op = await operationFor(rule, request, emdash);
-	if (op === null) return null;
+	const ops = await operationsFor(rule, request, emdash);
+	if (ops.length === 0) return null;
 	const principal = await principalFor(actor, [], directory(emdash));
 	if (principal === null) {
 		return denied("The signed-in account could not be identified, so the change was refused.");
 	}
-	const decision = authorize(principal, op);
-	return decision.outcome === "deny"
-		? denied(denialText(decision.reason, await bodyNames(emdash)))
+	const refusal = ops
+		.map((op) => authorize(principal, op))
+		.find((decision) => decision.outcome === "deny");
+	return refusal?.outcome === "deny"
+		? denied(denialText(refusal.reason, await bodyNames(emdash)))
 		: null;
 }
+
+const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
 
 function denied(message: string): Response {
 	return Response.json(
@@ -86,52 +96,73 @@ function entryOf(result: { success: boolean; data?: unknown }): StoredEntry | nu
 		: null;
 }
 
-/** Null lets the request through: EmDash answers it (a 404, a site write, a hook-guarded write). */
-async function operationFor(
+/**
+ * Every operation the request performs; none lets it through, and EmDash answers it (a 404, a
+ * site write, a hook-guarded write).
+ */
+async function operationsFor(
 	rule: RouteRule,
 	request: GuardedRequest,
 	emdash: EmDash,
-): Promise<Operation | null> {
+): Promise<readonly Operation[]> {
 	const { params } = request;
 	switch (rule.kind) {
 		case "pass":
-			return null;
+			return [];
 		case "admin-only":
-			return { kind: "admin-only", action: rule.action };
+			return [{ kind: "admin-only", action: rule.action }];
 		case "upload":
-			return { kind: "upload" };
+			return [{ kind: "upload" }];
 		case "media-item": {
 			// A provider's item (media/providers/[providerId]/[itemId]) records no uploader.
-			if (params.id === undefined) return { kind: "media", uploader: null };
+			if (params.id === undefined) return [{ kind: "media", uploader: null }];
 			const media = await emdash.handleMediaGet(params.id);
 			return media.success
-				? { kind: "media", uploader: parseUserId(media.data.item.authorId) }
-				: null;
+				? [{ kind: "media", uploader: parseUserId(media.data.item.authorId) }]
+				: [];
 		}
 		case "entry": {
 			const collection = params.collection ?? "";
 			const scope = scopeOf(collection);
-			if (scope === "site") return null;
-			if (scope === "unlisted") return { kind: "admin-only", action: "unlisted" };
-			const id = params.id ?? "";
-			const found = entryOf(
-				rule.action === "restore"
-					? await emdash.handleContentGetIncludingTrashed(collection, id)
-					: await emdash.handleContentGet(collection, id, request.locale),
-			);
-			return found === null ? null : entryOperation(rule.action, scope, found);
+			if (scope === "site") return [];
+			if (scope === "unlisted") return [UNLISTED];
+			const found = await entriesNamed(rule.action, collection, params.id ?? "", request, emdash);
+			// Refused rather than passed: a miss here must not leave EmDash to find the entry another way.
+			if (found.length === 0) return [UNLISTED];
+			return found.map((entry) => entryOperation(rule.action, scope, entry));
 		}
 	}
 	return revisionRestore(params.revisionId ?? "", emdash);
 }
 
-async function revisionRestore(revisionId: string, emdash: EmDash): Promise<Operation | null> {
+/**
+ * The entries a route could act on. Some EmDash routes resolve a slug in the request's locale
+ * and some ignore it, so both readings are checked.
+ */
+async function entriesNamed(
+	action: EntryAction,
+	collection: string,
+	id: string,
+	request: GuardedRequest,
+	emdash: EmDash,
+): Promise<StoredEntry[]> {
+	const readings =
+		action === "restore"
+			? [emdash.handleContentGetIncludingTrashed(collection, id)]
+			: [
+					emdash.handleContentGet(collection, id, request.locale),
+					...(request.locale === undefined ? [] : [emdash.handleContentGet(collection, id)]),
+				];
+	return (await Promise.all(readings)).flatMap((result) => entryOf(result) ?? []);
+}
+
+async function revisionRestore(revisionId: string, emdash: EmDash): Promise<readonly Operation[]> {
 	const revision = await emdash.handleRevisionGet(revisionId);
-	if (!revision.success) return null;
+	if (!revision.success) return [];
 	const { collection, entryId, data } = revision.data.item;
 	const scope = scopeOf(collection);
-	if (scope === "site") return null;
-	if (scope === "unlisted") return { kind: "admin-only", action: "unlisted" };
+	if (scope === "site") return [];
+	if (scope === "unlisted") return [UNLISTED];
 	const current = entryOf(await emdash.handleContentGet(collection, entryId));
-	return current === null ? null : revisionRestoreOperation(scope, current, data);
+	return current === null ? [UNLISTED] : [revisionRestoreOperation(scope, current, data)];
 }
