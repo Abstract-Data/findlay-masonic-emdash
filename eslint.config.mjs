@@ -3,7 +3,16 @@ import { configs } from "eslint-plugin-astro";
 
 export default [
 	{
-		ignores: ["dist/**", ".astro/**", ".wrangler/**", "reference/**", "node_modules/**"],
+		ignores: [
+			"dist/**",
+			".astro/**",
+			".wrangler/**",
+			"reference/**",
+			"node_modules/**",
+			"coverage/**",
+			"playwright-report/**",
+			"test-results/**",
+		],
 	},
 	...configs["flat/base"],
 	{

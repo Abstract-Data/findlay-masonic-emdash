@@ -7,7 +7,7 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
 
 ## Stack (immutable)
 - Language: TypeScript 5.x, `strict` (tsconfig extends `astro/tsconfigs/strict`)
-- Runtime / Package manager: Cloudflare Workers (workerd) at runtime; Node ≥ 22.16 for tooling; pnpm 11.9 with a committed `pnpm-lock.yaml`
+- Runtime / Package manager: Cloudflare Workers (workerd) at runtime; Node ≥ 22.23.4 for tooling (amendment 3); pnpm 11.9 with a committed `pnpm-lock.yaml`
 - Framework: Astro 7.x (`output: "server"`) + EmDash 1.6 CMS + React 19 (admin islands and plugin admin pages only)
 - Data: Cloudflare D1 (EmDash collections + plugin storage), R2 (media), KV (sessions)
 - Email: Resend (`resend` SDK) + `@react-email/editor` (pinned exact)
@@ -84,3 +84,4 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
    - 🚫 Never regress public pages below Lighthouse 90 (Performance, Accessibility, Best Practices, SEO) or cached public pages above P95 300 ms server time. ✅ Lighthouse CI budget; Axiom P95.
    - 🚫 Never share a D1, R2 or KV resource between environments. ✅ Separate `staging` and `production` Wrangler environments; still no Terraform.
 2. **2026-11-23 — Cloudflare bindings access (M0 Astro 7 verification, STATUS.md).** § Platform and stack read bindings through `locals.runtime.env`. Astro 6 removed it and `@astrojs/cloudflare` 14 throws on access. Bindings now come from `import { env } from "cloudflare:workers"`.
+3. **2026-11-23 — Node tooling floor (M0 follow-up).** § Stack said Node ≥ 22.16, but astro 7.4.13 declares `engines.node >= 22.23.4`. `package.json` engines and the CI matrix now use 22.23.4 as the floor, alongside the latest Node 22.

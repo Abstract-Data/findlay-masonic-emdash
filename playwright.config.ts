@@ -1,12 +1,19 @@
 import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { defineConfig, devices } from "@playwright/test";
 import { storageStatePath } from "./tests/e2e/roles";
 
 // portless owns the dev URL (named .localhost, plus a branch label in git
 // worktrees), so ask it rather than hardcoding a host or port.
+const pkg: unknown = JSON.parse(readFileSync("package.json", "utf8"));
+const portlessName: unknown =
+	typeof pkg === "object" && pkg !== null
+		? Reflect.get(Reflect.get(pkg, "portless") ?? {}, "name")
+		: undefined;
+if (typeof portlessName !== "string") throw new Error("package.json has no portless.name");
 const baseURL =
 	process.env.E2E_BASE_URL ??
-	execFileSync("pnpm", ["exec", "portless", "get", "findlay-masonic"], {
+	execFileSync("pnpm", ["exec", "portless", "get", portlessName], {
 		encoding: "utf8",
 	}).trim();
 
