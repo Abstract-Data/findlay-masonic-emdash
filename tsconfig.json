@@ -8,7 +8,7 @@
 		"paths": {
 			"@core/*": ["./src/lib/core/*"],
 			"@adapters/*": ["./src/lib/adapters/*"],
-			"@plugins/*": ["./plugins/*"]
+			"@plugins/*": ["./src/plugins/*"]
 		}
 	},
 	"include": [
