@@ -15,6 +15,10 @@ GOOGLE_CLIENT_ID=
 MICROSOFT_CLIENT_ID=
 MICROSOFT_TENANT_ID=
 NEWSLETTER_TEST_ALLOWLIST=
+RESEND_FROM=
+# Dev server only: keeps the in-memory Resend fake even with RESEND_API_KEY set.
+# Leave it commented out otherwise; an empty value is not a boolean.
+# RESEND_FAKE=true
 
 # Client value (context: client, access: public)
 TURNSTILE_SITE_KEY=

@@ -14,7 +14,7 @@
 
 1. In the admin, open **Users** and choose **Invite user**.
 2. Enter the email address and choose the role **Editor**. Never give a body editor **Admin**: an Admin can write every body's content, manage users and change the site's settings (constitution § Per-body access control).
-3. Send the invite. Until the newsletter milestone (M5) connects outbound email, EmDash shows the invite link instead of mailing it. Copy the link and send it to the editor yourself, privately: anyone holding it can accept the invitation.
+3. Send the invite. With `RESEND_API_KEY` and `RESEND_FROM` set, the newsletter plugin's Resend transport emails it (FR-8.1; see [newsletter-send.md](newsletter-send.md)). Without them, EmDash shows the invite link instead. Copy the link and send it to the editor yourself, privately: anyone holding it can accept the invitation.
 
 ## 2. Accept
 

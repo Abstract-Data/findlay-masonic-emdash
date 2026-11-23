@@ -2,11 +2,11 @@
 | Field | Value |
 |---|---|
 | SDD phase | 3 — TASKS |
-| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks and red-team fixes done, config awaiting PATH_ASK approval and the M3 critic** |
+| State | **M0 verified; M1 verified, schema awaiting PATH_ASK approval; M2 verified at 695c44f; M3 agent tasks and red-team fixes done, config awaiting PATH_ASK approval and the M3 critic; M5 agent tasks done ahead of M4, config awaiting PATH_ASK approval, staging send human** |
 | Last updated | 2026-11-23 |
-| Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M1 PATH_ASK items, T1.2 and T2.17 still open |
+| Current milestone | M3 — Auth + body-access (T3.12, T3.13 PATH_ASK; T3.17 human; T3.18 critic); M5 — Newsletter (T5.13 PATH_ASK; T5.16–T5.18 human; T5.19 critic); M1 PATH_ASK items, T1.2 and T2.17 still open |
 | Tasks | [TASK.md](TASK.md) |
-| ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted; [ADR-002](../../adr/ADR-002-body-access-middleware.md) — Proposed (lands with the M3 PR) |
+| ADR | [ADR-001](../../adr/ADR-001-stack-selection.md) — Accepted; [ADR-002](../../adr/ADR-002-body-access-middleware.md) — Proposed (lands with the M3 PR); [ADR-003](../../adr/ADR-003-newsletter-plugin.md) — Proposed (lands with the M5 PR) |
 
 ## Milestones
 | ID | Milestone | State | Exit check |
@@ -16,7 +16,7 @@
 | M2 | Pure core | In progress: T2.1–T2.16 done (1107 unit tests green, 100% statements, branches, functions and lines on acl and recurrence); T2.17 critic pending | Vitest green, 100% branch on acl/recurrence |
 | M3 | Auth + body-access | In progress: T3.1–T3.11, T3.14–T3.16 and red-team fixes T3.19–T3.30 done (48 e2e green locally; 100% on acl and recurrence); T3.12, T3.13 built, awaiting PATH_ASK approval; T3.17 human; T3.18 critic pending | FR-5 per-role e2e green |
 | M4 | Public site | Not started | FR-1/2/3/4/9.1 e2e, axe AA, Lighthouse ≥ 90 |
-| M5 | Newsletter plugin | Not started | Staging send to allowlist + test Segment |
+| M5 | Newsletter plugin | In progress, ahead of M4: T5.1–T5.12, T5.14, T5.15 done (47 e2e green on a fresh database; 1996 unit tests; production bundle checked for the SDK, keys and dev fakes); T5.13 built, awaiting PATH_ASK approval; T5.16–T5.18 human; T5.19 critic pending | Staging send to allowlist + test Segment |
 | M6 | Content migration | Not started | Inventory resolved, redirects green |
 | M7 | Observability + hardening | Not started | Code-devil clean, Checkly 48 h green |
 | M8 | Launch | Not started | Production live, lodge sign-off |
@@ -106,6 +106,32 @@ Run 2026-11-23 over every file M3 touched. Astro gate: `src/middleware.ts`, `ast
 | T7 pure, exhaustive acl policy | Pass | 30 operations, 2160 exhaustive cases after the red-team fixes; acl at 100% branch coverage; hooks and middleware only call `authorize`. |
 | T8 extensionless alias imports | Pass | `@core`, `@adapters` and `@plugins` (now `src/plugins`); no `.js` suffixes. |
 
+## Design principles gates (M5)
+Run 2026-11-23 over every file M5 touched. Astro gate: `src/pages/newsletters/*`, `src/components/NewsletterSignup.astro`, `astro.config.mjs`, `playwright.config.ts` and the CI workflow. TypeScript gate: `src/lib/**` and `src/plugins/newsletter/**`.
+
+| Rule | Result | Evidence |
+|---|---|---|
+| A1 server-rendered | Pass | The archive pages render on the server; no `getStaticPaths` or `prerender`. |
+| A2 no blanket `client:load` | Pass | No `client:` directive; the signup form is a plain form post and loads only Turnstile's own script. |
+| A3 no `set:html` | Pass | The sent email is shown in a sandboxed `iframe srcdoc`; `pnpm lint` clean. |
+| A4 no unsafe inline scripts | Pass | Turnstile's `<script is:inline src>` has no body; `pnpm lint` clean. |
+| A5 server-only SDKs stay on the server | Pass | Lint bans `resend` outside `resend-mailer.ts` and the mailer outside the plugin's server modules (11 oxlint and 2 ESLint probe errors); `tests/build/check-dist.mjs` finds no SDK or key in `dist/client`. `admin.tsx` imports `./service` for types only. |
+| A6 `astro:env`, no secret+client | Pass | New fields `RESEND_FROM` (server, public) and `RESEND_FAKE` (server, public, boolean); `TURNSTILE_SITE_KEY` stays the only client field. |
+| A7 `cloudflare:workers` env | Pass | No `locals.runtime`; the archive reads plugin storage through `locals.emdash.db`. |
+| A8 Web/Workers APIs only at runtime | Pass | `fetch`, `URLSearchParams`, `AbortSignal.timeout`, `crypto.randomUUID`; `node:` only in tests and `tests/build/check-dist.mjs`. |
+| A9 cache hints | n/a | Astro's cache is not enabled; the archive is not cached yet (M7). |
+| A10 images and ids | Pass | Article images are made absolute from the image field's `src`; body checkboxes use `entry.data.id`. |
+| A11 valid templates | Pass | `pnpm astro check` 0 errors; `pnpm astro build` Complete. |
+| A12 no numeric ports | Pass | The runbook and tests use the site address and paths only. |
+| T1 strict | Pass | `pnpm astro check` 0 errors. |
+| T2 no `any`/unsafe casts | Pass, two documented assertions | No `any`, `@ts-ignore` or `@ts-expect-error`. `routes.ts` asserts a fresh `crypto.randomUUID()` is an `IssueId`; `admin.tsx` asserts route data and the stored document are what the page sent, as Body Access does. Stored-issue brands are minted by type predicates. |
+| T3 pure core | Pass | `events.ts` and `email-html.ts` import only siblings and `temporal-polyfill`; the core import ban now also covers `@adapters/*`, `@plugins/*` and the mailer. |
+| T4 adapters as the boundary | Pass | `issues.ts` parses stored rows and TipTap JSON, `content.ts` parses EmDash items, routes validate input with zod, the mailer maps SDK errors to `rejected` or `unavailable`. |
+| T5 branded ids | Pass | `IssueId` (UUID), `Revision` and `BroadcastKey` are minted by predicates in `issues.ts`. |
+| T6 illegal states unrepresentable | Pass | The core `Issue` union drives every transition through `step`; `NewsletterErrorCode` maps to HTTP status in one table; `ProviderChoice` is a union. |
+| T7 pure, exhaustive acl policy | n/a | No acl change. |
+| T8 extensionless alias imports | Pass | `@core`, `@adapters`, `@plugins`; no `.js` suffixes. |
+
 ## Workers Builds `SESSION` KV failure
 The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace must have a namespace_id specified`. Cause, read from wrangler 4.166 (`provisionBindings` in `wrangler-dist/cli.js`): the adapter adds a `SESSION` binding with no ID, and wrangler's auto-provisioning would create the namespace, but when listing KV namespaces returns a permission error it skips provisioning silently and uploads the binding without an ID. So the Workers Builds API token most likely lacks KV permission (inferred, not seen in the build log). No config-only fix exists that keeps EmDash sign-in working: EmDash stores users in the Astro session, and a different session driver needs other infrastructure. Two human fixes, either works: create the KV namespaces and paste their IDs (T0.12), or grant the Workers Builds token KV edit permission so provisioning runs. Workers Builds should also deploy with `CLOUDFLARE_ENV=staging` (see above); the top level is now local-only with IDs `local` and will not deploy.
 
@@ -127,6 +153,11 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - **T3.17 (HUMAN), sign-in on staging (FR-8.2):** create the Google and Microsoft OAuth clients (callback `<site>/_emdash/api/auth/oauth/<provider>/callback`), store `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`, `MICROSOFT_CLIENT_ID`/`MICROSOFT_CLIENT_SECRET` and `MICROSOFT_TENANT_ID` as Worker secrets and vars, keep EmDash's allowed domains empty, then follow `docs/runbooks/onboard-body-editor.md` with a passkey and with each provider. The e2e suites sign in through the dev-only bypass and cannot cover this.
 - **Production `siteUrl`:** passkeys bind to the site's origin, which EmDash takes from `siteUrl`; today it is set only in dev (from portless). Decide the staging and production `siteUrl` before T3.17.
 - **Residual-risk sign-off (M8, Q14):** ADR-002 lists nine accepted residual risks, the constitution's two included, for the lodge to accept. Risks 7 to 9 came from the M3 red team: translation groups if i18n is ever enabled, refusals of a write addressed by a slug another body shares, and id-shaped slugs an Admin can still store.
+- **T5.13 (PATH_ASK):** approve the M5 `astro.config.mjs` changes by landing the PR: the `newsletter` native plugin descriptor (entrypoint and admin entry), and two env fields, `RESEND_FROM` (server, public: the sender on the verified domain) and `RESEND_FAKE` (server, public, boolean, default false: dev server only, ignored by builds).
+- **T5.16 (HUMAN), Resend and Turnstile keys and objects:** from 1Password, set `RESEND_API_KEY` and `TURNSTILE_SECRET` as Worker secrets, and `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `NEWSLETTER_TEST_ALLOWLIST` and `TURNSTILE_SITE_KEY` as vars, per environment. In Resend, verify the sending domain and create the `subscribers` Segment, a staging-only test Segment holding allowlisted addresses only, the newsletter Topic and one Topic per body with default "opt out"; save each body Topic's id in that body's **Resend topic id** field and publish the body. Create the Turnstile widget for the site's hostnames. The runbook's first table lists each one.
+- **T5.17 (HUMAN), staging send test:** on staging, follow `docs/runbooks/newsletter-send.md` end to end with `RESEND_SEGMENT_ID` set to the staging-only Segment: a test reaches the allowlist inbox, the approved Broadcast is received with a working unsubscribe link, an EmDash invite arrives by email (FR-8.1, and **Settings → Email** shows the newsletter plugin as provider), and a signup appears in Resend with its Topics. Two things only a real Resend can answer: whether `Idempotency-Key` is honoured on `POST /broadcasts` (the key-named lookup does not depend on it), and what adding an existing contact to its Segment returns.
+- **T5.18 (HUMAN), Checkly heartbeat:** create a Checkly `HeartbeatMonitor` for scheduled sends and wire it to the staging send (PLAN M5).
+- **Newsletter decisions (reversible):** compose in the admin page, not on the server (ADR-003: a headless editor needs `@tiptap/core` as a direct dependency, which moves EmDash admin's TipTap peers); article links go to `/bodies/<slug>/news#<news slug>` until M4 adds a news detail route (R8; one function in `src/lib/adapters/newsletter/content.ts`); a section whose event list the Admin deleted gets none back at approval; the public form never clears a contact's global unsubscribe; the email theme in `src/plugins/newsletter/theme.ts` is a placeholder for the M4 design.
 
 ## Log
 - 2026-11-23: Spec brainstorm Phases 0–5 complete (docs/spec/findlay-masonic-platform/). Planning decisions recorded (PLAN §2). Plan drafted.
@@ -138,3 +169,4 @@ The PR's Workers Builds deploy fails with `binding SESSION of type kv_namespace 
 - 2026-11-23: M2 passed independent verification at 695c44f. Its follow-ups land in M3: ICS calendar-name escaping (T3.3), one principal record per user (T3.5) and plain-text RRULE errors on save (T3.2).
 - 2026-11-23: M3 agent work (T3.1–T3.16) on `claude/happy-bell-oj5yoo`: core policy extended (restore, unschedule, discard, stored live and draft bodies, media, admin-only); the native `body-access` plugin with hooks, grant routes, the Body Access page and the body field; `src/middleware.ts` guarding every write no hook sees, failing closed, and refusing MCP below Admin; structural tests for capabilities and EmDash's route list; per-role Playwright suites in CI; ADR-002 and the onboarding runbook. CI run 45260287484 failed on the admin smoke test after the OAuth providers made the admin load `@cloudflare/kumo` unbundled; pre-bundling it fixed it (run 45266276314). T3.12 and T3.13 wait on PATH_ASK approval, T3.17 on a human, T3.18 on the critic.
 - 2026-11-23: M3 red-team fixes (T3.19–T3.30) on `claude/happy-bell-oj5yoo`, from two reviews of feb8594. Each `entry` rule now names its EmDash handler's lookup, and the middleware authorizes every entry an `[id]` could name, with drafts read strictly; editors cannot save id-shaped slugs; unpublish is guarded with the draft's body; only an Admin trashes, unpublishes or schedules a body's page; guard read failures refuse; hooks act for the request's user when the event names none; translations stay in their source's body. ADR-002 corrected (Editors can mint their own bearer tokens; not a bypass) and gains residual risks 7 to 9. Each finding's test failed before its fix. Evidence: 48 e2e green with `CI=true` on a fresh database and on a rerun; 2550 unit tests, acl and recurrence at 100%; the red team's four probes re-run against the fixed server return 403 or 422 where they returned 201 or 200. Probe by probe, served from feb8594 then from the fix: the recovery revision through an id slug 201 then 403, through a shared slug in another locale 201 then 403; unpublish of a moved draft 200 then 403; an Editor's entry in a `constructor` collection 201 then 422; an Editor's unpublish and trash of their own body's page 200 and 200 then 403 and 403. CI run 45280131313 green on both legs at fb98499 (48 e2e each).
+- 2026-11-23: M5 agent work (T5.1–T5.12, T5.14, T5.15) on a local branch from `claude/happy-bell-oj5yoo`, ahead of M4's design gate: `resend` 6.39.0 added; core event refresh (R13), footer and archive transforms; Resend mailer, Turnstile, clock and dev-only fakes; the native `newsletter` plugin (issue routes, idempotent approval with a compare-and-set hold and key-named Broadcast lookup, public signup, `email:deliver`), the Newsletter admin page with the email editor, the archive and signup form; lint and a build check keep Resend and the fakes where they belong. ADR-003 and the send runbook. T5.13 waits on PATH_ASK approval, T5.16–T5.18 on a human, T5.19 on the critic.

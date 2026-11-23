@@ -1,7 +1,7 @@
-# TASK — 0001-findlay-masonic-platform (M0 to M3)
+# TASK — 0001-findlay-masonic-platform (M0 to M3, M5)
 **SDD phase:** 3 (TASKS)
 **Plan:** [PLAN.md](PLAN.md) (approved 2026-11-23) · **Status:** [STATUS.md](STATUS.md)
-**Scope:** M0 to M3. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
+**Scope:** M0 to M3, and M5 ahead of M4's design gate. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
 
 ## Conventions
 - One checkbox = one reviewable commit (or a small, coherent group of commits). Tick it only when its **Verify** line passes.
@@ -318,6 +318,76 @@ Two red teams reviewed feb8594. The code review found eight issues (five confirm
   Deps: T0.16. Verify: the runbook's step 4 passes for each sign-in method.
 - [ ] **T3.18 [AGENT] Close M3.** Exit check: FR-5 e2e green locally and in CI; task-critic PASS; update STATUS.md.
   Deps: all of M3. Verify: critic returns PASS.
+
+---
+
+## M5 — Newsletter plugin
+Design: [ADR-003](../../adr/ADR-003-newsletter-plugin.md). M5 runs ahead of M4, whose design gate is pending, so the archive and signup form are minimal and the email theme is a placeholder. Evidence below was run on a clean copy of the committed tree (`git archive HEAD`, `pnpm install --frozen-lockfile`) outside the repo on 2026-11-23. No real Resend or Turnstile call was made: tests use a fake Resend API (a `fetch` stub) and the dev server's in-memory fakes.
+
+### Research
+- [x] **T5.1 [AGENT] Receipts for resend 6.39, @react-email/editor 1.8.10 and Turnstile siteverify.** Read from `node_modules` and the Cloudflare docs.
+  Verify: [context7-receipts.md](../../spec/findlay-masonic-platform/context7-receipts.md).
+  Evidence: `broadcasts.create` has no idempotency option (R3 confirmed); `composeReactEmail` needs an `Editor`, and a headless one needs `@tiptap/core` as a direct dependency, which re-resolved EmDash admin's TipTap peers in the lockfile (tried and reverted); siteverify's contract and test keys.
+
+### Core
+- [x] **T5.2 [AGENT] `refreshEvents` (R13), `withFooter`, `archiveHtml`, `issueSlug`; node attribute defaults for the editor.**
+  Verify: `events.test.ts`, `email-html.test.ts`.
+  Evidence: green; `src/lib/core/newsletter` 100% statements, functions and lines.
+
+### Adapters
+- [x] **T5.3 [AGENT] `resend-mailer.ts`: the mailer port and its Resend implementation.** Send email (cc, reply-to), find a broadcast by name, create or start one, upsert a contact into the Segment and Topics.
+  Verify: `tests/unit/adapters/resend-mailer.test.ts` against a fake Resend API.
+  Evidence: 8 tests green: the request each call sends (path, body, `Authorization`, `Idempotency-Key`), a paged lookup, contact create versus add-and-update, and 422 as a refusal but 500, 429 and a network failure as an unknown outcome.
+- [x] **T5.4 [AGENT] `turnstile.ts`, `clock.ts`, `providers.ts`, `dev-fakes.ts`, and the issue and content adapters.**
+  Verify: `turnstile.test.ts`, `providers.test.ts`, `newsletter/issues.test.ts`, `newsletter/content.test.ts`.
+  Evidence: green. Siteverify gets the secret, token and IP; a missing token never calls Cloudflare; Cloudflare's own failure is never a pass.
+- [x] **T5.5 [AGENT] Keep Resend server-side by lint.** oxlint: `resend` only in `resend-mailer.ts`, the mailer only in `src/plugins/newsletter/*.ts` (not its `.tsx` admin modules), neither in core; ESLint repeats the ban for `.astro` frontmatter.
+  Verify: probe imports of `resend` and `@adapters/resend-mailer` in a page endpoint, a component, a core file, the newsletter admin `.tsx`, a body-access module and a newsletter route.
+  Evidence: 11 oxlint errors and 2 ESLint errors; the newsletter route was flagged for the SDK only. Probes deleted.
+
+### Plugin
+- [x] **T5.6 [AGENT] Issue storage and the issue service (FR-6.1 to 6.4).** Plugin storage `issues` holds the TipTap JSON, the saved email, coverage window, revision, tested revision, status, key, Broadcast id, sent HTML and archive slug. New issue (core `assemble` and `issueWindow`; reopens the open issue), save (an unchanged save keeps the revision), test send to `NEWSLETTER_TEST_ALLOWLIST` only, discard.
+  Verify: `tests/unit/plugins/newsletter/service.test.ts`.
+  Evidence: 18 tests green, including FR-6.6 refusing approval before any test send and after an edit that followed one, with no Broadcast created.
+- [x] **T5.7 [AGENT] Idempotent approval (FR-6.5 to 6.7, R3, R13).** `step(approve)`, then the event refresh, then a compare-and-set hold, then find by key, else create.
+  Verify: the "approve is idempotent" tests.
+  Evidence: two approvals, sequential or concurrent, make one create; a crash between Resend and the store, and a timeout after Resend made the Broadcast, are each retried without a second create; a Broadcast left as a Resend draft is started, not recreated. Mutations: ignoring the compare-and-set result fails the concurrent test; skipping the key lookup fails three tests. Both reverted.
+- [x] **T5.8 [AGENT] `email:deliver` transport (FR-8.1).** Registered only when Resend can send (`RESEND_API_KEY` and `RESEND_FROM`, or the dev fake), so until a human sets the keys EmDash keeps showing invite links instead of failing them.
+  Verify: `transport.test.ts`; `providers.test.ts` (`deliversEmail`); `plugin.test.ts` builds EmDash's `HookPipeline` from the plugin.
+  Evidence: green; cc and reply-to reach Resend; the hook registers (capability `hooks.email-transport:register`).
+- [x] **T5.9 [AGENT] Public subscribe route (FR-7.1, 7.2).** Form post, zod, Turnstile, Origin rule, contact upsert with the newsletter Topic and each ticked body's `resend_topic_id`.
+  Verify: `subscribe.test.ts`; e2e `subscribe.spec.ts`.
+  Evidence: green.
+- [x] **T5.10 [AGENT] Newsletter admin page.** `EmailEditor` with `bodySection` and `articleCard` `EmailNode`s built from core's node names and attributes, the placeholder theme in `theme.ts`, compose on save, Admin gate as on Body Access; routes need `settings:manage` (Admin).
+  Verify: e2e `builder.spec.ts`, `editor.spec.ts`; `plugin.test.ts`.
+  Evidence: green.
+- [x] **T5.11 [AGENT] Archive (FR-6.8).** `/newsletters` and `/newsletters/[slug]`; the sent HTML in a sandboxed `iframe srcdoc`, never `set:html`; an empty state.
+  Verify: e2e `builder.spec.ts` (archive), `newsletter-archive.empty.spec.ts`.
+  Evidence: green on a fresh database.
+- [x] **T5.12 [AGENT] Fakes only under `astro dev`.** `chooseProvider` returns a fake only when `import.meta.env.DEV`; the fake module is imported only in that branch; `tests/build/check-dist.mjs` runs in CI after the build.
+  Verify: `providers.test.ts`; `node tests/build/check-dist.mjs`.
+  Evidence: the build passes all 14 checks, including no fake and no outbox route in the server bundle and no Resend SDK or key-shaped string in the client bundle. With the DEV guard replaced by `true` in `runtime.ts` and `routes.ts`, the build fails 2 checks (`dev-fakes_*.mjs` and the outbox route); reverted.
+- [ ] **T5.13 [PATH_ASK] `astro.config.mjs`.** The `newsletter` native plugin descriptor; `RESEND_FROM` and `RESEND_FAKE` in the env schema.
+  Verify: `astro check`, `astro build`; CI green; the human approves the PR.
+  Agent part done, awaiting approval.
+
+### Tests and docs
+- [x] **T5.14 [AGENT] Playwright newsletter suites.** Admin: start an issue, see a section per body, edit, approval refused, test send, approval, a second approval refused, the archive. Editor: page and every route refused. Visitor: signup, no token refused, cross-origin refused. Empty archive first, in its own project.
+  Verify: `CI=true pnpm e2e --trace off`.
+  Evidence: 47 passed (40 from M3 and 7 new).
+- [x] **T5.15 [AGENT] ADR-003, runbook `docs/runbooks/newsletter-send.md`, STATUS.**
+  Verify: the documents.
+  Evidence: written.
+
+### Human and close-out
+- [ ] **T5.16 [HUMAN] Resend and Turnstile on staging.** Verify the sending domain; create the `subscribers` Segment (and a staging-only test Segment), the newsletter Topic and one Topic per body (default opt-out), and save each body Topic's id on the body; set `RESEND_API_KEY`, `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `NEWSLETTER_TEST_ALLOWLIST`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET`.
+  Deps: T0.16. Verify: the runbook's "Before the first send" table is complete on staging.
+- [ ] **T5.17 [HUMAN] Staging send test (PLAN M5 exit check).** A test send reaches the allowlisted inbox; an approved Broadcast to the staging-only Segment is received with a working unsubscribe link; an EmDash invite arrives by email (FR-8.1); a signup appears in Resend with its Topics. Note whether Resend honoured `Idempotency-Key` on the Broadcast and how it answered adding an existing contact to the Segment.
+  Deps: T5.16. Verify: the runbook passes end to end on staging.
+- [ ] **T5.18 [HUMAN] Checkly HeartbeatMonitor for scheduled sends.**
+  Deps: T5.17. Verify: the heartbeat goes green after a scheduled staging send.
+- [ ] **T5.19 [AGENT] Close M5.** Exit check: CI green on both legs; task-critic PASS; update STATUS.md.
+  Deps: all of M5. Verify: critic returns PASS.
 
 ---
 
