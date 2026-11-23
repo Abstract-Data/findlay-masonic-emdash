@@ -1,0 +1,185 @@
+[section #19bc13f]  bg: background-image=url("https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image.jpeg"); background-size=cover; background-position=center center; overlay background-color=var( --e-global-color-primary )
+  [column #0bdfb3b]
+    [widget:heading.default #f738d58]
+      - H4: Believe in Yourself
+    [widget:heading.default #6f4f0e4]
+      - H1: Findlay Masonic Bodies
+[section #4e38465]  bg: background-color=var( --e-global-color-primary )
+  [column #fe464e2]
+    [section #8a7b221]
+      [column #80f02d0]
+        [widget:image.default #c0063af]
+          - IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/elementor/thumbs/image-1-e1678849267995-q3j5qweb63wddxhx3i2bt0tifufahmvfoal7fwfabo.png alt="image"
+      [column #55e59f7]
+        [widget:heading.default #cc24f6c]
+          - H5: Findlay Masonic Temple
+  [column #556307d]
+    [widget:menu-anchor.default #2c5bcf8]
+  [column #3193297]
+    [widget:button.default #c2cf4fd]
+      - TEXT: Subscribe to our Newsletter
+      - LINK: "Subscribe to our Newsletter" -> #
+      - ICON: fas fa-hand-pointer
+[section #849d860]  bg: background-color=#1200B8
+  [column #d949a45]
+    [section #a463629]
+      [column #3c31bc4]
+        [widget:icon-box.default #3fc2f6d]
+          - H3: POINT 1
+          - TEXT: Tagline 1
+      [column #5525ea9]
+        [widget:icon-box.default #2a79a6f]
+          - H3: Point 2
+          - TEXT: Tagline 2
+      [column #20612ed]
+        [widget:icon-box.default #7c321d2]
+          - H3: Point 3
+          - TEXT: Tagline 3
+[section #9caf7c9]  bg: background-color=#1b252f
+  [column #724017f]
+    [section #1e9f5df]
+      [column #cb779bb]
+        [widget:heading.default #4c76110]
+          - H4: Get to know
+        [widget:heading.default #bce5fc6]
+          - H2: OUR Organizations
+      [column #f05df00]
+        [widget:divider.default #e66cb6f]
+    [section #f3d6d0d]
+      [column #8bd29aa]
+        [widget:call-to-action.default #0f19d31]
+          - H2: Blue Lodge #227
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-1-e1678849267995-285x300.png
+      [column #f2baec4]
+        [widget:call-to-action.default #31fd14e]
+          - H2: Council #58
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-2-300x300.png
+      [column #1b9ce8e]
+        [widget:call-to-action.default #6abe717]
+          - H2: Gymnastic Rings
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-3-300x300.png
+    [section #d010208]
+      [column #4d60982]
+        [widget:call-to-action.default #3871ac0]
+          - H2: Commandry #49
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-4-297x300.png
+      [column #f119250]
+        [widget:call-to-action.default #de9bad1]
+          - H2: Order of the Eastern Star
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-5-300x300.png
+    [widget:button.default #6648c8e]
+      - TEXT: Learn More
+      - LINK: "Learn More" -> None
+      - ICON: fas fa-angle-double-right
+[section #60bfc1f]  bg: background-color=#1200B8
+  [column #3af8a59]
+    [widget:image.default #29db972]
+      - IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder-1024x683.png alt=""
+    [widget:image.default #556c999]
+      - IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder-1024x683.png alt=""
+  [column #8d767dc]
+    [section #ce6d08e]
+      [column #5aa921a]
+        [widget:heading.default #1ef687a]
+          - H4: Check out our
+        [widget:heading.default #34e0160]
+          - H2: Upcoming Events
+      [column #67a52a3]
+        [widget:divider.default #ab312bf]
+    [widget:posts.cards #a9e10bc]
+      - H3: Hello world!
+      - TEXT: Welcome to WordPress. This is your first post. Edit or delete it, then start writing!
+      - LINK: "Hello world!" -> https://findlay-masonic.flywheelsites.com/hello-world/
+      - LINK: "Learn More »" -> https://findlay-masonic.flywheelsites.com/hello-world/
+      - SETTINGS: {"cards_row_gap":{"unit":"px","size":30,"sizes":[]},"cards_columns":"3","cards_columns_tablet":"2","cards_columns_mobile":"1","cards_row_gap_tablet":{"unit":"px","size":"","sizes":[]},"cards_row_gap_mobile":{"unit":"px","size":"","sizes":[]}}
+    [widget:button.default #d28bb80]
+      - TEXT: All Events
+      - LINK: "All Events" -> None
+      - ICON: fas fa-angle-double-right
+[section #9db111b]  bg: background-image=url("https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image.jpeg"); background-size=cover; background-position=center center; overlay background-color=#1b252f
+  [column #6cbefc2]
+    [widget:heading.default #a9de89f]
+      - H4: Learn how you can
+    [widget:heading.default #8ed0420]
+      - H2: MAke Good men better
+[section #cfc0607]  bg: background-color=#1b252f
+  [column #45c44aa]
+    [section #307e7b7]  bg: background-color=#1200B8
+      [column #47d5141]
+        [widget:icon.default #d66451b]
+          - ICON: fas fa-quote-right
+        [widget:heading.default #9e70ae6]
+          - H4: Notable Perspectives
+        [widget:heading.default #80d4a1a]
+          - H2: About freemasonry
+        [widget:testimonial-carousel.default #c87a194]
+          - TEXT: "“So far as I am acquainted with the principles and doctrines of Freemasonry, I conceive it to be founded in benevolence and to be exercised only for the good of mankind.” George Washington 1st President of the United States of America "“Masonry aims at the promotion of morality and higher living by the cultivation of the social side of man, the rousing in him of the instincts of charity and love of his kind. It rests surely on the foundation of the brotherhood of man and the fatherhood of God.” William Howard Taft 27th President of the United States of America “There are no strangers in Freemasonry, only friends you’ve yet to meet.” Author Unknown
+          - SETTINGS: {"slides_per_view":"1","autoplay_speed":3500,"space_between":{"unit":"px","size":20,"sizes":[]},"pagination":"bullets","speed":500,"autoplay":"yes","loop":"yes","pause_on_hover":"yes","space_between_tablet":{"unit":"px","size":10,"sizes":[]},"space_between_mobile":{"unit":"px","size":10,"sizes":[]}}
+[section #c197417]  bg: background-color=#1b252f
+  [column #9600eff]
+    [section #8531510]
+      [column #04969d3]
+        [widget:heading.default #18ea937]
+          - H4: Heads of Bodies
+        [widget:heading.default #7094080]
+          - H2: MEet our leadership
+      [column #f30a9fe]
+        [widget:divider.default #898c5a2]
+    [section #728867f]
+      [column #f1bf97f]
+        [widget:call-to-action.default #84215ef]
+          - H2: Drew DeVore
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder.png
+      [column #8069d19]
+        [widget:call-to-action.default #6930a79]
+          - H2: You've gotta be kidding me
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder.png
+      [column #2357fef]
+        [widget:call-to-action.default #db5bf60]
+          - H2: Oh no. Not him.
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder.png
+      [column #38899d1]
+        [widget:call-to-action.default #ae852b2]
+          - H2: that jackass, again?
+          - BG-IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder.png
+    [widget:button.default #e2d8f43]
+      - TEXT: Learn More About Our Leaders
+      - LINK: "Learn More About Our Leaders" -> None
+      - ICON: fas fa-angle-double-right
+[section #eb6e54b]  bg: background-color=#1200B8
+  [column #928792e]
+    [widget:heading.default #3ff8e7e]
+      - H4: Committed to our Community
+    [widget:heading.default #bcd6542]
+      - H2: Masonry takes it to the next level .
+    [widget:button.default #0fe8d8b]
+      - TEXT: Learn About Our Community Engagement
+      - LINK: "Learn About Our Community Engagement" -> None
+      - ICON: fas fa-angle-double-right
+  [column #600e8eb]
+    [widget:image.default #f307d0a]
+      - IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder-1024x683.png alt=""
+    [widget:image.default #8f85d81]
+      - IMG: https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/placeholder-1024x683.png alt=""
+[section #d7eaa09]  bg: background-image=url("https://findlay-masonic.flywheelsites.com/wp-content/uploads/2023/03/image-1-scaled.jpeg"); background-size=cover; background-position=center right; overlay background-color=#000000; background-position=-314px 0px; background-position=-306px -8px
+  [column #9539aee]
+    [widget:heading.default #f8994d5]
+      - H1: 2B1ASK1
+    [widget:text-editor.default #af4c8b4]
+      - TEXT: Learn more about how to become a Mason.
+    [widget:button.default #62a4099]
+      - TEXT: Get Started
+      - LINK: "Get Started" -> #
+    [widget:icon.default #111f872]
+      - LINK: "" -> #next
+[section #1a59753]  bg: background-color=#2D2C2F
+  [column #643bcf1]
+    [widget:heading.default #f265107]
+      - TEXT: © 2021 All Rights Reserved.
+    [widget:social-icons.default #03a1ff6]
+      - TEXT: Facebook-f Twitter
+      - LINK: "Facebook-f" -> None
+      - LINK: "" -> None
+      - LINK: "Twitter" -> None
+      - ICON: fab fa-facebook-f
+      - ICON: fab fa-twitter
