@@ -36,14 +36,53 @@ const MONTH_SHORT: Record<IsoMonth, string> = {
 	12: "Dec",
 };
 
+const WEEKDAY_LONG: Record<IsoWeekday, string> = {
+	1: "Monday",
+	2: "Tuesday",
+	3: "Wednesday",
+	4: "Thursday",
+	5: "Friday",
+	6: "Saturday",
+	7: "Sunday",
+};
+
+const MONTH_LONG: Record<IsoMonth, string> = {
+	1: "January",
+	2: "February",
+	3: "March",
+	4: "April",
+	5: "May",
+	6: "June",
+	7: "July",
+	8: "August",
+	9: "September",
+	10: "October",
+	11: "November",
+	12: "December",
+};
+
+function isoMonth(value: { readonly month: number }): IsoMonth {
+	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the ISO calendar keeps month in 1..12.
+	return value.month as IsoMonth;
+}
+
+/** "Tuesday, December 8" */
+export function formatLongDay(date: Temporal.PlainDate): string {
+	return `${WEEKDAY_LONG[isoWeekday(date)]}, ${MONTH_LONG[isoMonth(date)]} ${date.day}`;
+}
+
+/** "December 2026" */
+export function formatMonth(month: Temporal.PlainYearMonth): string {
+	return `${MONTH_LONG[isoMonth(month)]} ${month.year}`;
+}
+
 export function isoWeekday(date: Temporal.PlainDate): IsoWeekday {
 	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the ISO calendar keeps dayOfWeek in 1..7.
 	return date.dayOfWeek as IsoWeekday;
 }
 
 function monthShort(date: Temporal.PlainDate): string {
-	// oxlint-disable-next-line typescript/no-unsafe-type-assertion -- the ISO calendar keeps month in 1..12.
-	return MONTH_SHORT[date.month as IsoMonth];
+	return MONTH_SHORT[isoMonth(date)];
 }
 
 /** "7:30 PM". Fixed English, no Intl, so output is identical in every runtime. */
