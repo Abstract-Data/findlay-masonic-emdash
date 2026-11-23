@@ -1,4 +1,5 @@
 import { checkOfficerTitle, checkTags } from "@core/acl/content-rules";
+import { TITLES_BY_BODY_TYPE } from "@core/acl/officer-titles";
 import { describe, expect, it } from "vitest";
 import { LODGE, tag } from "../../fixtures";
 
@@ -56,5 +57,91 @@ describe("checkOfficerTitle (FR-2.1)", () => {
 
 	it("matches titles exactly, as the select stores them", () => {
 		expect(checkOfficerTitle("worshipful master", "Blue Lodge").ok).toBe(false);
+	});
+});
+
+// The draft lists in docs/plans/0001-findlay-masonic-platform/officer-titles.md, in display
+// order. seed.test.ts pins only their union, which hides a title moved between body types.
+const DRAFT_TITLES = {
+	"Blue Lodge": [
+		"Worshipful Master",
+		"Senior Warden",
+		"Junior Warden",
+		"Treasurer",
+		"Secretary",
+		"Senior Deacon",
+		"Junior Deacon",
+		"Senior Steward",
+		"Junior Steward",
+		"Chaplain",
+		"Tyler",
+	],
+	Chapter: [
+		"High Priest",
+		"King",
+		"Scribe",
+		"Treasurer",
+		"Secretary",
+		"Chaplain",
+		"Captain of the Host",
+		"Principal Sojourner",
+		"Royal Arch Captain",
+		"Master of the Third Veil",
+		"Master of the Second Veil",
+		"Master of the First Veil",
+		"Sentinel",
+	],
+	Council: [
+		"Illustrious Master",
+		"Deputy Master",
+		"Principal Conductor of the Work",
+		"Treasurer",
+		"Recorder",
+		"Chaplain",
+		"Captain of the Guard",
+		"Conductor of the Council",
+		"Steward",
+		"Sentinel",
+	],
+	Commandery: [
+		"Eminent Commander",
+		"Generalissimo",
+		"Captain General",
+		"Prelate",
+		"Senior Warden",
+		"Junior Warden",
+		"Treasurer",
+		"Recorder",
+		"Standard Bearer",
+		"Sword Bearer",
+		"Warder",
+		"Sentinel",
+	],
+	"Order of the Eastern Star": [
+		"Worthy Matron",
+		"Worthy Patron",
+		"Associate Matron",
+		"Associate Patron",
+		"Secretary",
+		"Treasurer",
+		"Conductress",
+		"Associate Conductress",
+		"Chaplain",
+		"Marshal",
+		"Organist",
+		"Adah",
+		"Ruth",
+		"Esther",
+		"Martha",
+		"Electa",
+		"Warder",
+		"Sentinel",
+	],
+	"Temple Board": ["President", "Vice President", "Secretary", "Treasurer", "Trustee"],
+};
+
+describe("TITLES_BY_BODY_TYPE (FR-2.1)", () => {
+	it("holds each body type's draft list exactly, in display order", () => {
+		expect(TITLES_BY_BODY_TYPE).toEqual(DRAFT_TITLES);
 	});
 });

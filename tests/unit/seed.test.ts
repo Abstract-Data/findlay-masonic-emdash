@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { TITLES_BY_BODY_TYPE } from "@core/acl/officer-titles";
 import seedJson from "../../seed/seed.json";
+import bodyRefsJson from "./__fixtures__/seed-body-refs.json";
 
 interface SeedField {
 	slug: string;
@@ -42,6 +43,21 @@ function field(collectionSlug: string, slug: string): SeedField {
 }
 
 const bodies = seed.content.bodies ?? [];
+
+/** Body-scoped entries whose `body` is not `$ref:` to a body seeded earlier in the file. */
+function strayBodyRefs(content: Record<string, SeedEntry[]>): string[] {
+	const bodyIds = new Set((content.bodies ?? []).map((b) => b.id));
+	return BODY_SCOPED.flatMap((slug) =>
+		(content[slug] ?? []).flatMap((entry) => {
+			const ref = String(entry.data.body);
+			const resolves = ref.startsWith("$ref:") && bodyIds.has(ref.slice("$ref:".length));
+			return resolves ? [] : [`${slug}/${entry.id}`];
+		}),
+	);
+}
+
+// The real seed has no officers, events or news yet, so the $ref rule also runs on a fixture.
+const withBodyScopedEntries: Record<string, SeedEntry[]> = bodyRefsJson.content;
 
 describe("seed: the six bodies (FR-9.2)", () => {
 	it("seeds exactly six bodies", () => {
@@ -87,14 +103,21 @@ describe("seed: per-body access control", () => {
 	});
 
 	it("points every seeded body value at a seeded body by $ref", () => {
-		const bodyIds = new Set(bodies.map((b) => b.id));
-		for (const slug of BODY_SCOPED) {
-			for (const entry of seed.content[slug] ?? []) {
-				const ref = String(entry.data.body);
-				expect(ref, `${slug}/${entry.id}`).toMatch(/^\$ref:/);
-				expect(bodyIds.has(ref.slice("$ref:".length)), `${slug}/${entry.id}`).toBe(true);
-			}
-		}
+		expect(strayBodyRefs(seed.content)).toEqual([]);
+	});
+
+	it("accepts a seed with one officer, event and news item that each $ref a body", () => {
+		expect(BODY_SCOPED.map((slug) => withBodyScopedEntries[slug]?.length)).toEqual([1, 1, 1]);
+		expect(strayBodyRefs(withBodyScopedEntries)).toEqual([]);
+	});
+
+	it("names entries whose body is a raw id or a $ref to no seeded body", () => {
+		const broken = {
+			...withBodyScopedEntries,
+			officers: [{ id: "officer-raw-id", data: { body: "01JB0000000000000000000001" } }],
+			news: [{ id: "news-dangling", data: { body: "$ref:body-nowhere" } }],
+		};
+		expect(strayBodyRefs(broken)).toEqual(["officers/officer-raw-id", "news/news-dangling"]);
 	});
 });
 

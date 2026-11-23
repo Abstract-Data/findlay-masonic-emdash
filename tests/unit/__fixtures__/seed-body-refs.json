@@ -1,0 +1,74 @@
+{
+	"content": {
+		"bodies": [
+			{
+				"id": "body-blue-lodge",
+				"slug": "blue-lodge",
+				"status": "published",
+				"data": {
+					"name": "Findlay Lodge",
+					"number": 227,
+					"body_type": "Blue Lodge",
+					"display_order": 1,
+					"contact_recipients": [],
+					"tag_vocabulary": [{ "slug": "ritual", "label": "Ritual" }]
+				}
+			},
+			{
+				"id": "body-chapter",
+				"slug": "chapter",
+				"status": "published",
+				"data": {
+					"name": "Findlay Chapter",
+					"number": 58,
+					"body_type": "Chapter",
+					"display_order": 2,
+					"contact_recipients": [],
+					"tag_vocabulary": []
+				}
+			}
+		],
+		"officers": [
+			{
+				"id": "officer-worshipful-master",
+				"status": "published",
+				"data": {
+					"body": "$ref:body-blue-lodge",
+					"title": "Worshipful Master",
+					"name": "A. Member",
+					"term_year": 2027,
+					"display_order": 1
+				}
+			}
+		],
+		"events": [
+			{
+				"id": "event-chapter-stated-meeting",
+				"status": "published",
+				"data": {
+					"body": "$ref:body-chapter",
+					"title": "Stated Meeting",
+					"start": "2027-01-12T19:30:00",
+					"end": "2027-01-12T21:30:00",
+					"all_day": false,
+					"rrule": "FREQ=MONTHLY;BYDAY=2TU",
+					"exdates": ["2027-07-13"],
+					"is_stated_meeting": true
+				}
+			}
+		],
+		"news": [
+			{
+				"id": "news-lodge-degree-night",
+				"status": "published",
+				"data": {
+					"body": "$ref:body-blue-lodge",
+					"title": "Degree night",
+					"publish_date": "2027-02-01T12:00:00",
+					"tags": [{ "tag": "ritual" }],
+					"include_in_newsletter": true
+				}
+			}
+		]
+	}
+}
