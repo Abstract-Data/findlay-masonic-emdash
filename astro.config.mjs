@@ -58,6 +58,13 @@ export default defineConfig({
 		responsiveStyles: true,
 	},
 	vite: {
+		optimizeDeps: {
+			// The Google and Microsoft sign-in buttons (emdash/auth/providers/*-admin)
+			// ship as source that imports @cloudflare/kumo, which EmDash only
+			// pre-bundles inside its admin. Unbundled, every admin page in dev loads
+			// kumo module by module and Vite re-optimizes and reloads mid-session.
+			include: ["emdash > @emdash-cms/admin > @cloudflare/kumo"],
+		},
 		css: {
 			// Keep light-dark() native so the footer theme switcher works in
 			// production. For older browsers, Lightning CSS otherwise rewrites
