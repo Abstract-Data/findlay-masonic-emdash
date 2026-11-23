@@ -48,6 +48,9 @@ jobs:
       # No Resend SDK or key in the browser bundle; no dev fake in the server bundle.
       - run: node tests/build/check-dist.mjs
 
+      # Settings set as Worker variables after the build must not be inlined by it.
+      - run: node tests/build/check-runtime-env.mjs
+
       - run: pnpm exec playwright install --with-deps chromium
 
       # portless run refuses to sudo without a TTY; proxy start elevates

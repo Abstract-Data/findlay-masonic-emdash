@@ -37,10 +37,12 @@ export default defineConfig({
 				access: "secret",
 				optional: true,
 			}),
-			RESEND_SEGMENT_ID: envField.string({ context: "server", access: "public", optional: true }),
+			// Worker variables set per environment after the build: "secret" is how astro:env
+			// reads a value from the runtime env instead of inlining it at build time.
+			RESEND_SEGMENT_ID: envField.string({ context: "server", access: "secret", optional: true }),
 			RESEND_NEWSLETTER_TOPIC_ID: envField.string({
 				context: "server",
-				access: "public",
+				access: "secret",
 				optional: true,
 			}),
 			GOOGLE_CLIENT_ID: envField.string({ context: "server", access: "public", optional: true }),
@@ -49,11 +51,11 @@ export default defineConfig({
 			MICROSOFT_TENANT_ID: envField.string({ context: "server", access: "public", optional: true }),
 			NEWSLETTER_TEST_ALLOWLIST: envField.string({
 				context: "server",
-				access: "public",
+				access: "secret",
 				optional: true,
 			}),
 			// The sender of newsletters and system email, on the Resend-verified domain.
-			RESEND_FROM: envField.string({ context: "server", access: "public", optional: true }),
+			RESEND_FROM: envField.string({ context: "server", access: "secret", optional: true }),
 			// Dev server only: use the in-memory Resend fake even when RESEND_API_KEY is set.
 			// Builds ignore it (src/plugins/newsletter/runtime.ts).
 			RESEND_FAKE: envField.boolean({
@@ -62,6 +64,8 @@ export default defineConfig({
 				optional: true,
 				default: false,
 			}),
+			// Inlined into the build, so each environment's build must receive its own site key
+			// (docs/runbooks/newsletter-send.md).
 			TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", optional: true }),
 		},
 	},
