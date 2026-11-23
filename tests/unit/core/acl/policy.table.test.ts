@@ -87,27 +87,27 @@ describe("authorize: decision table", () => {
 	});
 
 	it("row 7 (FR-5.2): updating within one body needs that body's grant", () => {
-		expect(authorize(user(lodgeEditor), { kind: "update", from: LODGE, to: LODGE })).toEqual({
+		expect(authorize(user(lodgeEditor), { kind: "update", from: [LODGE], to: LODGE })).toEqual({
 			outcome: "allow",
 		});
-		expect(authorize(user(lodgeEditor), { kind: "update", from: null, to: LODGE })).toEqual({
+		expect(authorize(user(lodgeEditor), { kind: "update", from: [], to: LODGE })).toEqual({
 			outcome: "allow",
 		});
-		expect(authorize(user(chapterEditor), { kind: "update", from: LODGE, to: LODGE })).toEqual({
+		expect(authorize(user(chapterEditor), { kind: "update", from: [LODGE], to: LODGE })).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
 		});
 	});
 
 	it("row 8 (FR-5.2): moving an entry between bodies needs both grants", () => {
-		expect(authorize(user(twoBodyEditor), { kind: "update", from: LODGE, to: CHAPTER })).toEqual({
+		expect(authorize(user(twoBodyEditor), { kind: "update", from: [LODGE], to: CHAPTER })).toEqual({
 			outcome: "allow",
 		});
-		expect(authorize(user(lodgeEditor), { kind: "update", from: LODGE, to: CHAPTER })).toEqual({
+		expect(authorize(user(lodgeEditor), { kind: "update", from: [LODGE], to: CHAPTER })).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: lodgeEditor.id, body: CHAPTER },
 		});
-		expect(authorize(user(chapterEditor), { kind: "update", from: LODGE, to: CHAPTER })).toEqual({
+		expect(authorize(user(chapterEditor), { kind: "update", from: [LODGE], to: CHAPTER })).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
 		});
@@ -115,20 +115,78 @@ describe("authorize: decision table", () => {
 
 	it("row 9 (FR-5.8): clearing an entry's body is denied for everyone, Admins included", () => {
 		for (const actor of [admin, twoBodyEditor, lodgeEditor]) {
-			expect(authorize(user(actor), { kind: "update", from: LODGE, to: null })).toEqual({
+			expect(authorize(user(actor), { kind: "update", from: [LODGE], to: null })).toEqual({
 				outcome: "deny",
 				reason: { code: "missing-body" },
 			});
 		}
 	});
 
-	it("row 10 (FR-5.4): trash, publish, unpublish and schedule need the entry's body grant", () => {
-		for (const kind of ["delete", "publish", "unpublish", "schedule"] as const) {
-			expect(authorize(user(lodgeEditor), { kind, body: LODGE })).toEqual({ outcome: "allow" });
-			expect(authorize(user(admin), { kind, body: LODGE })).toEqual({ outcome: "allow" });
-			expect(authorize(user(chapterEditor), { kind, body: LODGE })).toEqual({
+	it("row 10 (FR-5.4): every state change needs the entry's body grant", () => {
+		const kinds = [
+			"delete",
+			"restore",
+			"publish",
+			"unpublish",
+			"schedule",
+			"unschedule",
+			"discard",
+		] as const;
+		for (const kind of kinds) {
+			expect(authorize(user(lodgeEditor), { kind, bodies: [LODGE] })).toEqual({ outcome: "allow" });
+			expect(authorize(user(admin), { kind, bodies: [LODGE] })).toEqual({ outcome: "allow" });
+			expect(authorize(user(chapterEditor), { kind, bodies: [LODGE] })).toEqual({
 				outcome: "deny",
 				reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
+			});
+		}
+	});
+
+	it("row 12 (FR-5.4): a draft that moves the entry needs the live and the draft body", () => {
+		expect(authorize(user(lodgeEditor), { kind: "publish", bodies: [CHAPTER, LODGE] })).toEqual({
+			outcome: "deny",
+			reason: { code: "no-grant", user: lodgeEditor.id, body: CHAPTER },
+		});
+		expect(authorize(user(twoBodyEditor), { kind: "publish", bodies: [CHAPTER, LODGE] })).toEqual({
+			outcome: "allow",
+		});
+		expect(
+			authorize(user(lodgeEditor), { kind: "update", from: [LODGE, CHAPTER], to: CHAPTER }),
+		).toEqual({
+			outcome: "deny",
+			reason: { code: "no-grant", user: lodgeEditor.id, body: CHAPTER },
+		});
+	});
+
+	it("row 13 (FR-5.8): a state change on an entry with no body is for Admins only", () => {
+		expect(authorize(user(admin), { kind: "delete", bodies: [] })).toEqual({ outcome: "allow" });
+		expect(authorize(user(twoBodyEditor), { kind: "delete", bodies: [] })).toEqual({
+			outcome: "deny",
+			reason: { code: "missing-body" },
+		});
+	});
+
+	it("row 14 (ADR-002 O1): only the uploader or an Admin changes a media item", () => {
+		expect(authorize(user(lodgeEditor), { kind: "media", uploader: lodgeEditor.id })).toEqual({
+			outcome: "allow",
+		});
+		expect(authorize(user(admin), { kind: "media", uploader: lodgeEditor.id })).toEqual({
+			outcome: "allow",
+		});
+		for (const uploader of [chapterEditor.id, null]) {
+			expect(authorize(user(lodgeEditor), { kind: "media", uploader })).toEqual({
+				outcome: "deny",
+				reason: { code: "not-uploader", user: lodgeEditor.id },
+			});
+		}
+	});
+
+	it("row 15 (ADR-002): admin-only actions deny every non-admin, naming the action", () => {
+		for (const action of ["use-mcp", "add-body", "unlisted"] as const) {
+			expect(authorize(user(admin), { kind: "admin-only", action })).toEqual({ outcome: "allow" });
+			expect(authorize(user(twoBodyEditor), { kind: "admin-only", action })).toEqual({
+				outcome: "deny",
+				reason: { code: "admin-only", user: twoBodyEditor.id, action },
 			});
 		}
 	});
@@ -149,20 +207,22 @@ describe("authorize: decision table", () => {
 
 describe("authorize: editor set", () => {
 	it("D1: an Admin actor does not launder an ungranted co-editor", () => {
-		expect(authorize(user(admin, chapterEditor), { kind: "publish", body: LODGE })).toEqual({
+		expect(authorize(user(admin, chapterEditor), { kind: "publish", bodies: [LODGE] })).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
 		});
 	});
 
 	it("an Admin co-editor never blocks a granted actor", () => {
-		expect(authorize(user(lodgeEditor, admin), { kind: "publish", body: LODGE })).toEqual({
+		expect(authorize(user(lodgeEditor, admin), { kind: "publish", bodies: [LODGE] })).toEqual({
 			outcome: "allow",
 		});
 	});
 
 	it("checks the actor before co-editors", () => {
-		expect(authorize(user(chapterEditor, unassigned), { kind: "publish", body: LODGE })).toEqual({
+		expect(
+			authorize(user(chapterEditor, unassigned), { kind: "publish", bodies: [LODGE] }),
+		).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
 		});
@@ -170,7 +230,7 @@ describe("authorize: editor set", () => {
 
 	it("checks co-editors in editedBy order", () => {
 		expect(
-			authorize(user(lodgeEditor, chapterEditor, unassigned), { kind: "publish", body: LODGE }),
+			authorize(user(lodgeEditor, chapterEditor, unassigned), { kind: "publish", bodies: [LODGE] }),
 		).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: chapterEditor.id, body: LODGE },
@@ -178,7 +238,7 @@ describe("authorize: editor set", () => {
 	});
 
 	it("checks the source body before the destination of a move", () => {
-		expect(authorize(user(unassigned), { kind: "update", from: CHAPTER, to: LODGE })).toEqual({
+		expect(authorize(user(unassigned), { kind: "update", from: [CHAPTER], to: LODGE })).toEqual({
 			outcome: "deny",
 			reason: { code: "no-grant", user: unassigned.id, body: CHAPTER },
 		});
@@ -187,7 +247,7 @@ describe("authorize: editor set", () => {
 	it("counts an actor listed in editedBy once, by id", () => {
 		const sameUserNoGrants = editor(lodgeEditor.id);
 		expect(
-			authorize(user(lodgeEditor, sameUserNoGrants), { kind: "publish", body: LODGE }),
+			authorize(user(lodgeEditor, sameUserNoGrants), { kind: "publish", bodies: [LODGE] }),
 		).toEqual({ outcome: "allow" });
 	});
 });

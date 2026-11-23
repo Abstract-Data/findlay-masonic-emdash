@@ -1,5 +1,5 @@
 import type { RuleViolation } from "@core/acl/content-rules";
-import { denialText, type DenyReason } from "@core/acl/policy";
+import { denialText, type AdminAction, type DenyReason } from "@core/acl/policy";
 import type { BodyId } from "@core/ids";
 import { describe, expect, it } from "vitest";
 import { CHAPTER, LODGE, tag, userId } from "../../fixtures";
@@ -15,7 +15,14 @@ const reasons: readonly (DenyReason | RuleViolation)[] = [
 	{ code: "missing-body" },
 	{ code: "unknown-tags", body: LODGE, tags: [tag("bake-sale")] },
 	{ code: "title-not-for-body-type", title: "King", bodyType: "Blue Lodge" },
+	{ code: "not-uploader", user: userId("u1") },
+	{ code: "admin-only", user: userId("u1"), action: "use-mcp" },
+	{ code: "admin-only", user: userId("u1"), action: "add-body" },
+	{ code: "admin-only", user: userId("u1"), action: "unlisted" },
 ];
+
+const adminOnlyText = (action: AdminAction) =>
+	denialText({ code: "admin-only", user: userId("u4"), action }, names);
 
 describe("denialText", () => {
 	it("names the body a grant is missing for (FR-5.2)", () => {
@@ -49,6 +56,19 @@ describe("denialText", () => {
 		);
 		expect(text).toContain('"King"');
 		expect(text).toContain("Blue Lodge");
+	});
+
+	it("says only the uploader or an Admin may change a media item", () => {
+		const text = denialText({ code: "not-uploader", user: userId("u3") }, names);
+		expect(text).toContain("u3");
+		expect(text).toContain("uploader or a Temple administrator");
+	});
+
+	it("names the admin-only action that was refused", () => {
+		expect(adminOnlyText("use-mcp")).toContain("cannot use the MCP endpoint");
+		expect(adminOnlyText("add-body")).toContain("cannot add a body");
+		expect(adminOnlyText("unlisted")).toContain("cannot make this change");
+		expect(adminOnlyText("unlisted")).toContain("u4");
 	});
 
 	it.each(reasons)("is 1 to 500 characters with no angle brackets: $code", (reason) => {

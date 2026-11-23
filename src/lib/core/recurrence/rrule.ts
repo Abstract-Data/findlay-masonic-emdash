@@ -90,6 +90,29 @@ export function parseRRule(raw: string, timing: EventTiming): Result<RRule, RRul
 	}
 }
 
+const SUPPORTED_PARTS = ["FREQ", ...Object.keys(PARTS)].join(", ");
+
+/** Plain text for an editor whose event save was refused. Parts and values are already charset-checked. */
+export function rruleErrorText(error: RRuleError): string {
+	switch (error.code) {
+		case "syntax":
+			return "The repeat rule is not valid. Write NAME=value pairs separated by semicolons, starting with FREQ, for example FREQ=MONTHLY;BYDAY=2TU.";
+		case "unsupported-part":
+			return `The repeat rule part ${error.part} is not supported. Use only ${SUPPORTED_PARTS}.`;
+		case "unsupported-freq":
+			return `The repeat frequency ${error.freq} is not supported. Use DAILY, WEEKLY, MONTHLY or YEARLY.`;
+		case "out-of-range":
+			return `The repeat rule value ${error.value} is not valid for ${error.part}.`;
+		case "count-and-until":
+			return "The repeat rule cannot have both COUNT and UNTIL. Keep one of them.";
+		case "never-occurs":
+			return "The repeat rule gives no meeting in the next five years. Check the start date and the rule.";
+		case "dst-gap-time":
+			return "A repeating event cannot start between 2:00 and 2:59 AM, because those times are skipped on the spring daylight-saving day. Choose another start time.";
+	}
+	return "The repeat rule cannot be read with this start date. If it has UNTIL, check that UNTIL matches the start date and time.";
+}
+
 function toRule(text: string, freq: Freq, parts: ReadonlyMap<string, string>): RRule {
 	const list = (name: string) => parts.get(name)?.split(",") ?? [];
 	const rule: RuleParts = {

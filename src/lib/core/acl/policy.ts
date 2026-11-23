@@ -12,19 +12,38 @@ export type Principal =
 	| { readonly kind: "user"; readonly actor: Editor; readonly editedBy: readonly Editor[] }
 	| { readonly kind: "internal"; readonly origin: "system" | "scheduler" | "plugin" };
 
-export type StateChange = "delete" | "publish" | "unpublish" | "schedule";
+/** Changes to an existing entry that leave its body as it is. */
+export type StateChange =
+	| "delete"
+	| "restore"
+	| "publish"
+	| "unpublish"
+	| "schedule"
+	| "unschedule"
+	| "discard";
 
-/** A body change is an update whose `from` differs from `to`. */
+/** What only an Admin may do, named in the denial text. */
+export type AdminAction = "use-mcp" | "add-body" | "unlisted";
+
+/**
+ * `from` and `bodies` are an existing entry's stored bodies: its live body, then its draft's
+ * body when an unpublished draft moves it. Empty means the entry has no body. A body change
+ * is an update whose `to` is not among `from`.
+ */
 export type Operation =
 	| { readonly kind: "create"; readonly body: BodyId | null }
-	| { readonly kind: "update"; readonly from: BodyId | null; readonly to: BodyId | null }
-	| { readonly kind: StateChange; readonly body: BodyId }
-	| { readonly kind: "upload" };
+	| { readonly kind: "update"; readonly from: readonly BodyId[]; readonly to: BodyId | null }
+	| { readonly kind: StateChange; readonly bodies: readonly BodyId[] }
+	| { readonly kind: "upload" }
+	| { readonly kind: "media"; readonly uploader: UserId | null }
+	| { readonly kind: "admin-only"; readonly action: AdminAction };
 
 export type DenyReason =
 	| { readonly code: "no-grant"; readonly user: UserId; readonly body: BodyId }
 	| { readonly code: "no-body-grants"; readonly user: UserId }
-	| { readonly code: "missing-body" };
+	| { readonly code: "missing-body" }
+	| { readonly code: "not-uploader"; readonly user: UserId }
+	| { readonly code: "admin-only"; readonly user: UserId; readonly action: AdminAction };
 
 export type Decision =
 	| { readonly outcome: "allow" }
@@ -36,6 +55,8 @@ type Requirement =
 	| { readonly kind: "bodies"; readonly bodies: readonly BodyId[] }
 	| { readonly kind: "assign"; readonly body: BodyId }
 	| { readonly kind: "any-grant" }
+	| { readonly kind: "uploader"; readonly user: UserId | null }
+	| { readonly kind: "admins"; readonly denial: AdminAction | "missing-body" }
 	| { readonly kind: "deny"; readonly reason: DenyReason };
 
 const ALLOW: Decision = { outcome: "allow" };
@@ -55,19 +76,25 @@ export function authorize(principal: Principal, op: Operation): Decision {
 }
 
 function requirement(op: Operation, actor: Editor): Requirement {
-	if (op.kind === "upload") return { kind: "any-grant" };
-	if (op.kind === "create") {
-		return op.body === null ? bodylessCreate(actor) : { kind: "bodies", bodies: [op.body] };
+	switch (op.kind) {
+		case "upload":
+			return { kind: "any-grant" };
+		case "media":
+			return { kind: "uploader", user: op.uploader };
+		case "admin-only":
+			return { kind: "admins", denial: op.action };
+		case "create":
+			return op.body === null ? bodylessCreate(actor) : { kind: "bodies", bodies: [op.body] };
+		case "update":
+			return op.to === null
+				? MISSING_BODY
+				: { kind: "bodies", bodies: [...new Set([...op.from, op.to])] };
+		default:
+			// An entry outside the access model stays reachable for Admins to repair or remove.
+			return op.bodies.length === 0
+				? { kind: "admins", denial: "missing-body" }
+				: { kind: "bodies", bodies: op.bodies };
 	}
-	if (op.kind === "update") {
-		if (op.to === null) return MISSING_BODY;
-		return {
-			kind: "bodies",
-			bodies: op.from === null || op.from === op.to ? [op.to] : [op.from, op.to],
-		};
-	}
-	// Narrowed to the state changes: trash, publish, unpublish, schedule.
-	return { kind: "bodies", bodies: [op.body] };
 }
 
 // FR-5.5 auto-assign depends on grants only, so an Admin with one grant is assigned too.
@@ -80,12 +107,21 @@ function bodylessCreate(actor: Editor): Requirement {
 }
 
 function unmet(editor: Editor, req: Exclude<Requirement, { kind: "deny" }>): DenyReason | null {
-	if (req.kind === "any-grant") {
-		return editor.grants.size > 0 ? null : { code: "no-body-grants", user: editor.id };
+	switch (req.kind) {
+		case "any-grant":
+			return editor.grants.size > 0 ? null : { code: "no-body-grants", user: editor.id };
+		case "uploader":
+			return editor.id === req.user ? null : { code: "not-uploader", user: editor.id };
+		case "admins":
+			return req.denial === "missing-body"
+				? { code: "missing-body" }
+				: { code: "admin-only", user: editor.id, action: req.denial };
+		default: {
+			const needed = req.kind === "assign" ? [req.body] : req.bodies;
+			const missing = needed.find((body) => !editor.grants.has(body));
+			return missing === undefined ? null : { code: "no-grant", user: editor.id, body: missing };
+		}
 	}
-	const needed = req.kind === "assign" ? [req.body] : req.bodies;
-	const missing = needed.find((body) => !editor.grants.has(body));
-	return missing === undefined ? null : { code: "no-grant", user: editor.id, body: missing };
 }
 
 const MAX_TEXT = 500;
@@ -100,6 +136,12 @@ export function denialText(
 	return text.length <= MAX_TEXT ? text : `${text.slice(0, MAX_TEXT - 1)}…`;
 }
 
+const ADMIN_ACTIONS: Record<AdminAction, string> = {
+	"use-mcp": "use the MCP endpoint",
+	"add-body": "add a body",
+	unlisted: "make this change",
+};
+
 function message(reason: DenyReason | RuleViolation, name: (body: BodyId) => string): string {
 	switch (reason.code) {
 		case "no-grant":
@@ -108,6 +150,10 @@ function message(reason: DenyReason | RuleViolation, name: (body: BodyId) => str
 			return `User ${reason.user} has no body grants. Ask a Temple administrator to grant access to a body.`;
 		case "missing-body":
 			return "Choose the body this entry belongs to. Every entry must belong to a body.";
+		case "not-uploader":
+			return `User ${reason.user} did not upload this file. Only its uploader or a Temple administrator can change or delete it.`;
+		case "admin-only":
+			return `User ${reason.user} cannot ${ADMIN_ACTIONS[reason.action]}. Only a Temple administrator can.`;
 		case "unknown-tags":
 			return `These tags are not in the ${name(reason.body)} tag list: ${reason.tags.join(", ")}. Add them to the body's tag vocabulary first.`;
 	}

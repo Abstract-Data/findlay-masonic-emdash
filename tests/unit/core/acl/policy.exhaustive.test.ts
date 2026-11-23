@@ -1,7 +1,7 @@
 import { authorize, type Decision, type Editor, type Operation } from "@core/acl/policy";
-import type { BodyId } from "@core/ids";
+import type { BodyId, UserId } from "@core/ids";
 import { describe, expect, it } from "vitest";
-import { CHAPTER as B, LODGE as A, editor } from "../../fixtures";
+import { CHAPTER as B, LODGE as A, editor, userId } from "../../fixtures";
 
 const GRANT_SETS: readonly (readonly BodyId[])[] = [[], [A], [B], [A, B]];
 const PROFILES = GRANT_SETS.flatMap((grants) =>
@@ -12,19 +12,36 @@ const PROFILES = GRANT_SETS.flatMap((grants) =>
 	})),
 );
 
+const STATE_CHANGES = [
+	"delete",
+	"restore",
+	"publish",
+	"unpublish",
+	"schedule",
+	"unschedule",
+	"discard",
+] as const;
+
 const OPS: readonly (readonly [string, Operation])[] = [
 	["create A", { kind: "create", body: A }],
 	["create B", { kind: "create", body: B }],
 	["create bodyless", { kind: "create", body: null }],
-	["update A->A", { kind: "update", from: A, to: A }],
-	["update A->B", { kind: "update", from: A, to: B }],
-	["update A->none", { kind: "update", from: A, to: null }],
-	["update none->A", { kind: "update", from: null, to: A }],
-	["delete A", { kind: "delete", body: A }],
-	["publish A", { kind: "publish", body: A }],
-	["unpublish A", { kind: "unpublish", body: A }],
-	["schedule A", { kind: "schedule", body: A }],
+	["update A->A", { kind: "update", from: [A], to: A }],
+	["update A->B", { kind: "update", from: [A], to: B }],
+	["update A->none", { kind: "update", from: [A], to: null }],
+	["update none->A", { kind: "update", from: [], to: A }],
+	["update A with draft B->B", { kind: "update", from: [A, B], to: B }],
+	...STATE_CHANGES.map((kind): readonly [string, Operation] => [
+		`${kind} A`,
+		{ kind, bodies: [A] },
+	]),
+	["publish A with draft B", { kind: "publish", bodies: [A, B] }],
+	["delete bodyless", { kind: "delete", bodies: [] }],
 	["upload", { kind: "upload" }],
+	["media uploaded by the actor", { kind: "media", uploader: userId("actor") }],
+	["media uploaded by someone else", { kind: "media", uploader: userId("someone") }],
+	["media with no recorded uploader", { kind: "media", uploader: null }],
+	["admin-only", { kind: "admin-only", action: "use-mcp" }],
 ];
 
 const CASES = PROFILES.flatMap((actorProfile) =>
@@ -38,30 +55,38 @@ const CASES = PROFILES.flatMap((actorProfile) =>
 	),
 );
 
-/** The spec's requirement (FR-5.2 to 5.8), written independently of the policy module. */
+/** The spec's requirement (FR-5.2 to 5.8, ADR-002), written independently of the policy module. */
 type Need =
 	| { readonly kind: "bodies"; readonly bodies: readonly BodyId[] }
 	| { readonly kind: "any-grant" }
+	| { readonly kind: "uploader"; readonly user: UserId | null }
+	| { readonly kind: "admin" }
 	| { readonly kind: "never" };
 
 function need(op: Operation, actor: Editor): Need {
-	if (op.kind === "upload") return { kind: "any-grant" };
-	if (op.kind === "create") {
-		if (op.body !== null) return { kind: "bodies", bodies: [op.body] };
-		return actor.grants.size === 1
-			? { kind: "bodies", bodies: [...actor.grants] }
-			: { kind: "never" };
+	switch (op.kind) {
+		case "upload":
+			return { kind: "any-grant" };
+		case "media":
+			return { kind: "uploader", user: op.uploader };
+		case "admin-only":
+			return { kind: "admin" };
+		case "create":
+			if (op.body !== null) return { kind: "bodies", bodies: [op.body] };
+			return actor.grants.size === 1
+				? { kind: "bodies", bodies: [...actor.grants] }
+				: { kind: "never" };
+		case "update":
+			return op.to === null ? { kind: "never" } : { kind: "bodies", bodies: [...op.from, op.to] };
+		default:
+			return op.bodies.length === 0 ? { kind: "admin" } : { kind: "bodies", bodies: op.bodies };
 	}
-	if (op.kind === "update") {
-		if (op.to === null) return { kind: "never" };
-		return { kind: "bodies", bodies: op.from === null ? [op.to] : [op.from, op.to] };
-	}
-	return { kind: "bodies", bodies: [op.body] };
 }
 
 function meets(e: Editor, n: Need): boolean {
 	if (e.isAdmin) return true;
 	if (n.kind === "any-grant") return e.grants.size > 0;
+	if (n.kind === "uploader") return e.id === n.user;
 	return n.kind === "bodies" && n.bodies.every((b) => e.grants.has(b));
 }
 
@@ -90,6 +115,14 @@ function invariantFailures(
 			failures.push("I2 named culprit has no grants");
 		}
 	}
+	if (
+		d.outcome === "deny" &&
+		(d.reason.code === "not-uploader" || d.reason.code === "admin-only")
+	) {
+		const { user } = d.reason;
+		const named = editors.find((e) => e.id === user);
+		if (named === undefined || meets(named, n)) failures.push("I2 named culprit fails the need");
+	}
 	if (editors.every((e) => e.isAdmin) && d.outcome === "deny" && d.reason.code !== "missing-body") {
 		failures.push("I3 admins only blocked by a missing body");
 	}
@@ -107,10 +140,10 @@ function invariantFailures(
 }
 
 describe("authorize: exhaustive", () => {
-	it("enumerates 8 actor profiles x 9 co-editor options x 12 operations", () => {
+	it("enumerates 8 actor profiles x 9 co-editor options x 22 operations", () => {
 		expect(PROFILES).toHaveLength(8);
-		expect(OPS).toHaveLength(12);
-		expect(CASES).toHaveLength(864);
+		expect(OPS).toHaveLength(22);
+		expect(CASES).toHaveLength(1584);
 	});
 
 	it.each(CASES)("$name", ({ actor, coEditors, op }) => {
