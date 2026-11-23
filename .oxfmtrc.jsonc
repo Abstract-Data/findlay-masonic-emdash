@@ -1,0 +1,32 @@
+{
+	"$schema": "./node_modules/oxfmt/configuration_schema.json",
+	"useTabs": true,
+	"tabWidth": 2,
+	"printWidth": 100,
+	"semi": true,
+	"singleQuote": false,
+	"trailingComma": "all",
+	"endOfLine": "lf",
+	"insertFinalNewline": true,
+	"ignorePatterns": [
+		"dist/**",
+		".astro/**",
+		".wrangler/**",
+		"coverage/**",
+		"playwright-report/**",
+		"test-results/**",
+		"pnpm-lock.yaml",
+		"worker-configuration.d.ts",
+		"emdash-env.d.ts",
+		// Read-only legacy export (constitution: never edit reference/).
+		"reference/**",
+		// Schema changes are PATH_ASK and belong to M1.
+		"seed/**",
+		// Vendored agent skills, kept byte-identical to upstream.
+		".agents/**",
+		// Spec and plan prose is reviewed as written.
+		"docs/**",
+		// Prettier owns .astro files.
+		"**/*.astro",
+	],
+}
