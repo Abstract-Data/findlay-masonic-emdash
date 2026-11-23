@@ -65,6 +65,21 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
 			dependencies: ["newsletter"],
 		},
+		{
+			// Public pages as a visitor (M4). After the newsletter suite, whose assertions count
+			// the emails in the dev outbox that the contact form also writes to.
+			name: "public",
+			testDir: "tests/e2e/public",
+			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["setup", "newsletter"],
+		},
+		{
+			// axe on every public route once the public suite has given its lists content.
+			name: "a11y",
+			testDir: "tests/e2e/a11y",
+			use: { ...devices["Desktop Chrome"] },
+			dependencies: ["public"],
+		},
 	],
 	webServer: {
 		// Astro 7 backgrounds `astro dev` when it detects a coding agent, and the

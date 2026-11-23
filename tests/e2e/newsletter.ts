@@ -8,6 +8,8 @@ export interface Outbox {
 	readonly createCalls: number;
 	readonly emails: readonly {
 		readonly to: readonly string[];
+		readonly cc: readonly string[];
+		readonly replyTo: string | null;
 		readonly subject: string;
 		readonly hasUnsubscribeLink: boolean;
 	}[];
