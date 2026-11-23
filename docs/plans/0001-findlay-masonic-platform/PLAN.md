@@ -67,7 +67,7 @@ docs/ spec/ plans/ adr/ runbooks/
 - Project `AGENTS.md` built from the JS/TS Base + Astro overlay, carrying the Agent Scope from Phase 3.
 - Verify Astro 7 against the overlay (the Phase 1 override). Record the outcome in STATUS.md.
 
-**Exit check:** CI green on a PR. A human runs `wrangler deploy --env staging` and the template renders at the staging URL.
+**Exit check:** CI green on a PR. A human runs `pnpm run deploy:staging` (`CLOUDFLARE_ENV=staging astro build && wrangler deploy`) and the template renders at the staging URL.
 
 ### M1 — Content model and seed
 **Goal:** every collection in the spec exists with correct fields, and the six bodies load.
@@ -144,7 +144,7 @@ docs/ spec/ plans/ adr/ runbooks/
 ### M8 — Launch
 **Goal:** findlaymason.org is served by the new platform.
 - Lodge UAT on staging with real body editors. **Lodge signs off on the accepted residual risks** (Q14).
-- Human tasks: Resend sending-domain DNS verification; production secrets in 1Password → Wrangler; `wrangler deploy --env production`; move the findlaymason.org DNS to Cloudflare; enable the redirects.
+- Human tasks: Resend sending-domain DNS verification; production secrets in 1Password → Wrangler; `pnpm run deploy:production`; move the findlaymason.org DNS to Cloudflare; enable the redirects.
 - ~~Promote the ADR draft to `docs/adr/ADR-001-…`~~ Done at plan approval (2026-11-23).
 
 **Exit check:** production Checkly is green. The old URLs redirect. The first newsletter test send from production reaches the allowlist.

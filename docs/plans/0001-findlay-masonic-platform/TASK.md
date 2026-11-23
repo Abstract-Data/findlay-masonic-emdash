@@ -71,7 +71,7 @@
   Evidence: STATUS.md table; no blocker, stay on Astro 7.
 
 ### M0 exit
-- [ ] **T0.16 [HUMAN] Staging deploy.** `pnpm astro build && pnpm wrangler deploy --env staging`, then confirm the template renders at the staging URL and `/_emdash/admin` loads.
+- [ ] **T0.16 [HUMAN] Staging deploy.** `pnpm run deploy:staging` (runs `CLOUDFLARE_ENV=staging astro build && wrangler deploy`; `wrangler deploy --env staging` after a plain build deploys the local bindings), then confirm the template renders at the staging URL and `/_emdash/admin` loads.
   Deps: T0.12, T0.13. Verify: staging URL recorded in STATUS.md.
 - [ ] **T0.17 [AGENT] Close M0.** Run the task-critic subagent over M0, update STATUS.md (M0 → Done, log entry).
   Deps: all of M0. Verify: critic returns PASS.
