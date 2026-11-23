@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 // Why the plugin holds each capability; EmDash silently skips a hook whose capability is missing.
 const CAPABILITIES: Readonly<Record<string, string>> = {
 	"content:read": "issue assembly lists bodies, news and events",
+	"email:send": "the contact route sends through EmDash's email pipeline (spec Q12)",
 	"hooks.email-transport:register": "email:deliver registers only with it (FR-8.1)",
 };
 
@@ -38,21 +39,24 @@ describe("newsletter plugin structure", () => {
 		expect(ADMIN_PERMISSION).toBe("settings:manage");
 	});
 
-	it("makes public only the signup form post and the archive's read-only GETs", () => {
+	it("makes public only the signup and contact form posts and the archive's read-only GETs", () => {
 		const { routes } = createPlugin();
 		const open = Object.entries(routes).filter(([, route]) => route.public === true);
 		expect(open.map(([name]) => name).toSorted()).toEqual([
 			"archive/issue",
 			"archive/list",
+			"contact",
 			"subscribe",
 		]);
 		expect(routes["archive/list"]).toMatchObject({ methods: ["GET"] });
 		expect(routes["archive/issue"]).toMatchObject({ methods: ["GET"] });
-		expect(routes.subscribe).toMatchObject({
-			methods: ["POST"],
-			request: { body: "form-data" },
-			response: "raw",
-		});
+		for (const form of [routes.subscribe, routes.contact]) {
+			expect(form).toMatchObject({
+				methods: ["POST"],
+				request: { body: "form-data" },
+				response: "raw",
+			});
+		}
 	});
 
 	it("adds the fake's outbox and unsubscribe routes only on the dev server, for Admins", () => {

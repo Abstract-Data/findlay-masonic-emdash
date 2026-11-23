@@ -1,8 +1,9 @@
 import { systemClock } from "@adapters/clock";
-import { parseEventSeries } from "@adapters/emdash/parse";
+import { parseEventSeries, parseRecipients } from "@adapters/emdash/parse";
 import { ISSUE_NOT_FOUND } from "@adapters/newsletter/archive";
 import { parseBodies, parseNewsCandidate, type ListedItem } from "@adapters/newsletter/content";
 import { issueStore, parseDoc, type IssueRows } from "@adapters/newsletter/issues";
+import { displayName } from "@core/bodies/label";
 import type { IssueId } from "@core/ids";
 import { z } from "astro/zod";
 import {
@@ -13,6 +14,7 @@ import {
 	type RouteContext,
 } from "emdash";
 import { Temporal } from "temporal-polyfill";
+import { contact, kvRateLimiter, type ContactBody } from "./contact";
 import { runtime } from "./runtime";
 import {
 	approve,
@@ -225,14 +227,7 @@ export const routes: Record<string, PluginRoute> = {
 		request: { body: "form-data", maxBytes: 16 * 1024 },
 		response: "raw",
 		handler: async (ctx: RouteContext) => {
-			const headers = ctx.request.headers;
-			const request: SubscribeRequest = {
-				origin: headers.get("Origin"),
-				csrfHeader: headers.get("X-EmDash-Request"),
-				siteOrigins: [...new Set([new URL(ctx.request.url).origin, siteOrigin(ctx)])],
-				fields: formFields(ctx.input),
-				remoteIp: ctx.requestMeta.ip,
-			};
+			const request = formRequest(ctx);
 			if (!sameSite(request)) {
 				return pluginResponse({
 					status: 403,
@@ -257,6 +252,40 @@ export const routes: Record<string, PluginRoute> = {
 			});
 		},
 	},
+	/** Spec Q12: a body's contact form posts here; the answer redirects back to the form. */
+	contact: {
+		public: true,
+		methods: ["POST"],
+		request: { body: "form-data", maxBytes: 16 * 1024 },
+		response: "raw",
+		handler: async (ctx: RouteContext) => {
+			const request = formRequest(ctx);
+			if (!sameSite(request)) {
+				return pluginResponse({
+					status: 403,
+					headers: { "content-type": "text/plain; charset=utf-8" },
+					body: { kind: "text", value: "Messages are accepted only from this site's form." },
+				});
+			}
+			const { verifier } = await runtime();
+			const email = ctx.email;
+			const outcome = await contact(
+				{
+					verifier,
+					send: email === undefined ? null : async (message) => email.send(message),
+					body: async (bodyId) => contactBody(await published(ctx, "bodies"), bodyId),
+					limiter: kvRateLimiter(ctx.kv, Date.now),
+					siteName: ctx.site.name,
+				},
+				request,
+			);
+			const back = returnPath(request.fields.find((field) => field.name === "from")?.value);
+			return pluginResponse({
+				status: 303,
+				headers: { location: `${back}?contact=${outcome}#contact` },
+			});
+		},
+	},
 	...(import.meta.env.DEV
 		? {
 				"dev/outbox": {
@@ -277,6 +306,33 @@ export const routes: Record<string, PluginRoute> = {
 			}
 		: {}),
 };
+
+function formRequest(ctx: RouteContext): SubscribeRequest {
+	const headers = ctx.request.headers;
+	return {
+		origin: headers.get("Origin"),
+		csrfHeader: headers.get("X-EmDash-Request"),
+		siteOrigins: [...new Set([new URL(ctx.request.url).origin, siteOrigin(ctx)])],
+		fields: formFields(ctx.input),
+		remoteIp: ctx.requestMeta.ip,
+	};
+}
+
+/** The page a form came from, as a same-site path; anything else goes home. */
+export function returnPath(raw: string | undefined): string {
+	return raw !== undefined && /^\/(?!\/)[\w\-/]*$/.test(raw) ? raw : "/";
+}
+
+function contactBody(items: readonly ListedItem[], bodyId: string): ContactBody | null {
+	const item = items.find((candidate) => candidate.id === bodyId);
+	if (item === undefined) return null;
+	const name = typeof item.data.name === "string" ? item.data.name : "";
+	const number = typeof item.data.number === "number" ? item.data.number : null;
+	return {
+		name: displayName(name, number),
+		recipients: parseRecipients(item.data.contact_recipients),
+	};
+}
 
 function formFields(input: unknown): SubscribeRequest["fields"] {
 	const entries: unknown =

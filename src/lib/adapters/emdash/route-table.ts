@@ -275,6 +275,13 @@ export const PLUGIN_ROUTES: ReadonlyMap<string, PluginRouteGuard> = new Map<
 		"newsletter/subscribe",
 		{ kind: "public", checks: "site Origin or X-EmDash-Request, zod, Turnstile (FR-7.1, 7.2)" },
 	],
+	[
+		"newsletter/contact",
+		{
+			kind: "public",
+			checks: "site Origin or X-EmDash-Request, zod, Turnstile, per-IP-and-body rate limit (Q12)",
+		},
+	],
 ]);
 
 /**

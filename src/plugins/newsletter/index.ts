@@ -17,14 +17,15 @@ const EMAIL_TRANSPORT = {
 
 /**
  * Native EmDash plugin for the quarterly newsletter (spec FR-6, FR-7, FR-8.1): issue storage,
- * Admin routes to build, test and approve an issue, the public signup route and the Resend
- * `email:deliver` transport. The Resend SDK is reached only through these server modules.
+ * Admin routes to build, test and approve an issue, the public signup and body contact routes
+ * (spec Q12) and the Resend `email:deliver` transport. The Resend SDK is reached only through
+ * these server modules.
  */
 export function createPlugin() {
 	return definePlugin({
 		id: ISSUES.pluginId,
 		version: "1.0.0",
-		capabilities: ["content:read", "hooks.email-transport:register"],
+		capabilities: ["content:read", "email:send", "hooks.email-transport:register"],
 		storage: { [ISSUES.collection]: { indexes: ISSUES.indexes } },
 		hooks: registersEmailTransport() ? EMAIL_TRANSPORT : {},
 		routes,
