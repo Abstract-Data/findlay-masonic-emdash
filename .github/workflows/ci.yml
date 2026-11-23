@@ -45,6 +45,9 @@ jobs:
 
       - run: pnpm astro build
 
+      # No Resend SDK or key in the browser bundle; no dev fake in the server bundle.
+      - run: node tests/build/check-dist.mjs
+
       - run: pnpm exec playwright install --with-deps chromium
 
       # portless run refuses to sudo without a TTY; proxy start elevates
