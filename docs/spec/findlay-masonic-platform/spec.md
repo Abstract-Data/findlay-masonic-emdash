@@ -283,7 +283,7 @@ SO THAT body numbers are correct at launch.
 - **Accessibility (human decision 2026-11-23, PLAN §2):** all public pages and plugin admin pages meet WCAG 2.1 AA; zero axe AA violations in e2e.
 - **Performance (human decision 2026-11-23, PLAN §2):** Lighthouse ≥ 90 (Performance, Accessibility, Best Practices, SEO) on public pages; P95 server time < 300 ms on cached public pages, measured via Axiom.
 - **Environments (human decision 2026-11-23, PLAN §2):** separate `staging` and `production` Wrangler environments, each with its own Worker, D1, R2 and KV.
-- *Constitution note:* these three NFRs come from the PLAN-phase human decisions, not the constitution. Propose a constitution amendment when the ADR is promoted.
+- *Constitution note:* these three NFRs come from the PLAN-phase human decisions and are recorded as constitution amendment 1 (2026-11-23).
 
 ## Open questions — resolved 2026-11-23 (see plans/0001-findlay-masonic-platform/PLAN.md §2)
 | # | Topic | Resolution |

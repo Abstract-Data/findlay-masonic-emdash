@@ -1,7 +1,8 @@
-# ADR (Draft): Stack and Architecture Selection — Findlay Masonic Platform
+# ADR-001: Stack and Architecture Selection — Findlay Masonic Platform
 
-**Status:** Proposed
+**Status:** Accepted (2026-11-23, with approval of plan 0001)
 **Date:** 2026-11-23
+**Plan:** [../plans/0001-findlay-masonic-platform/PLAN.md](../plans/0001-findlay-masonic-platform/PLAN.md)
 
 ## Context
 findlaymason.org is a dated Weebly/editmysite site serving six bodies: Blue Lodge No. 227, Chapter No. 58, Council No. 50, Commandery No. 49, OES No. 23 and the Findlay Temple Board. The replacement must provide: (1) a page per body with its meeting schedule, officers and body-maintained news; (2) an admin newsletter builder that pulls the latest articles grouped into per-body sections, using the React Email editor; (3) per-body and combined calendars; (4) per-body access control, so a body's editors can change only that body's tags, news, events and officers. EmDash on Cloudflare Workers/D1/R2 is a fixed constraint.

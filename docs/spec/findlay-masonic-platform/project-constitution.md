@@ -73,7 +73,13 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
 ## AGENTS.md base
 - Primary: AGENTS.md (JS/TS Base) v1.3.0
 - Overlays: AGENTS.md (Astro) overlay (required) and its companions: `tsconfig.json (Astro strict)`, `wrangler.jsonc (Astro on Cloudflare)`, `.prettierrc (Astro)`, `eslint.config.mjs (Astro)` (two-rule leftover), `oxlint.config.ts`/`.oxfmtrc.jsonc (JS/TS Base)`, GitHub Actions CI (Astro)
-- Environments: production on the Workers Paid plan; local dev via `astro dev`/`wrangler --local`. A separate staging environment is not yet decided (see spec Open Questions).
+- Environments: `staging` and `production` Wrangler environments on the Workers Paid plan, each with its own Worker, D1, R2 and KV; local dev via `astro dev`/`wrangler --local` (amendment 1).
 
 ## Context7 receipt log
 - See `context7-receipts.md` in this folder (13 receipts, Phase 2).
+
+## Amendments
+1. **2026-11-23 — PLAN-phase human decisions (plan 0001 §2, ADR-001).** Adds these non-negotiables:
+   - 🚫 Never ship a public page or plugin admin page that fails WCAG 2.1 AA. ✅ Zero axe AA violations in e2e.
+   - 🚫 Never regress public pages below Lighthouse 90 (Performance, Accessibility, Best Practices, SEO) or cached public pages above P95 300 ms server time. ✅ Lighthouse CI budget; Axiom P95.
+   - 🚫 Never share a D1, R2 or KV resource between environments. ✅ Separate `staging` and `production` Wrangler environments; still no Terraform.
