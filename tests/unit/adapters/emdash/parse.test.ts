@@ -1,13 +1,18 @@
 import {
+	isAdminRole,
 	parseAbsoluteUrl,
 	parseBodyId,
+	parseBodyRecord,
 	parseEditor,
 	parseEntryId,
+	parseErrorText,
+	parseEventSchedule,
 	parseEventSeries,
 	parseTagVocabulary,
 	parseTags,
 	parseUserId,
 	parseWallTime,
+	toStoredInstant,
 } from "@adapters/emdash/parse";
 import { Temporal } from "temporal-polyfill";
 import { describe, expect, it } from "vitest";
@@ -240,5 +245,86 @@ describe("parseEventSeries", () => {
 			ok: false,
 			error: { code: "invalid-field", field },
 		});
+	});
+});
+
+describe("isAdminRole", () => {
+	it("is EmDash's Admin role and above", () => {
+		expect([10, 20, 30, 40, 50].map(isAdminRole)).toEqual([false, false, false, false, true]);
+	});
+});
+
+describe("toStoredInstant (event saves)", () => {
+	it("reads a datetime without an offset as site time, as EmDash stores it", () => {
+		expect(toStoredInstant("2027-01-12T19:30")).toBe("2027-01-13T00:30:00Z");
+		expect(toStoredInstant("2027-07-13 19:30:00.000")).toBe("2027-07-13T23:30:00Z");
+		expect(toStoredInstant("2027-03-14")).toBe("2027-03-14T05:00:00Z");
+	});
+
+	it("keeps an instant, a malformed value or a non-string as sent", () => {
+		expect(toStoredInstant("2027-01-13T00:30:00.000Z")).toBe("2027-01-13T00:30:00.000Z");
+		expect(toStoredInstant("2027-02-30T10:00")).toBe("2027-02-30T10:00");
+		expect(toStoredInstant(null)).toBeNull();
+	});
+});
+
+describe("parseEventSchedule (FR-4.2)", () => {
+	it("accepts the schedule of a stated meeting", () => {
+		expect(parseEventSchedule(statedMeeting).ok).toBe(true);
+	});
+
+	it("refuses a rule that cannot repeat from its start, in plain words", () => {
+		const parsed = parseEventSchedule({ ...statedMeeting, rrule: "FREQ=HOURLY" });
+		expect(parsed.ok).toBe(false);
+		expect(!parsed.ok && parseErrorText(parsed.error)).toContain("HOURLY is not supported");
+	});
+});
+
+describe("parseErrorText", () => {
+	it("names the field, the end-before-start problem and the rule problem", () => {
+		expect(parseErrorText({ code: "invalid-field", field: "tag_vocabulary" })).toBe(
+			"The tag vocabulary value is missing or not valid.",
+		);
+		expect(parseErrorText({ code: "end-before-start" })).toContain("ends before it starts");
+		expect(parseErrorText({ code: "rrule", error: { code: "dst-gap-time" } })).toContain(
+			"skipped on the spring daylight-saving day",
+		);
+	});
+});
+
+describe("parseBodyRecord", () => {
+	it("reads the display name, body type, vocabulary and order of a bodies entry", () => {
+		expect(
+			parseBodyRecord({
+				id: LODGE,
+				data: {
+					name: "Findlay Lodge",
+					number: 227,
+					body_type: "Blue Lodge",
+					tag_vocabulary: [{ slug: "Ritual", label: "Ritual" }],
+					display_order: 1,
+				},
+			}),
+		).toEqual({
+			id: LODGE,
+			displayName: "Findlay Lodge No. 227",
+			bodyType: "Blue Lodge",
+			vocabulary: new Set([tag("ritual")]),
+			order: 1,
+		});
+	});
+
+	it("fails closed on what it cannot read", () => {
+		expect(
+			parseBodyRecord({ id: LODGE, data: { tag_vocabulary: "x", body_type: "Lodge" } }),
+		).toEqual({
+			id: LODGE,
+			displayName: LODGE,
+			bodyType: null,
+			vocabulary: new Set(),
+			order: Number.MAX_SAFE_INTEGER,
+		});
+		expect(parseBodyRecord({ id: "not-a-body", data: {} })).toBeNull();
+		expect(parseBodyRecord({ id: LODGE, data: null })).toBeNull();
 	});
 });

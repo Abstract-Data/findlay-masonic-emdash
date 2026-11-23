@@ -1,3 +1,4 @@
+import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
 import type { Editor } from "@core/acl/policy";
 import {
 	err,
@@ -9,7 +10,7 @@ import {
 	type TagSlug,
 	type UserId,
 } from "@core/ids";
-import { parseRRule, type RRuleError } from "@core/recurrence/rrule";
+import { parseRRule, rruleErrorText, type RRuleError } from "@core/recurrence/rrule";
 import type { EventSeries, EventTiming } from "@core/recurrence/series";
 import { SITE_TZ } from "@core/time";
 import { Temporal } from "temporal-polyfill";
@@ -83,6 +84,11 @@ export function parseWallTime(raw: unknown): Temporal.PlainDateTime | null {
 	}
 }
 
+/** EmDash's Admin role. Everything below it is subject to body grants. */
+export function isAdminRole(role: number): boolean {
+	return role >= ADMIN_ROLE;
+}
+
 export function parseEditor(
 	user: { readonly id: unknown; readonly role: unknown },
 	grants: readonly unknown[],
@@ -92,7 +98,7 @@ export function parseEditor(
 	if (typeof user.role !== "number") return invalid("role");
 	const bodies = allOrNothing(grants.map(parseBodyId));
 	if (bodies === null) return invalid("grants");
-	return ok({ id, isAdmin: user.role >= ADMIN_ROLE, grants: new Set(bodies) });
+	return ok({ id, isAdmin: isAdminRole(user.role), grants: new Set(bodies) });
 }
 
 /** An `events` entry's `data`, keyed by the seed's field slugs. */
@@ -105,6 +111,23 @@ export function parseEventSeries(
 	if (body === null) return invalid("body");
 	const title = text(data.title);
 	if (title === null) return invalid("title");
+	const schedule = parseEventSchedule(data);
+	if (!schedule.ok) return schedule;
+
+	return ok({
+		id,
+		body,
+		title,
+		location: text(data.location),
+		...schedule.value,
+		isStatedMeeting: data.is_stated_meeting === true,
+	});
+}
+
+/** FR-4.2: an event's timing and recurrence, the part of an `events` entry a save must keep valid. */
+export function parseEventSchedule(
+	data: Readonly<Record<string, unknown>>,
+): Result<Pick<EventSeries, "timing" | "recurrence">, ParseError> {
 	const start = parseWallTime(data.start);
 	if (start === null) return invalid("start");
 	const end = parseWallTime(data.end);
@@ -117,16 +140,73 @@ export function parseEventSeries(
 	const rawRule = text(data.rrule);
 	const rule = rawRule === null ? null : parseRRule(rawRule, timing);
 	if (rule !== null && !rule.ok) return err({ code: "rrule", error: rule.error });
+	return ok({ timing, recurrence: rule === null ? null : { rule: rule.value, except } });
+}
 
-	return ok({
+const NAIVE_DATETIME = /^(\d{4}-\d{2}-\d{2})(?:[T ](\d{2}:\d{2}(?::\d{2}(?:\.\d{1,3})?)?))?$/;
+
+/**
+ * A datetime as a save submits it, made into the UTC instant EmDash will store. EmDash reads a
+ * value without an offset as site time (settings.timezone is SITE_TZ); anything else is kept
+ * as sent, for parseWallTime to accept or refuse.
+ */
+export function toStoredInstant(raw: unknown): unknown {
+	if (typeof raw !== "string") return raw;
+	const naive = NAIVE_DATETIME.exec(raw.trim());
+	if (naive === null) return raw;
+	try {
+		const local = Temporal.PlainDateTime.from(`${naive[1]}T${naive[2] ?? "00:00"}`);
+		return local.toZonedDateTime(SITE_TZ).toInstant().toString();
+	} catch {
+		return raw;
+	}
+}
+
+/** Plain text for an editor whose save the parse boundary refused. */
+export function parseErrorText(error: ParseError): string {
+	switch (error.code) {
+		case "invalid-field":
+			return `The ${error.field.replaceAll("_", " ")} value is missing or not valid.`;
+		case "end-before-start":
+			return "The event ends before it starts. Set the end on or after the start.";
+	}
+	return rruleErrorText(error.error);
+}
+
+/** What the guard reads from a `bodies` entry. */
+export interface BodyRecord {
+	readonly id: BodyId;
+	/** "Findlay Lodge No. 227", the name denial texts use. */
+	readonly displayName: string;
+	readonly bodyType: BodyType | null;
+	readonly vocabulary: ReadonlySet<TagSlug>;
+	/** `display_order`; a body without one sorts last. */
+	readonly order: number;
+}
+
+const isBodyType = (raw: unknown): raw is BodyType =>
+	typeof raw === "string" && Object.hasOwn(TITLES_BY_BODY_TYPE, raw);
+
+/** A body whose vocabulary cannot be read keeps an empty one, so its tags fail closed. */
+export function parseBodyRecord(entry: {
+	readonly id: unknown;
+	readonly data: unknown;
+}): BodyRecord | null {
+	const id = parseBodyId(entry.id);
+	if (id === null || typeof entry.data !== "object" || entry.data === null) return null;
+	const data = entry.data;
+	const name = text(Reflect.get(data, "name")) ?? id;
+	const number: unknown = Reflect.get(data, "number");
+	const vocabulary = parseTagVocabulary(Reflect.get(data, "tag_vocabulary"));
+	const bodyType: unknown = Reflect.get(data, "body_type");
+	const order: unknown = Reflect.get(data, "display_order");
+	return {
 		id,
-		body,
-		title,
-		location: text(data.location),
-		timing,
-		recurrence: rule === null ? null : { rule: rule.value, except },
-		isStatedMeeting: data.is_stated_meeting === true,
-	});
+		displayName: typeof number === "number" ? `${name} No. ${number}` : name,
+		bodyType: isBodyType(bodyType) ? bodyType : null,
+		vocabulary: vocabulary.ok ? vocabulary.value : new Set(),
+		order: typeof order === "number" ? order : Number.MAX_SAFE_INTEGER,
+	};
 }
 
 // An all-day end at local midnight is exclusive, as calendar pickers store it.
