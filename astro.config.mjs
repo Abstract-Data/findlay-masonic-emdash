@@ -1,13 +1,21 @@
+import { fileURLToPath } from "node:url";
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig, envField, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
+import { google } from "emdash/auth/providers/google";
+import { microsoft } from "emdash/auth/providers/microsoft";
 import { Features } from "lightningcss";
 
 // Vitest loads this config through getViteConfig() in plain Node, where the
 // adapter's workerd runner cannot start. Unit tests cover the pure core only.
 const isVitest = process.env.VITEST === "true";
+
+// EmDash imports a native plugin's modules from a generated virtual module, so
+// the paths are absolute.
+const bodyAccess = (file) =>
+	fileURLToPath(new URL(`./src/plugins/body-access/${file}`, import.meta.url));
 
 export default defineConfig({
 	output: "server",
@@ -35,6 +43,8 @@ export default defineConfig({
 			}),
 			GOOGLE_CLIENT_ID: envField.string({ context: "server", access: "public", optional: true }),
 			MICROSOFT_CLIENT_ID: envField.string({ context: "server", access: "public", optional: true }),
+			// A directory (tenant) ID; EmDash treats only its sign-ins as verified emails.
+			MICROSOFT_TENANT_ID: envField.string({ context: "server", access: "public", optional: true }),
 			NEWSLETTER_TEST_ALLOWLIST: envField.string({
 				context: "server",
 				access: "public",
@@ -63,6 +73,17 @@ export default defineConfig({
 		emdash({
 			database: d1({ binding: "DB", session: "auto", coalesce: true }),
 			storage: r2({ binding: "MEDIA" }),
+			// FR-8.2: passkeys stay on; these link existing users by verified email.
+			authProviders: [google(), microsoft()],
+			plugins: [
+				{
+					id: "body-access",
+					version: "1.0.0",
+					format: "native",
+					entrypoint: bodyAccess("index.ts"),
+					adminEntry: bodyAccess("admin.tsx"),
+				},
+			],
 			// portless serves dev over HTTPS at a named .localhost origin and sets
 			// PORTLESS_URL. Passkeys, CSRF and redirects need that public origin,
 			// not the proxied 127.0.0.1 address. Unset in builds.

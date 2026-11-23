@@ -132,6 +132,7 @@
 					"type": "reference",
 					"required": true,
 					"indexed": true,
+					"widget": "body-access:body",
 					"options": {
 						"collection": "bodies"
 					}
@@ -238,6 +239,7 @@
 					"type": "reference",
 					"required": true,
 					"indexed": true,
+					"widget": "body-access:body",
 					"options": {
 						"collection": "bodies"
 					}
@@ -312,6 +314,7 @@
 					"type": "reference",
 					"required": true,
 					"indexed": true,
+					"widget": "body-access:body",
 					"options": {
 						"collection": "bodies"
 					}
