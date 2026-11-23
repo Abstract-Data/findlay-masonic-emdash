@@ -1,7 +1,7 @@
 import cloudflare from "@astrojs/cloudflare";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
-import { defineConfig, fontProviders } from "astro/config";
+import { defineConfig, envField, fontProviders } from "astro/config";
 import emdash from "emdash/astro";
 import { Features } from "lightningcss";
 
@@ -12,6 +12,37 @@ const isVitest = process.env.VITEST === "true";
 export default defineConfig({
 	output: "server",
 	adapter: isVitest ? undefined : cloudflare(),
+	env: {
+		// Every field stays optional until the milestone that uses it.
+		schema: {
+			RESEND_API_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+			TURNSTILE_SECRET: envField.string({ context: "server", access: "secret", optional: true }),
+			GOOGLE_CLIENT_SECRET: envField.string({
+				context: "server",
+				access: "secret",
+				optional: true,
+			}),
+			MICROSOFT_CLIENT_SECRET: envField.string({
+				context: "server",
+				access: "secret",
+				optional: true,
+			}),
+			RESEND_SEGMENT_ID: envField.string({ context: "server", access: "public", optional: true }),
+			RESEND_NEWSLETTER_TOPIC_ID: envField.string({
+				context: "server",
+				access: "public",
+				optional: true,
+			}),
+			GOOGLE_CLIENT_ID: envField.string({ context: "server", access: "public", optional: true }),
+			MICROSOFT_CLIENT_ID: envField.string({ context: "server", access: "public", optional: true }),
+			NEWSLETTER_TEST_ALLOWLIST: envField.string({
+				context: "server",
+				access: "public",
+				optional: true,
+			}),
+			TURNSTILE_SITE_KEY: envField.string({ context: "client", access: "public", optional: true }),
+		},
+	},
 	image: {
 		layout: "constrained",
 		responsiveStyles: true,

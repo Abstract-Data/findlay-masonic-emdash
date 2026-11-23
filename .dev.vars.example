@@ -1,0 +1,19 @@
+# Copy to .dev.vars for local dev. Names only: never commit values.
+# Real secrets live in 1Password and reach Workers via `wrangler secret put`.
+# Schema: env.schema in astro.config.mjs. All are optional until their milestone.
+
+# Server secrets (context: server, access: secret)
+RESEND_API_KEY=
+TURNSTILE_SECRET=
+GOOGLE_CLIENT_SECRET=
+MICROSOFT_CLIENT_SECRET=
+
+# Server values (context: server, access: public)
+RESEND_SEGMENT_ID=
+RESEND_NEWSLETTER_TOPIC_ID=
+GOOGLE_CLIENT_ID=
+MICROSOFT_CLIENT_ID=
+NEWSLETTER_TEST_ALLOWLIST=
+
+# Client value (context: client, access: public)
+TURNSTILE_SITE_KEY=
