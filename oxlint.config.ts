@@ -37,4 +37,25 @@ export default defineConfig({
 		// Portable Text and EmDash records use _type/_key by spec.
 		"no-underscore-dangle": ["error", { allow: ["_type", "_key"] }],
 	},
+	overrides: [
+		{
+			// Constitution: the pure core has no framework, SDK or runtime imports.
+			files: ["src/lib/core/**"],
+			rules: {
+				"no-restricted-imports": [
+					"error",
+					{
+						patterns: [
+							{
+								// A regex, because glob groups miss subpaths such as astro:env/server.
+								regex: "^(emdash|resend|astro)(/.*)?$|^@emdash-cms/|^(astro|node|cloudflare):",
+								message:
+									"src/lib/core is pure: parse EmDash data and call Resend, Astro and runtime APIs from src/lib/adapters.",
+							},
+						],
+					},
+				],
+			},
+		},
+	],
 });
