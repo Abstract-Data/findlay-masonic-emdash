@@ -149,6 +149,26 @@ describe("contact (spec Q12)", () => {
 		expect(await contact(deps, form({ body: "chapter" }))).toBe("sent");
 	});
 
+	it("counts nothing for a body that is not published or takes no messages", async () => {
+		let writes = 0;
+		const store: CounterStore = {
+			async getVersioned() {
+				return null;
+			},
+			async compareAndSet() {
+				writes += 1;
+				return { applied: true };
+			},
+		};
+		const limiter = kvRateLimiter(store, () => 0);
+		await contact(setup({ limiter }).deps, form({ body: "chapter" }));
+		const silent = setup({ limiter, body: async () => ({ ...LODGE, recipients: [] }) });
+		await contact(silent.deps, form());
+		expect(writes).toBe(0);
+		expect(await contact(setup({ limiter }).deps, form())).toBe("sent");
+		expect(writes).toBe(1);
+	});
+
 	it("does not count a message refused before sending", async () => {
 		const { deps } = setup();
 		for (let i = 0; i < CONTACT_LIMIT.messages; i += 1) {

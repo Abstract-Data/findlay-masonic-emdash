@@ -74,9 +74,10 @@ export function contactEmail(input: ContactInput, body: ContactBody, siteName: s
 }
 
 /**
- * Spec Q12: a visitor writes to one body. The form is validated and the Turnstile token
- * verified; then each sender may send a body only so many messages an hour, which protects that
- * body's inbox, and the email goes to the body's private recipients.
+ * Spec Q12: a visitor writes to one body. The form is validated, the Turnstile token verified
+ * and the body looked up; then each sender may send a body only so many messages an hour, which
+ * protects that body's inbox, and the email goes to the body's private recipients. Counting only
+ * after the lookup keeps made-up body ids out of the counter store.
  */
 export async function contact(
 	deps: ContactDeps,
@@ -89,10 +90,10 @@ export async function contact(
 	const token = request.fields.find((field) => field.name === TURNSTILE_FIELD)?.value ?? null;
 	const verdict = await verifier.verify(token, request.remoteIp);
 	if (!verdict.ok) return verdict.reason === "unavailable" ? "unavailable" : "verification-failed";
-	if (!(await deps.limiter.allow(request.remoteIp, input.body))) return "rate-limited";
 	const body = await deps.body(input.body);
 	if (body === null) return "invalid";
 	if (body.recipients.length === 0) return "unavailable";
+	if (!(await deps.limiter.allow(request.remoteIp, input.body))) return "rate-limited";
 	try {
 		await send(contactEmail(input, body, deps.siteName));
 	} catch {
