@@ -646,6 +646,32 @@ An independent verification of a752033 failed TR.2 (B2) and raised four hardenin
 - [x] **TS.5 [AGENT] Body Topics that default to "opt out".** If Resend lists a Topic the contact never chose as `opt_out`, the signup form (TR.3) never adds a body Topic for an existing subscriber. resend 6.39's `ContactTopic` (`contacts.topics.list`) carries only `id`, `name`, `description` and `subscription`; only the Topic itself has `default_subscription`, so an explicit opt-out and an untouched default look alike, and no code change can honour only explicit ones. deploy.md § Check step 6 settles it on staging; ADR-003 risk 8 records it.
   Verify: `node_modules/resend/dist/index.d.mts` (`ContactTopic`, `Topic`); the staging check (HUMAN, with T0.16).
 
+### Reflow baseline
+
+An independent check of 743858b failed WCAG 1.4.10 a third time, each time in a new element: calendar entries, then prose and excerpts, then a body card's schedule note (573 px past 320 on `/`, `/bodies` and `/?body=*`) and a news item's code block. Every fix had assumed the overflow was one element's bug. The two causes were site-wide: a token with no break opportunity widened its box, and a grid or flex item could not shrink below its content.
+
+- [x] **TV.1 [AGENT] A fuzz seed in every text field, checked on every page file.** `tests/e2e/visual/fuzz.ts` reads `seed/seed.json` and fills every `string`, `text` and `portableText` field of every collection with an 80-letter word and a 120-character URL, plus one of each Portable Text block the site renders (paragraph, h2, h3, both lists, quote, link, inline code, code block with filename, image caption). Fields that must parse (`rrule`, tag slugs, the recipient address, the Resend topic id) are listed with a reason; an unknown field type fails the run. Two bodies (one with a schedule note, one with a stated meeting), an officer, three events, a news item and a page are created before the checks and removed after them (`FUZZ_KEEP=1` keeps them). Every page file in `src/pages` must have a route in `PAGE_FILES`, and each route is checked at 320, 390, 768, 1024 and 1280 px for sideways scrolling, any box whose content runs past its edge without being a scroller, and text cut off with an ellipsis. axe runs on four fuzz pages in both schemes. The hand-picked long-word seeding and its prose-only check are gone.
+  Verify: `pnpm e2e --project visual`.
+  Evidence: on 2ff5a23 (the test on 743858b's styles), 17 routes failed, among them `p.body-card__schedule` 586 px past its box on `/` at 320 and `div.frame.page__layout` 1338 px past its box on the news item at 320, plus news cards, tag chips, body labels, the newsletter signup and the month grid.
+- [x] **TV.2 [AGENT] One reflow baseline.** Base.astro's base layer: `overflow-wrap: anywhere` on `body`, `min-width: 0` on every element except images and form controls (so grid and flex items shrink and a checkbox keeps its size), and `pre` scrolls inside itself. Removed what it replaces: nine `overflow-wrap` rules, eight `min-width: 0`, and `minmax(0, Nfr)` tracks, now `Nfr`. Tag chips wrap instead of ending in an ellipsis; inline code no longer clones its padding per line (Chrome leaves the clone out of the line break); a month-grid day lets "Today" wrap under the date.
+  Verify: the TV.1 checks; screenshots of 22 routes at six widths with ordinary content, before and after.
+  Evidence: 87 of 132 screenshots identical; the rest differ only in the header (TV.3), the Today badge (now under the date where it used to touch the cell's edge) and a lazily loaded emblem.
+- [x] **TV.3 [AGENT] The site's name shows in full.** The header cut "Findlay Masonic Temple" off with an ellipsis at 768 and 900 px; it now wraps.
+  Verify: visual "the site's name shows in full at every width".
+  Evidence: failed before the fix with 50 px hidden at 768 and 16 px at 900.
+- [x] **TV.4 [AGENT] Console redaction leaves no way round it.** A cause past the depth limit, or a cycle, becomes its redacted "Name: message" line instead of the original error; punycode top-level domains (`xn--p1ai`) match; an error whose `stack` or `message` getter throws is logged instead of throwing.
+  Verify: `worker-console.test.ts` "redaction that cannot be walked around".
+  Evidence: all four tests failed before the fix.
+- [x] **TV.5 [AGENT] A blank Segment id is no Segment.** The send gate refuses a Segment id of spaces as it refuses a missing one, when creating a Broadcast and when sending a Resend draft.
+  Verify: `send-gate.test.ts` "blank segment_id", "blank Segment id".
+  Evidence: both failed before the fix by listing the Segment.
+- [x] **TV.6 [AGENT] The overdue check runs without Checkly.** At the top of the hour the Worker checks for overdue entries and logs `scheduler.overdue` whether or not `CHECKLY_HEARTBEAT_URL` is set; the ping still needs the URL.
+  Verify: `worker.test.ts` "still logs what is overdue…", `heartbeat.test.ts` "still asks once an hour with no URL…".
+  Evidence: both failed before the fix.
+- [x] **TV.7 [AGENT] The recipient-row refusal says how to fix each row.** "rows 2, 3 and 5 are not one email address each, so the contact form would not send to them", then per row "holds more than one address: put each on its own row" or "is not an email address: write one like …". The save is still refused.
+  Verify: `hooks.test.ts` "names every bad row…", "names one bad row in the singular".
+  Evidence: both failed before the fix on the old wording.
+
 ---
 
 ## Carried forward (tasked in full when the milestone starts)
