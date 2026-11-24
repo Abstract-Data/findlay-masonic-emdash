@@ -73,10 +73,31 @@ const block = (text: string, extra: Record<string, unknown> = {}) => ({
 	...extra,
 });
 
+const tableRow = (header: boolean, cells: readonly string[]) => ({
+	_type: "tableRow",
+	_key: next("r"),
+	cells: cells.map((text) => ({
+		_type: "tableCell",
+		_key: next("c"),
+		content: [span(text)],
+		isHeader: header,
+	})),
+});
+
 /** One of every Portable Text block the site's content uses, each holding the long token. */
 export function fuzzRichText(media: Media): unknown[] {
 	const link = next("l");
 	return [
+		{
+			_type: "table",
+			_key: next("t"),
+			hasHeaderRow: true,
+			rows: [
+				tableRow(true, ["Degree", "Date", "Time", "Room"]),
+				tableRow(false, ["Entered Apprentice", "March 3", "7:30 PM", "Lodge room"]),
+				tableRow(false, [FUZZ_TEXT, "April 7", "7:30 PM", "Lodge room"]),
+			],
+		},
 		block(`Paragraph ${FUZZ_TEXT} ends here.`),
 		block(`Heading ${FUZZ_TEXT}`, { style: "h2" }),
 		block(`Subheading ${FUZZ_TEXT}`, { style: "h3" }),

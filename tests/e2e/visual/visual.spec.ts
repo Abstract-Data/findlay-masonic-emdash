@@ -53,8 +53,8 @@ const LONG_TITLE = "Annual Thanksgiving dinner for the widows and their families
 
 /** WCAG 1.4.10 asks for no sideways scrolling at 320 CSS px; the rest are common screens. */
 const WIDTHS = [320, 390, 768, 1024, 1280] as const;
-/** The day cards and the month grid change shape one pixel above 1000 and 760. */
-const CALENDAR_WIDTHS = [...WIDTHS, 761, 1001] as const;
+/** The day cards and the month grid change shape one pixel above 1240. */
+const CALENDAR_WIDTHS = [...WIDTHS, 1241] as const;
 
 interface Sample {
 	readonly body: BodySlug;
@@ -269,6 +269,67 @@ async function overflows(page: Page): Promise<string[]> {
 	});
 }
 
+/**
+ * What an older reader would trip over at this width: an ordinary word laid out across two
+ * lines, and a checkbox or radio button squeezed below its own size by the text beside it.
+ */
+async function brokenOrSquashed(page: Page): Promise<string[]> {
+	return page.evaluate(() => {
+		const out: string[] = [];
+		const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+		for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+			const parent = node.parentElement;
+			if (parent === null || parent.closest("script, style, noscript, .sr-only") !== null) {
+				continue;
+			}
+			if (!parent.checkVisibility()) continue;
+			const text = node.textContent ?? "";
+			// A line may end at a space or after a hyphen the text has; anywhere else is mid-word.
+			for (const match of text.matchAll(/[^\s-]+/g)) {
+				const word = match[0];
+				const whole =
+					(/\S*$/.exec(text.slice(0, match.index))?.[0] ?? "") +
+					(/^\S*/.exec(text.slice(match.index))?.[0] ?? "");
+				// The fuzz tokens and links have nowhere else to break.
+				if (word.length < 3 || whole.length >= 80 || /:\/\/|^www\./.test(whole)) continue;
+				const range = document.createRange();
+				range.setStart(node, match.index);
+				range.setEnd(node, match.index + word.length);
+				const lines = new Set(
+					[...range.getClientRects()]
+						.filter((rect) => rect.width > 0)
+						.map((rect) => Math.round(rect.top / 4)),
+				);
+				if (lines.size > 1) {
+					out.push(
+						`"${word}" breaks mid-word in ${parent.tagName.toLowerCase()}.${parent.className}`,
+					);
+				}
+			}
+		}
+		for (const input of document.querySelectorAll<HTMLInputElement>(
+			'input[type="checkbox"], input[type="radio"]',
+		)) {
+			if (!input.checkVisibility()) continue;
+			const own = input.getBoundingClientRect();
+			const alone = document.createElement("div");
+			alone.style.cssText = "position: absolute; visibility: hidden";
+			const probe = input.cloneNode();
+			if (!(probe instanceof HTMLInputElement)) continue;
+			alone.appendChild(probe);
+			document.body.appendChild(alone);
+			const free = probe.getBoundingClientRect();
+			alone.remove();
+			if (Math.abs(own.width - free.width) > 0.5 || Math.abs(own.height - free.height) > 0.5) {
+				out.push(
+					`${input.type} "${input.name}" is ${own.width}x${own.height}px, not its own ${free.width}x${free.height}px`,
+				);
+			}
+		}
+		return out;
+	});
+}
+
 /** Every calendar entry, and its body's name, that is not inside its day. */
 async function spills(page: Page, days: string): Promise<{ entries: number; out: string[] }> {
 	return page.evaluate((selector) => {
@@ -448,6 +509,23 @@ test("the search field shows a 2px focus ring like every other control", async (
 	expect(ring.colour).not.toMatch(/^rgba\(\d+, \d+, \d+, 0\)$/);
 });
 
+// The sample week's real body names, emblems and schedule notes, before the fuzz content
+// arrives: no ordinary word may break across lines at any width from 320 px.
+for (const route of ROUTES.filter((candidate) => !candidate.includes("fuzz"))) {
+	test(`ordinary words stay whole and checkboxes keep their size: ${route}`, async ({ page }) => {
+		for (const width of [...CALENDAR_WIDTHS, 360]) {
+			// oxlint-disable-next-line no-await-in-loop -- one width at a time.
+			await page.setViewportSize({ width, height: 900 });
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await page.goto(route);
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await page.evaluate(async () => document.fonts.ready);
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			expect.soft(await brokenOrSquashed(page), `${route} at ${width}px`).toEqual([]);
+		}
+	});
+}
+
 /** An API client signed in as the Admin, for a hook that has no test fixtures. */
 async function adminRequest(playwright: PlaywrightWorkerArgs["playwright"], baseURL = "") {
 	return playwright.request.newContext({
@@ -545,31 +623,62 @@ test.describe("a long word or link in every text field", () => {
 		});
 	}
 
-	test("pages with the long word and link are AA in both schemes", async ({ page }) => {
+	test("pages with the long word, link and wide table are AA in both schemes at 1280 and 320 px", async ({
+		page,
+	}) => {
+		test.setTimeout(120_000);
 		const routes = [
 			"/",
 			`/bodies/${FUZZ_BODY}`,
 			`/bodies/${FUZZ_BODY}/news/${FUZZ_NEWS}`,
 			`/pages/${FUZZ_PAGE}`,
 		];
-		for (const route of routes) {
-			for (const scheme of ["light", "dark"] as const) {
-				// oxlint-disable-next-line no-await-in-loop -- one page and scheme at a time.
-				await page.emulateMedia({ colorScheme: scheme });
-				// oxlint-disable-next-line no-await-in-loop -- see above.
-				await page.goto(route);
-				// oxlint-disable-next-line no-await-in-loop -- see above.
-				const results = await new AxeBuilder({ page })
-					.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
-					.analyze();
-				console.log(`axe / fuzz ${route} (${scheme}): ${results.violations.length} violations`);
-				expect
-					.soft(
-						results.violations.map((v) => v.id),
-						`${route} (${scheme})`,
-					)
-					.toEqual([]);
+		for (const width of [1280, 320]) {
+			for (const route of routes) {
+				for (const scheme of ["light", "dark"] as const) {
+					// oxlint-disable-next-line no-await-in-loop -- one width, page and scheme at a time.
+					await page.setViewportSize({ width, height: 900 });
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					await page.emulateMedia({ colorScheme: scheme });
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					await page.goto(route);
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					const results = await new AxeBuilder({ page })
+						.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+						.analyze();
+					const label = `${route} at ${width}px (${scheme})`;
+					console.log(`axe / fuzz ${label}: ${results.violations.length} violations`);
+					expect
+						.soft(
+							results.violations.map((v) => v.id),
+							label,
+						)
+						.toEqual([]);
+				}
 			}
 		}
+	});
+
+	test("a wide table scrolls in a region a keyboard can reach, with a focus ring", async ({
+		page,
+	}) => {
+		await page.setViewportSize({ width: 320, height: 900 });
+		await page.goto(`/pages/${FUZZ_PAGE}`);
+		const region = page.getByRole("region", { name: "Table" });
+		await expect(region.getByRole("table")).toContainText("Entered Apprentice");
+		expect(
+			await region.evaluate((el) => el.scrollWidth > el.clientWidth),
+			"the table is wider than the phone",
+		).toBe(true);
+		await region.focus();
+		await page.keyboard.press("ArrowRight");
+		await expect
+			.poll(async () => region.evaluate((el) => el.scrollLeft), { message: "arrow keys scroll it" })
+			.toBeGreaterThan(0);
+		const ring = await region.evaluate((el) => {
+			const style = getComputedStyle(el);
+			return { style: style.outlineStyle, width: style.outlineWidth };
+		});
+		expect(ring).toMatchObject({ style: "solid", width: "2px" });
 	});
 });
