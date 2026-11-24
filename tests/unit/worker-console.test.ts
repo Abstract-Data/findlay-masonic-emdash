@@ -187,7 +187,8 @@ describe("redaction that cannot be walked around (M7 review round 3)", () => {
 	it("redacts or drops a cause past the depth limit instead of passing it on as it was", () => {
 		let error = new Error(`deepest cause for ${ADDRESS}`);
 		const deepest = error;
-		for (let depth = 0; depth < 8; depth += 1) error = new Error(`wrapper ${depth}`, { cause: error });
+		for (let depth = 0; depth < 8; depth += 1)
+			error = new Error(`wrapper ${depth}`, { cause: error });
 		console.error(error);
 		const { texts, nodes } = causeChain(loggedError());
 		expect(texts.join("\n")).not.toContain(ADDRESS);
