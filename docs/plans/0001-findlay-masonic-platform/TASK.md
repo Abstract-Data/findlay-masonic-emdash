@@ -325,8 +325,9 @@ Two red teams reviewed feb8594. The code review found eight issues (five confirm
 The functional half of M4 runs ahead of its design gate: every route, the data flow and plain semantic markup on the template's classes, so the chosen direction restyles `theme.css` and the components in `src/components/` without touching the pages' data flow. Evidence below was run on a clean copy of the committed tree (`git archive HEAD` into `/tmp/m4run`, `pnpm install --frozen-lockfile`, a fresh database) on 2026-11-23. Every page check runs as an anonymous visitor; content is seeded through the API as Admin.
 
 ### Design (operator)
-- [ ] **T4.1 [HUMAN] Choose the design direction (A Framed Lodge, B Temple or C Noticeboard).** Direction A needs FR-4.4 amended to "labelled by body"; B and C change `astro.config.mjs` fonts (PATH_ASK).
+- [x] **T4.1 [HUMAN] Choose the design direction (A Framed Lodge, B Temple or C Noticeboard).** Direction A needs FR-4.4 amended to "labelled by body"; B and C change `astro.config.mjs` fonts (PATH_ASK).
   Verify: the operator names a direction.
+  Evidence: the operator chose C, 2026-11-24. The mockup, its notes and the reference screenshots are recorded in `docs/design/direction-c/`.
 
 ### Core and adapters
 - [x] **T4.2 [AGENT] Pure rules for the public pages.** `core/calendar/month` (Sunday-first grid, agenda, `?month=`), `core/recurrence/meetings` (schedule and next stated meetings, an ended rule names no schedule), `core/bodies/officers` (current term is the latest that has begun), `core/bodies/label` ("Lodge 227"), `core/news/paging` (ten a page).
@@ -371,10 +372,15 @@ The functional half of M4 runs ahead of its design gate: every route, the data f
   Agent part done, awaiting approval: all 8 checks pass and the control is found in 3 files. With the old `client` field put back, the check fails: `FAIL TURNSTILE_SITE_KEY is read at runtime, not inlined: server/chunks/Turnstile_*.mjs`.
 
 ### Waiting on the design decision
-- [ ] **T4.12 [AGENT] Restyle to the chosen direction.** `theme.css` overrides and the components above; FR-4.4 colour coding on the existing `data-body` hooks (or the spec amendment, for direction A); the email theme in `src/plugins/newsletter/theme.ts`.
+- [x] **T4.12 [AGENT] Restyle to the chosen direction.** `theme.css` overrides and the components above; FR-4.4 colour coding on the existing `data-body` hooks (or the spec amendment, for direction A); the email theme in `src/plugins/newsletter/theme.ts`.
   Deps: T4.1. Verify: axe still clean; screenshots at 1280 and 390 px in both colour schemes.
+  Evidence: direction C built (STATUS.md "Direction C restyle"). The home page opens on this week at the Temple (pure `core/calendar/week`, a quiet-week notice, a GET body filter, week links, the month view and the feed); a body page opens on its next stated meeting as a date tile in its colour; calendars, news, officers, the contact form and the newsletter archive restyled; the email theme carries each body's colour as its section's bar. Colours come from the bodies' new `colour` field (T4.16) through `data-colour`. Clock-bound pages now expire at the sooner of fifteen minutes and local midnight (`clockBound`, unit-tested across DST nights). axe: 0 violations on 21 public routes in light and dark, a newsletter issue's page and its email, a seeded busy week, and both plugin admin pages. `tests/unit/styles/contrast.test.ts` checks every colour pair in the stylesheets against AA. Screenshots in `docs/design/direction-c/built/`. Clean-copy run of 28fb9d8 on a fresh database (`git archive`, `pnpm install --frozen-lockfile`): `astro check` 0 errors, lint and format clean, 2856 unit tests in 54 files, build complete, `check-dist` and `check-runtime-env` pass, 109 e2e passed with `CI=true` (21 public, 23 a11y, 3 visual, 5 monitor and the M3 and M5 suites).
 - [ ] **T4.13 [AGENT] Lighthouse ≥ 90 (Performance, Accessibility, Best Practices, SEO).** Out of M4's functional half; carried to M7 with the P95 budget.
   Deps: T4.12, T0.16. Verify: Lighthouse CI on staging.
+  Agent part done, staging waits on T0.16: `tests/perf/lighthouse.mjs` (Lighthouse 13.6.0) on the production build under `wrangler dev` scores 100 in all four categories on `/`, `/bodies/blue-lodge`, `/calendar` and `/news`, in the mobile and desktop profiles. Two causes found and fixed first: a 404 for `/favicon.ico` on every page (Best Practices 96) and a body page without a meta description (SEO 92, fixed by `pageSeo` from M7). Not measured locally: D1's network round trips, edge compression and the Turnstile script, whose host this sandbox cannot reach.
+- [ ] **T4.16 [PATH_ASK] Direction C's schema and font.** `seed/seed.json`: an optional `colour` select on `bodies` (Blue, Red, Purple, Slate, Green, Brown), each seeded body given its type's colour. `astro.config.mjs`: Atkinson Hyperlegible Next through the local font provider from a committed file, replacing Inter; JetBrains Mono removed.
+  Verify: `tests/unit/seed.test.ts` "body colours"; the e2e FR-4.4 colour check; the human approves the PR.
+  Agent part done, awaiting approval.
 - [ ] **T4.14 [AGENT] Close M4.** Exit check: the e2e above green in CI, axe clean, Lighthouse ≥ 90 on staging; task-critic PASS; update STATUS.md.
   Deps: all of M4. Verify: critic returns PASS.
 
