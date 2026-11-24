@@ -16,20 +16,32 @@ const stored = (maxAge) => (h) =>
 const notStored = (h) => h.get(CDN) === "no-store";
 const privateToo = (h) => notStored(h) && h.get("cache-control") === "private, no-store";
 
+const SESSION = { cookie: "astro-session=any" };
 const CHECKS = [
-	["clock-bound page", "GET", "/", {}, stored(900)],
-	["clock-bound page", "GET", "/calendar", {}, stored(900)],
-	["content page", "GET", "/news", {}, stored(3600)],
-	["ICS feed", "GET", "/calendar.ics", {}, stored(3600)],
-	["newsletter archive", "GET", "/newsletters", {}, stored(300)],
-	["admin", "GET", "/_emdash/admin", {}, notStored],
-	["API", "GET", "/_emdash/api/manifest", {}, notStored],
-	["API", "GET", "/_emdash/api/search?q=lodge", {}, notStored],
-	["preview", "GET", "/?_preview=not-a-token", {}, notStored],
-	["signed-in visitor", "GET", "/", { cookie: "astro-session=any" }, privateToo],
-	["signed-in visitor", "GET", "/calendar.ics", { cookie: "astro-session=any" }, privateToo],
-	["form post", "POST", "/_emdash/api/plugins/newsletter/contact", {}, notStored],
-	["not found", "GET", "/no-such-page", {}, notStored],
+	{ kind: "clock-bound page", method: "GET", path: "/", expected: stored(900) },
+	{ kind: "clock-bound page", method: "GET", path: "/calendar", expected: stored(900) },
+	{ kind: "content page", method: "GET", path: "/news", expected: stored(3600) },
+	{ kind: "ICS feed", method: "GET", path: "/calendar.ics", expected: stored(3600) },
+	{ kind: "newsletter archive", method: "GET", path: "/newsletters", expected: stored(300) },
+	{ kind: "admin", method: "GET", path: "/_emdash/admin", expected: notStored },
+	{ kind: "API", method: "GET", path: "/_emdash/api/manifest", expected: notStored },
+	{ kind: "API", method: "GET", path: "/_emdash/api/search?q=lodge", expected: notStored },
+	{ kind: "preview", method: "GET", path: "/?_preview=not-a-token", expected: notStored },
+	{ kind: "signed-in visitor", method: "GET", path: "/", headers: SESSION, expected: privateToo },
+	{
+		kind: "signed-in visitor",
+		method: "GET",
+		path: "/calendar.ics",
+		headers: SESSION,
+		expected: privateToo,
+	},
+	{
+		kind: "form post",
+		method: "POST",
+		path: "/_emdash/api/plugins/newsletter/contact",
+		expected: notStored,
+	},
+	{ kind: "not found", method: "GET", path: "/no-such-page", expected: notStored },
 ];
 
 async function freePort() {
@@ -46,8 +58,13 @@ const port = await freePort();
 const state = mkdtempSync(join(tmpdir(), "cache-headers-"));
 const worker = spawn(
 	"pnpm",
-	["exec", "wrangler", "dev", "-c", "dist/server/wrangler.json", "--ip", "127.0.0.1"]
-		.concat(["--port", String(port), "--persist-to", state, "--show-interactive-dev-session=false"]),
+	["exec", "wrangler", "dev", "-c", "dist/server/wrangler.json", "--ip", "127.0.0.1"].concat([
+		"--port",
+		String(port),
+		"--persist-to",
+		state,
+		"--show-interactive-dev-session=false",
+	]),
 	{ stdio: ["ignore", "pipe", "pipe"], detached: true },
 );
 let output = "";
@@ -72,7 +89,7 @@ try {
 	await fetch(new URL("/", base)).then((r) => r.arrayBuffer());
 
 	const failures = [];
-	for (const [kind, method, path, headers, expected] of CHECKS) {
+	for (const { kind, method, path, headers = {}, expected } of CHECKS) {
 		// oxlint-disable-next-line no-await-in-loop -- one request at a time, in order.
 		const response = await fetch(new URL(path, base), { method, headers, redirect: "manual" });
 		// oxlint-disable-next-line no-await-in-loop -- see above.
@@ -89,6 +106,6 @@ try {
 		console.log(`\nall ${CHECKS.length} cache header checks passed`);
 	}
 } finally {
-	process.kill(-worker.pid, "SIGINT");
+	if (worker.pid !== undefined) process.kill(-worker.pid, "SIGINT");
 	rmSync(state, { recursive: true, force: true });
 }

@@ -55,8 +55,15 @@ for (const page of PAGES) {
 		}
 		// Audits below a full score, for the reason a category is not 100.
 		for (const audit of Object.values(report.audits)) {
-			if (typeof audit.score === "number" && audit.score < 0.9 && audit.scoreDisplayMode !== "informative") {
-				audits.set(`${page} ${audit.id}`, `${audit.title}${audit.displayValue ? ` (${audit.displayValue})` : ""}`);
+			if (
+				typeof audit.score === "number" &&
+				audit.score < 0.9 &&
+				audit.scoreDisplayMode !== "informative"
+			) {
+				audits.set(
+					`${page} ${audit.id}`,
+					`${audit.title}${audit.displayValue ? ` (${audit.displayValue})` : ""}`,
+				);
 			}
 		}
 	}
@@ -68,7 +75,9 @@ for (const page of PAGES) {
 	rows.push(`| ${page} | ${cells.join(" | ")} |`);
 }
 
-console.log(`Lighthouse ${LIGHTHOUSE.split("@")[1]}, mobile defaults, median of ${runs} runs per page, against ${base}`);
+console.log(
+	`Lighthouse ${LIGHTHOUSE.split("@")[1]}, mobile defaults, median of ${runs} runs per page, against ${base}`,
+);
 console.log(`| Page | ${CATEGORIES.join(" | ")} |`);
 console.log(`| --- | ${CATEGORIES.map(() => "---").join(" | ")} |`);
 for (const row of rows) console.log(row);
