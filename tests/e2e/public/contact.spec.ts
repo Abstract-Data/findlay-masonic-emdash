@@ -1,8 +1,14 @@
-import { outbox, NEWSLETTER_API } from "../newsletter";
+import { outbox, NEWSLETTER_API, resetRateLimits } from "../newsletter";
 import { BODIES, ensurePage, expect, test, unique, updateBody } from "./site";
 
 // The Council's and the Chapter's contact recipients; the tests build on each other.
 test.describe.configure({ mode: "serial" });
+
+// Every request here comes from one address, and earlier runs on the same database count
+// against the hourly limits, so each test starts from empty counters.
+test.beforeEach(async ({ admin }) => {
+	await resetRateLimits(admin);
+});
 
 const CONTACT = `${NEWSLETTER_API}/contact`;
 const TOKEN = { "cf-turnstile-response": "XXXX.DUMMY.TOKEN.XXXX" };
@@ -25,8 +31,7 @@ test("Q12: a visitor writes to a body, and the email reaches its private recipie
 	await form.getByLabel("Your email address").fill(visitor);
 	await form.getByLabel("Message").fill("When does the Council meet?");
 	await form.getByRole("button", { name: "Send message" }).click();
-	await expect(page).toHaveURL(/\/bodies\/council\?contact=(sent|rate-limited)#contact$/);
-	test.skip(page.url().includes("rate-limited"), "earlier runs this hour used up the limit");
+	await expect(page).toHaveURL(/\/bodies\/council\?contact=sent#contact$/);
 	await expect(page.getByTestId("contact-message")).toHaveText(
 		"Thank you. Your message has been sent.",
 	);
@@ -36,7 +41,7 @@ test("Q12: a visitor writes to a body, and the email reaches its private recipie
 		to: [councilSecretary],
 		cc: [],
 		replyTo: visitor,
-		subject: `Website message for ${BODIES.council} from Jane Visitor`,
+		subject: `Website message for ${BODIES.council}`,
 	});
 	for (const path of PUBLIC_PAGES) {
 		// oxlint-disable-next-line no-await-in-loop -- one page at a time.
@@ -64,8 +69,7 @@ test("Q12: the Contact page writes to whichever body the visitor picks", async (
 	await form.getByLabel("Your email address").fill(visitor);
 	await form.getByLabel("Message").fill("How do I petition?");
 	await form.getByRole("button", { name: "Send message" }).click();
-	await expect(page).toHaveURL(/\/pages\/contact\?contact=(sent|rate-limited)#contact$/);
-	test.skip(page.url().includes("rate-limited"), "earlier runs this hour used up the limit");
+	await expect(page).toHaveURL(/\/pages\/contact\?contact=sent#contact$/);
 	const email = (await outbox(admin)).emails.find((sent) => sent.replyTo === visitor);
 	expect(email?.to).toEqual([councilSecretary]);
 });
@@ -106,10 +110,7 @@ test("Q12: the route refuses other sites and unverified posts, and limits floods
 		// oxlint-disable-next-line no-await-in-loop -- the limit counts posts in order.
 		outcomes.push(await outcome(fields(), site));
 	}
-	expect(outcomes.at(-1)).toBe("rate-limited");
-	const sent = outcomes.filter((o) => o === "sent").length;
-	expect(sent).toBeLessThanOrEqual(5);
-	expect(outcomes.slice(sent).every((o) => o === "rate-limited")).toBe(true);
+	expect(outcomes).toEqual(["sent", "sent", "sent", "sent", "sent", "rate-limited"]);
 	const delivered = (await outbox(admin)).emails.filter((e) => e.to.includes(chapterSecretary));
-	expect(delivered).toHaveLength(sent);
+	expect(delivered).toHaveLength(5);
 });

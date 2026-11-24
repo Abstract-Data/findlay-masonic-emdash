@@ -16,7 +16,7 @@ const KEYS = [
 	/-----BEGIN [A-Z ]*PRIVATE KEY-----/,
 ];
 const FAKE_MARKER = /findlay-dev-fake-mailer/;
-const DEV_ROUTE = /"dev\/(?:outbox|unsubscribe)"/;
+const DEV_ROUTE = /"dev\/(?:outbox|unsubscribe|rate-limits)"/;
 
 // Source maps embed the original sources, so a key or the fake reaching them is caught too.
 const TEXT = /\.(?:m?js|css|html|json|txt|xml|svg|map)$/;

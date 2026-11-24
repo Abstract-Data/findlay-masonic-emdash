@@ -14,7 +14,8 @@ import {
 	type RouteContext,
 } from "emdash";
 import { Temporal } from "temporal-polyfill";
-import { contact, kvRateLimiter, type ContactBody } from "./contact";
+import { contact, CONTACT_LIMIT, type ContactBody } from "./contact";
+import { kvRateLimiter } from "./rate-limit";
 import { runtime } from "./runtime";
 import {
 	approve,
@@ -274,7 +275,7 @@ export const routes: Record<string, PluginRoute> = {
 					verifier,
 					send: email === undefined ? null : async (message) => email.send(message),
 					body: async (bodyId) => contactBody(await published(ctx, "bodies"), bodyId),
-					limiter: kvRateLimiter(ctx.kv, Date.now),
+					limiter: kvRateLimiter(ctx.kv, Date.now, CONTACT_LIMIT),
 					siteName: ctx.site.name,
 				},
 				request,
@@ -292,6 +293,16 @@ export const routes: Record<string, PluginRoute> = {
 					...admin,
 					methods: ["GET"],
 					handler: async () => (await import("@adapters/dev-fakes")).outboxSummary(),
+				},
+				/** Clears the form rate limits, so an e2e run does not depend on the last hour's. */
+				"dev/rate-limits": {
+					...admin,
+					methods: ["POST"],
+					handler: async (ctx: RouteContext) => {
+						const rows = await ctx.kv.list(`${CONTACT_LIMIT.namespace}:`);
+						await Promise.all(rows.map(async ({ key }) => ctx.kv.delete(key)));
+						return { cleared: rows.length };
+					},
 				},
 				/** What Resend records when a recipient unsubscribes from all email. */
 				"dev/unsubscribe": {

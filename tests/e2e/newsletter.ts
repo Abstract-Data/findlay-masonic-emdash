@@ -33,6 +33,11 @@ export async function outbox(admin: APIRequestContext): Promise<Outbox> {
 	return data<Outbox>(admin.get(`${NEWSLETTER_API}/dev/outbox`));
 }
 
+/** Clears the contact and signup rate limits (POST dev/rate-limits, Admin, dev only). */
+export async function resetRateLimits(admin: APIRequestContext): Promise<void> {
+	await data(admin.post(`${NEWSLETTER_API}/dev/rate-limits`, { data: {} }));
+}
+
 /** The fake's defaults (src/lib/adapters/dev-fakes.ts withFakeConfig). */
 export const FAKE = {
 	segment: "fake-segment-subscribers",

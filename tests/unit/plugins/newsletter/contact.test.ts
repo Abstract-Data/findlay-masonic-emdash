@@ -3,35 +3,21 @@ import { dummyVerifier } from "@adapters/dev-fakes";
 import {
 	contact,
 	CONTACT_LIMIT,
-	kvRateLimiter,
 	type ContactBody,
 	type ContactDeps,
-	type CounterStore,
 } from "@plugins/newsletter/contact";
+import { kvRateLimiter, type CounterStore } from "@plugins/newsletter/rate-limit";
 import { returnPath } from "@plugins/newsletter/routes";
 import type { EmailMessage } from "emdash";
 import { describe, expect, it } from "vitest";
+import { memoryCounter } from "./memory-counter";
 
 const LODGE: ContactBody = {
 	name: "Findlay Lodge No. 227",
 	recipients: ["secretary@example.test", "master@example.test"],
 };
 
-function memoryStore(): CounterStore {
-	const rows = new Map<string, { value: unknown; revision: string }>();
-	let revision = 0;
-	return {
-		async getVersioned(key) {
-			return rows.get(key) ?? null;
-		},
-		async compareAndSet(key, expected, value) {
-			if ((rows.get(key)?.revision ?? null) !== expected) return { applied: false };
-			revision += 1;
-			rows.set(key, { value, revision: String(revision) });
-			return { applied: true };
-		},
-	};
-}
+const memoryStore = memoryCounter;
 
 function setup(overrides: Partial<ContactDeps> = {}) {
 	const sent: EmailMessage[] = [];
@@ -41,7 +27,7 @@ function setup(overrides: Partial<ContactDeps> = {}) {
 			sent.push(message);
 		},
 		body: async (id) => (id === "lodge" ? LODGE : null),
-		limiter: kvRateLimiter(memoryStore(), () => 0),
+		limiter: kvRateLimiter(memoryStore(), () => 0, CONTACT_LIMIT),
 		siteName: "Findlay Masonic Temple",
 		...overrides,
 	};
@@ -69,7 +55,7 @@ describe("contact (spec Q12)", () => {
 				to: "secretary@example.test",
 				cc: ["master@example.test"],
 				replyTo: "jane@example.test",
-				subject: "Website message for Findlay Lodge No. 227 from Jane Visitor",
+				subject: "Website message for Findlay Lodge No. 227",
 				text: expect.stringContaining("When do you meet?"),
 			},
 		]);
@@ -138,11 +124,10 @@ describe("contact (spec Q12)", () => {
 			body: async () => LODGE,
 		});
 		const outcomes = [];
-		for (let i = 0; i <= CONTACT_LIMIT.messages; i += 1) {
+		for (let i = 0; i <= CONTACT_LIMIT.perSender; i += 1) {
 			// oxlint-disable-next-line no-await-in-loop -- the limit counts requests in order.
 			outcomes.push(await contact(deps, form()));
 		}
-		expect(CONTACT_LIMIT).toEqual({ messages: 5, windowSeconds: 3600 });
 		expect(outcomes).toEqual(["sent", "sent", "sent", "sent", "sent", "rate-limited"]);
 		expect(sent).toHaveLength(5);
 		expect(await contact(deps, { ...form(), remoteIp: "198.51.100.4" })).toBe("sent");
@@ -160,78 +145,22 @@ describe("contact (spec Q12)", () => {
 				return { applied: true };
 			},
 		};
-		const limiter = kvRateLimiter(store, () => 0);
+		const limiter = kvRateLimiter(store, () => 0, CONTACT_LIMIT);
 		await contact(setup({ limiter }).deps, form({ body: "chapter" }));
 		const silent = setup({ limiter, body: async () => ({ ...LODGE, recipients: [] }) });
 		await contact(silent.deps, form());
 		expect(writes).toBe(0);
 		expect(await contact(setup({ limiter }).deps, form())).toBe("sent");
-		expect(writes).toBe(1);
+		expect(writes).toBe(2);
 	});
 
 	it("does not count a message refused before sending", async () => {
 		const { deps } = setup();
-		for (let i = 0; i < CONTACT_LIMIT.messages; i += 1) {
+		for (let i = 0; i < CONTACT_LIMIT.perSender; i += 1) {
 			// oxlint-disable-next-line no-await-in-loop -- the limit counts requests in order.
 			await contact(deps, form({ [TURNSTILE_FIELD]: "forged" }));
 		}
 		expect(await contact(deps, form())).toBe("sent");
-	});
-});
-
-describe("kvRateLimiter", () => {
-	it("starts a new count in the next window", async () => {
-		let now = 0;
-		const limiter = kvRateLimiter(memoryStore(), () => now, { messages: 1, windowSeconds: 60 });
-		expect(await limiter.allow("a", "lodge")).toBe(true);
-		expect(await limiter.allow("a", "lodge")).toBe(false);
-		now = 60_000;
-		expect(await limiter.allow("a", "lodge")).toBe(true);
-	});
-
-	it("shares one sender among requests without a trusted IP", async () => {
-		const limiter = kvRateLimiter(memoryStore(), () => 0, { messages: 1, windowSeconds: 60 });
-		expect(await limiter.allow(null, "lodge")).toBe(true);
-		expect(await limiter.allow(null, "lodge")).toBe(false);
-	});
-
-	it("never stores the address itself", async () => {
-		const rows = new Map<string, unknown>();
-		const store: CounterStore = {
-			async getVersioned() {
-				return null;
-			},
-			async compareAndSet(key, _, value) {
-				rows.set(key, value);
-				return { applied: true };
-			},
-		};
-		await kvRateLimiter(store, () => 0).allow("203.0.113.9", "lodge");
-		expect(JSON.stringify([...rows])).not.toContain("203.0.113.9");
-	});
-
-	it("counts a key that stays contended as over the limit", async () => {
-		const store: CounterStore = {
-			async getVersioned() {
-				return null;
-			},
-			async compareAndSet() {
-				return { applied: false };
-			},
-		};
-		expect(await kvRateLimiter(store, () => 0).allow("a", "lodge")).toBe(false);
-	});
-
-	it("treats a stored value it cannot read as no count", async () => {
-		const store: CounterStore = {
-			async getVersioned() {
-				return { value: "garbage", revision: "1" };
-			},
-			async compareAndSet() {
-				return { applied: true };
-			},
-		};
-		expect(await kvRateLimiter(store, () => 0).allow("a", "lodge")).toBe(true);
 	});
 });
 
