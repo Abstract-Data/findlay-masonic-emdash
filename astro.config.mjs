@@ -1,5 +1,6 @@
 import { fileURLToPath } from "node:url";
 import cloudflare from "@astrojs/cloudflare";
+import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig, envField, fontProviders } from "astro/config";
@@ -22,6 +23,11 @@ const newsletter = (file) =>
 export default defineConfig({
 	output: "server",
 	adapter: isVitest ? undefined : cloudflare(),
+	// Route caching on Cloudflare's Worker cache (M7). Only a response a route marks cacheable
+	// (src/lib/adapters/site/cache.ts) is stored; the adapter sends every other one with
+	// Cloudflare-CDN-Cache-Control: no-store, and src/middleware.ts opts out any response for a
+	// signed-in user or one that sets a cookie. Publishing purges the pages' cache tags.
+	...(isVitest ? {} : { cache: { provider: cacheCloudflare() } }),
 	env: {
 		// Every field stays optional until the milestone that uses it.
 		schema: {

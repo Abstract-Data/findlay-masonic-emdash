@@ -1,10 +1,12 @@
 ---
 import { archivedIssues } from "@adapters/newsletter/archive";
+import { cacheRoute, UNTAGGED } from "@adapters/site/cache";
 import NewsletterSignup from "../../components/NewsletterSignup.astro";
 import Base from "../../layouts/Base.astro";
 
 // FR-6.8. Minimal until the M4 design gate restyles it.
 const issues = await archivedIssues(Astro.locals, Astro.url);
+cacheRoute(Astro.cache, [], UNTAGGED);
 const dateFormat = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "long",
 	timeZone: "America/New_York",

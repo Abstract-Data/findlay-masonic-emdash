@@ -1,5 +1,6 @@
 ---
 import { archivedEmail } from "@adapters/newsletter/archive";
+import { cacheRoute, UNTAGGED } from "@adapters/site/cache";
 import Base from "../../layouts/Base.astro";
 
 // FR-6.8. The stored email is a whole HTML document from the send, so it is shown in a
@@ -7,6 +8,7 @@ import Base from "../../layouts/Base.astro";
 const slug = Astro.params.slug ?? "";
 const issue = await archivedEmail(Astro.locals, Astro.url, slug);
 if (issue === null) return Astro.rewrite("/404");
+cacheRoute(Astro.cache, [], UNTAGGED);
 const dateFormat = new Intl.DateTimeFormat("en-US", {
 	dateStyle: "long",
 	timeZone: "America/New_York",
