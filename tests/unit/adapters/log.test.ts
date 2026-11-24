@@ -5,9 +5,17 @@ import { realRuntime } from "@plugins/newsletter/runtime";
 import { transport } from "@plugins/newsletter/transport";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const KEY = "re_8fJ2kL9mN3pQ7rS1tU5vW0xY4zA6bC2dE";
-const TURNSTILE = "0x4AAAAAAABkMYinukE8nzYS_bP2FaTZ1mN";
-const BEARER = "ec_pat_7Hq2Kd9Lm3Np5Rs8Tv1Wx4Yz6Ab0Cd2Ef4Gh";
+/**
+ * A value with a real credential's prefix and length, assembled at run time from obviously fake
+ * parts, so the scrubber meets the shape it must catch while no source line looks like a secret.
+ */
+function fakeSecret(prefix: string, length: number): string {
+	return `${prefix}${"FAKE_0_TEST_".repeat(4)}`.slice(0, length);
+}
+
+const KEY = fakeSecret("re_", 36); // a Resend API key's shape
+const TURNSTILE = fakeSecret(`0x4${"A".repeat(7)}`, 35); // a Turnstile secret key's shape
+const BEARER = fakeSecret("ec_pat_", 42); // an EmDash personal access token's shape
 const SECRETS = [KEY, TURNSTILE, BEARER];
 const ADDRESSES = ["secretary@example.test", "visitor+news@example.org"];
 
@@ -43,7 +51,8 @@ describe("structured logs never carry secrets, email bodies or recipient address
 			user: "01JB0000000000000000000001",
 			error: `D1 refused ${ADDRESSES[0]} with Authorization: Bearer ${BEARER} and ${KEY} ${TURNSTILE}`,
 		});
-		expect(JSON.stringify(line)).not.toMatch(/@example\.test|re_8f|0x4AAA|ec_pat/);
+		expect(leaks([JSON.stringify(line)])).toEqual([]);
+		expect(JSON.stringify(line)).not.toMatch(/@example\.test|re_FAKE|0x4A{7}|ec_pat_/);
 		expect(line).toMatchObject({
 			level: "error",
 			event: "body_access.lookup_failed",

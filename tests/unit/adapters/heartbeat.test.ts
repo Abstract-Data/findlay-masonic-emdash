@@ -1,7 +1,9 @@
 import { pingHeartbeat } from "@adapters/heartbeat";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const URL_SECRET = "https://ping.checklyhq.com/0d2a1f3e-0000-4000-8000-000000000001";
+// A heartbeat URL is a credential, so the test one is assembled from obviously fake parts.
+const PING_ID = ["fake", "test", "ping", "0000"].join("-");
+const URL_SECRET = `https://ping.checklyhq.com/${PING_ID}`;
 const TOP_OF_HOUR = Date.UTC(2026, 10, 24, 15, 0, 0);
 
 afterEach(() => {
@@ -46,6 +48,6 @@ describe("the scheduler heartbeat (Checkly HeartbeatMonitor)", () => {
 			"heartbeat.failed",
 			"heartbeat.failed",
 		]);
-		expect(warned.join("")).not.toContain("0d2a1f3e-0000-4000-8000-000000000001");
+		expect(warned.join("")).not.toContain(PING_ID);
 	});
 });
