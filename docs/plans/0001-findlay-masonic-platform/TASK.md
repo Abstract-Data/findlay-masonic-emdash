@@ -499,6 +499,29 @@ An independent verifier of the M4 functional half reported one blocking item (B1
   Verify: `CI=true pnpm e2e --project public -g Q12 --repeat-each 3 --workers 1` on a database earlier runs used.
   Evidence: before, 7 skipped; after, 18 passed and only the setup project's pre-existing stub skipped.
 
+## Direction C fixes
+An independent verification of 6798ffe with realistic content failed direction C on layout (STATUS.md "Direction C fixes"). TC.1 came first and failed on 6798ffe; each fix after it turned some of its failures green. Evidence was run on a clean copy (`git archive` into `/tmp/cfixrun`, `pnpm install --frozen-lockfile`, its own portless name, a fresh database) on 2026-11-24.
+
+- [x] **TC.1 [AGENT] The visual project checks layout on realistic content.** Seeds the bodies' full names, a 60-character title, a 45-letter word, seven entries on one day, and a wide and a tall emblem; checks 37 public pages at 320, 390, 768, 1024 and 1280 px for sideways scrolling, every week-strip and month-grid entry and its body's name inside its day (also at 761 and 1001 px), one emblem slot with names in line, and the search field's 2px outline. The a11y and visual projects share `tests/e2e/public/routes.ts`.
+  Verify: `pnpm e2e --project visual`.
+  Evidence: on 6798ffe with only the new tests, 21 failed and 129 passed: 17 routes scrolled sideways (home and `/calendar` by 23 px at 320 on "Add the Temple calendar to my phone"; the Eastern Star news item by 131 px at 390 and 201 px at 320 on its name; the Commandery and Eastern Star body pages on their arrow links), entries left their day by up to 58 px on both calendars, emblems had more than one size and names two indents, and the search field's outline was transparent.
+- [x] **TC.2 [AGENT] Entries, labels, buttons and titles wrap inside their boxes (a, D1 to D4).** `minmax(0, 1fr)` tracks on day cards, entry lists and entries; no `nowrap` on the body label, `.btn` or `.arrow-link`; `.section-head` wraps; headings break long words (`overflow-wrap: anywhere`); entries pad 8 px a side and hyphenate.
+  Verify: TC.1's sideways and spill checks.
+  Evidence: all pass; before and after at `docs/design/direction-c/built/fix-{week,month}-1024-*.png` and `fix-news-item-320-*.png`.
+- [x] **TC.3 [AGENT] One emblem slot.** 64 by 48 px (48 by 48 at 400 px and under), `object-fit: contain`; names in line once any body has an emblem, except at 360 px and under; the body page's emblem in a square slot.
+  Verify: TC.1's emblem check (one box size at every width, one indent above 320 px).
+  Evidence: passes with the wide, tall and 1 px emblems seeded.
+- [x] **TC.4 [AGENT] The search field's focus ring.** The 2px ink outline every other control has.
+  Verify: TC.1's focus check. Evidence: passes; it read `rgba(0, 0, 0, 0)` on 6798ffe.
+- [x] **TC.5 [AGENT] One link per notice card.** The body's name is a label; the title is the card's link.
+  Verify: the news and a11y suites. Evidence: pass.
+- [x] **TC.6 [AGENT] Drawn arrows (D6).** The face has no U+2190 or U+2192 in the latin file or the full variable font, so a subset cannot add them; an SVG mask in the text colour, with `forced-color-adjust: none`.
+  Verify: screenshots. Evidence: `docs/design/direction-c/built/home-1280.png` and the week, month and page links.
+- [x] **TC.7 [AGENT] A dark Slate that reads as a colour (D5).** `#7ab8d6` for `#cbd5e1`.
+  Verify: `tests/unit/styles/contrast.test.ts`. Evidence: 6 of 6 pass (tile 9.10, against the surface 8.47, time on tint 5.95); with `#3a4a5a` it fails 2 tests.
+- [x] **TC.8 [AGENT] Comments and STATUS.** Comments that narrated the design choice removed from `astro.config.mjs` (PATH_ASK), `playwright.config.ts` and the home page; the list of differences from the mockup counted (eleven).
+  Verify: review. Evidence: lint and format clean.
+
 ## M7 — Observability and hardening
 Design: logs as typed events (`src/lib/adapters/log.ts`), checks as code (`checkly.config.ts`), caching opt-in per route with a central opt-out for anything personal. Evidence was run as above on 2026-11-24. Human steps: [monitoring-setup.md](../../runbooks/monitoring-setup.md) and [deploy.md](../../runbooks/deploy.md).
 
