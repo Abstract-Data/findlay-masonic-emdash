@@ -1,12 +1,14 @@
 import handler, { EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";
 import { pingHeartbeat } from "@adapters/heartbeat";
-import { log, messageOf } from "@adapters/log";
+import { log, messageOf, redactConsoleEmails } from "@adapters/log";
 import { forSharedCache } from "@adapters/site/cache";
 import { purgeTags } from "@adapters/site/purge";
 import { cache } from "cloudflare:workers";
 import { runScheduledTasks } from "emdash/middleware";
 
 export { EmDashRoom, EmDashRoomSite, PluginBridge };
+
+redactConsoleEmails(console);
 
 /** As EmDash's own scheduled handler: wait for content due within the next run's start. */
 const PUBLISH_UPCOMING_WITHIN_MS = 70_000;

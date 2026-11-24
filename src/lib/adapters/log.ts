@@ -166,6 +166,31 @@ export function log(entry: LogEvent): void {
 	}
 }
 
+const LEVELS = ["debug", "log", "info", "warn", "error"] as const;
+
+function withoutEmails(argument: unknown): unknown {
+	if (typeof argument === "string") return argument.replaceAll(EMAIL, "[email]");
+	if (!(argument instanceof Error)) return argument;
+	const copy = new Error(argument.message.replaceAll(EMAIL, "[email]"));
+	copy.name = argument.name;
+	copy.stack = argument.stack?.replaceAll(EMAIL, "[email]");
+	return copy;
+}
+
+/**
+ * Everything the Worker writes to the console reaches Workers Logs and Axiom, EmDash's own lines
+ * included, and some of those quote an address: a failed delivery names its recipient (a body's
+ * private contact recipient or an invitee), a sign-in names the user. This wraps each console
+ * method so every string and error argument has its addresses replaced by `[email]`; other
+ * objects pass as they are. Installed once, at the Worker's entry (src/worker.ts).
+ */
+export function redactConsoleEmails(target: Console): void {
+	for (const level of LEVELS) {
+		const write = target[level].bind(target);
+		target[level] = (...args: unknown[]) => write(...args.map(withoutEmails));
+	}
+}
+
 /** An error's message, for a log field; `scrub` still runs on it. */
 export function messageOf(error: unknown): string {
 	return error instanceof Error ? `${error.name}: ${error.message}` : String(error);
