@@ -672,6 +672,27 @@ An independent check of 743858b failed WCAG 1.4.10 a third time, each time in a 
   Verify: `hooks.test.ts` "names every bad row…", "names one bad row in the singular".
   Evidence: both failed before the fix on the old wording.
 
+
+### Polish
+
+An independent verifier passed 66b143c with six findings for older readers on phones. Each item below had a test that failed before its fix.
+
+- [x] **P.1 [AGENT] No ordinary word breaks mid-word, and no checkbox is squeezed (D1, D3).** The `visual` project checks every public route without fuzz content at 320, 360, 390, 768, 1024, 1241 and 1280 px: a word may leave its line only at a space or a hyphen it has (tokens of 80 or more characters and URLs exempt), and every visible checkbox and radio must be the size it is alone. A body card wraps, so its date tile drops under the text when the text would get less than 9rem; every checkbox and radio is `flex: none` (`theme.css`).
+  Verify: `pnpm e2e --project visual` ("ordinary words stay whole and checkboxes keep their size").
+  Evidence: on 66b143c's styles 22 of these tests failed, among them "Commandery" in a body card's name at 320 and 360 px on `/` and `/bodies`, and the newsletter checkboxes at 13 px beside 18.4 px on `/newsletters` at 320, 360 and 390 px. After: all pass. Screenshots at 320 px, before and after, of the body cards and the signup checkboxes.
+- [x] **P.2 [AGENT] The calendars keep words whole (N1; deviation in STATUS § Polish).** Calendar entries no longer hyphenate, and the week strip and month grid keep seven columns only above 1240 px; below, the month's agenda and the week's day rows carry the same entries. A page title beside its body is at most 12% of its column's width.
+  Verify: the P.1 check on `/calendar`, the crowded month and week, every body's calendar and `/pages/scholarships`.
+  Evidence: before, `/calendar` at 768 px split 18 words ("Comman/dery", "Fellow/craft", "Chap/ter"), the crowded month split "dinner" and "committee" at 1280 px, the crowded week split "Thanksgiving" and seven more at 1024 px, and "Scholarships" split at 1024 px. After: none.
+- [x] **P.3 [AGENT] A wide Portable Text table scrolls where a keyboard can reach it (D2).** `src/components/RichText.astro` passes EmDash's `PortableText` a `table` override (`TableRegion.astro`): EmDash's table inside a region with `tabindex="0"`, `role="region"`, `aria-label="Table"` and the 2px ink focus ring; EmDash's wrapper is `display: contents`. Every page that renders rich text uses it. The fuzz seed gains a four-column table.
+  Verify: visual "pages with the long word, link and wide table are AA…" (now also at 320 px) and "a wide table scrolls in a region a keyboard can reach, with a focus ring".
+  Evidence: before, `scrollable-region-focusable` on three fuzz pages at 320 px in light and dark, and no region to focus. After: 0 violations on all four fuzz pages at 1280 and 320 px in both schemes; the arrow keys scroll the region.
+- [x] **P.4 [AGENT] The recipient-row message names the real problem (N2).** `a@example.test,` is told to remove the trailing comma or semicolon; `Smith, Jr <a@example.test>` is told to put the name in double quotes; `"Smith, Jr" <a@example.test>` saves. Rows with the same problem share one sentence ("Rows 1 and 3 are not email addresses: write each like …").
+  Verify: `hooks.test.ts` "groups rows that share a problem…", "tells a row with one address and a trailing comma…", "tells an unquoted name with a comma…".
+  Evidence: all three, and the updated "names every bad row…", failed before the fix.
+- [x] **P.5 [AGENT] Zero-width Segment ids are blank.** The send gate treats U+200B, U+200C, U+200D and U+FEFF as blank in a Segment id, as it does spaces.
+  Verify: `send-gate.test.ts` "zero-width segment_id", "blank Segment id".
+  Evidence: three cases failed before the fix by listing the Segment.
+
 ---
 
 ## Carried forward (tasked in full when the milestone starts)
