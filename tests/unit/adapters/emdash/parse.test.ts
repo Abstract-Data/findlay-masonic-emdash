@@ -293,7 +293,7 @@ describe("parseErrorText", () => {
 });
 
 describe("parseBodyRecord", () => {
-	it("reads the display name, body type, vocabulary and order of a bodies entry", () => {
+	it("reads the display name, body type, colour, vocabulary and order of a bodies entry", () => {
 		expect(
 			parseBodyRecord({
 				id: LODGE,
@@ -301,6 +301,7 @@ describe("parseBodyRecord", () => {
 					name: "Findlay Lodge",
 					number: 227,
 					body_type: "Blue Lodge",
+					colour: "Green",
 					tag_vocabulary: [{ slug: "Ritual", label: "Ritual" }],
 					display_order: 1,
 				},
@@ -309,6 +310,7 @@ describe("parseBodyRecord", () => {
 			id: LODGE,
 			displayName: "Findlay Lodge No. 227",
 			bodyType: "Blue Lodge",
+			colour: "Green",
 			vocabulary: new Set([tag("ritual")]),
 			order: 1,
 		});
@@ -321,6 +323,7 @@ describe("parseBodyRecord", () => {
 			id: LODGE,
 			displayName: LODGE,
 			bodyType: null,
+			colour: null,
 			vocabulary: new Set(),
 			order: Number.MAX_SAFE_INTEGER,
 		});

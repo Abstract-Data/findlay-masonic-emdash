@@ -7,6 +7,7 @@ import {
 	parseTags,
 } from "@adapters/emdash/parse";
 import type { BodyType } from "@core/acl/officer-titles";
+import { COLOUR_KEY } from "@core/bodies/colour";
 import { shortLabel } from "@core/bodies/label";
 import type { TermOfficer } from "@core/bodies/officers";
 import type { BodyId, EntryId, TagSlug } from "@core/ids";
@@ -38,6 +39,8 @@ export interface BodyView {
 	/** "Lodge 227": the label calendars and news lists carry (FR-3.4, FR-4.4). */
 	readonly label: string;
 	readonly bodyType: BodyType | null;
+	/** FR-4.4: the `data-colour` key theme.css maps to the body's colour; null shows none. */
+	readonly colour: string | null;
 	readonly emblem: BodyData["emblem"] | null;
 	readonly description: PortableTextBlock[];
 	readonly scheduleNote: string | null;
@@ -73,6 +76,7 @@ export function parseBodyView(entry: Entry<BodyData>): BodyView | null {
 		displayName: record.displayName,
 		label: shortLabel(record.bodyType, entry.data.name, number),
 		bodyType: record.bodyType,
+		colour: record.colour === null ? null : COLOUR_KEY[record.colour],
 		emblem: entry.data.emblem ?? null,
 		description: entry.data.description ?? [],
 		scheduleNote: text(entry.data.schedule_note),

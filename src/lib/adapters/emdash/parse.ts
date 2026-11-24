@@ -1,4 +1,5 @@
 import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
+import { bodyColour, type BodyColour } from "@core/bodies/colour";
 import { displayName } from "@core/bodies/label";
 import type { Editor } from "@core/acl/policy";
 import {
@@ -206,6 +207,8 @@ export interface BodyRecord {
 	/** "Findlay Lodge No. 227", the name denial texts use. */
 	readonly displayName: string;
 	readonly bodyType: BodyType | null;
+	/** FR-4.4: the chosen `colour`, else the body type's default. */
+	readonly colour: BodyColour | null;
 	readonly vocabulary: ReadonlySet<TagSlug>;
 	/** `display_order`; a body without one sorts last. */
 	readonly order: number;
@@ -225,12 +228,14 @@ export function parseBodyRecord(entry: {
 	const name = text(Reflect.get(data, "name")) ?? id;
 	const number: unknown = Reflect.get(data, "number");
 	const vocabulary = parseTagVocabulary(Reflect.get(data, "tag_vocabulary"));
-	const bodyType: unknown = Reflect.get(data, "body_type");
+	const rawType: unknown = Reflect.get(data, "body_type");
+	const bodyType = isBodyType(rawType) ? rawType : null;
 	const order: unknown = Reflect.get(data, "display_order");
 	return {
 		id,
 		displayName: displayName(name, typeof number === "number" ? number : null),
-		bodyType: isBodyType(bodyType) ? bodyType : null,
+		bodyType,
+		colour: bodyColour(Reflect.get(data, "colour"), bodyType),
 		vocabulary: vocabulary.ok ? vocabulary.value : new Set(),
 		order: typeof order === "number" ? order : Number.MAX_SAFE_INTEGER,
 	};

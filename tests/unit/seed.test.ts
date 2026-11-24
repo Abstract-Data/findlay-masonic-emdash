@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { TITLES_BY_BODY_TYPE } from "@core/acl/officer-titles";
+import { BODY_COLOURS, DEFAULT_COLOUR } from "@core/bodies/colour";
 import seedJson from "../../seed/seed.json";
 import bodyRefsJson from "./__fixtures__/seed-body-refs.json";
 
@@ -131,6 +132,21 @@ describe("seed: officer titles and body types", () => {
 	it("offers the de-duplicated union of every body type's titles", () => {
 		const union = [...new Set(Object.values(TITLES_BY_BODY_TYPE).flat())];
 		expect(field("officers", "title").validation?.options).toEqual(union);
+	});
+});
+
+describe("seed: body colours (FR-4.4)", () => {
+	it("offers the six calendar colours as an optional select", () => {
+		const colour = field("bodies", "colour");
+		expect(colour.type).toBe("select");
+		expect(colour.required).toBeUndefined();
+		expect(colour.validation?.options).toEqual([...BODY_COLOURS]);
+	});
+
+	it("seeds each body with its type's colour, no two alike", () => {
+		const seeded = bodies.map((b) => [b.data.body_type, b.data.colour]);
+		expect(Object.fromEntries(seeded)).toEqual(DEFAULT_COLOUR);
+		expect(new Set(seeded.map(([, colour]) => colour)).size).toBe(6);
 	});
 });
 

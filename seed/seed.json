@@ -53,6 +53,14 @@
 					}
 				},
 				{
+					"slug": "colour",
+					"label": "Calendar colour",
+					"type": "select",
+					"validation": {
+						"options": ["Blue", "Red", "Purple", "Slate", "Green", "Brown"]
+					}
+				},
+				{
 					"slug": "emblem",
 					"label": "Emblem",
 					"type": "image"
@@ -467,6 +475,7 @@
 					"name": "Findlay Lodge",
 					"number": 227,
 					"body_type": "Blue Lodge",
+					"colour": "Blue",
 					"display_order": 1,
 					"contact_recipients": [],
 					"tag_vocabulary": []
@@ -480,6 +489,7 @@
 					"name": "Findlay Chapter",
 					"number": 58,
 					"body_type": "Chapter",
+					"colour": "Red",
 					"display_order": 2,
 					"contact_recipients": [],
 					"tag_vocabulary": []
@@ -493,6 +503,7 @@
 					"name": "Findlay Council",
 					"number": 50,
 					"body_type": "Council",
+					"colour": "Purple",
 					"display_order": 3,
 					"contact_recipients": [],
 					"tag_vocabulary": []
@@ -506,6 +517,7 @@
 					"name": "Findlay Commandery",
 					"number": 49,
 					"body_type": "Commandery",
+					"colour": "Slate",
 					"display_order": 4,
 					"contact_recipients": [],
 					"tag_vocabulary": []
@@ -519,6 +531,7 @@
 					"name": "Findlay Chapter, Order of the Eastern Star",
 					"number": 23,
 					"body_type": "Order of the Eastern Star",
+					"colour": "Green",
 					"display_order": 5,
 					"contact_recipients": [],
 					"tag_vocabulary": []
@@ -531,6 +544,7 @@
 				"data": {
 					"name": "Findlay Temple Board",
 					"body_type": "Temple Board",
+					"colour": "Brown",
 					"display_order": 6,
 					"contact_recipients": [],
 					"tag_vocabulary": []
