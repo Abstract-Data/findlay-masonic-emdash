@@ -1,7 +1,9 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { AxeBuilder } from "@axe-core/playwright";
-import type { APIRequestContext, Page } from "@playwright/test";
+import type { APIRequestContext, Page, PlaywrightWorkerArgs } from "@playwright/test";
+import { API_HEADERS } from "../body-access";
 import { PUBLIC_ROUTES } from "../public/routes";
+import { storageStatePath } from "../roles";
 import {
 	addDays,
 	BODIES,
@@ -16,13 +18,27 @@ import {
 	updateBody,
 	type BodySlug,
 } from "../public/site";
+import {
+	FUZZ_BODY,
+	FUZZ_ENTRIES,
+	FUZZ_NEWS,
+	FUZZ_PAGE,
+	FUZZ_STATED_BODY,
+	FUZZ_TAG,
+	FUZZ_WORD,
+	purgeFuzz,
+	SCHEMA_COLLECTIONS,
+	seedFuzz,
+} from "./fuzz";
 
 // The site as built, with the content it will really carry: home, a body page and the Temple
 // calendar at 1280 and 390 px, light and dark, for comparing with docs/design/direction-c/C-*.png
-// by eye, and every public page checked for sideways scrolling and entries spilling out of their
-// day. It seeds a week like the mockup's and, nine weeks on, a crowded one, so it runs after every
-// other project. Set VISUAL_OUT to keep the screenshots (docs/design/direction-c/built);
-// otherwise they go to the test's output folder.
+// by eye. Then every page file, with a long unbroken word and link in every text field
+// (./fuzz.ts), checked at five widths for sideways scrolling and for any box its content spills
+// out of, and every calendar entry checked to stay inside its day. It seeds a week like the
+// mockup's and, nine weeks on, a crowded one, so it runs after every other project. Set
+// VISUAL_OUT to keep the screenshots (docs/design/direction-c/built); otherwise they go to the
+// test's output folder.
 
 const today = findlayToday();
 const sunday = addDays(today, -new Date(`${today}T12:00:00Z`).getUTCDay());
@@ -34,11 +50,6 @@ const crowded = addDays(sunday, 63);
 const crowdedDay = addDays(crowded, 3);
 
 const LONG_TITLE = "Annual Thanksgiving dinner for the widows and their families";
-const LONG_WORD = "Pneumonoultramicroscopicsilicovolcanoconiosis";
-/** Rich text that cannot break at a space: an 80-letter word and a 120-character link. */
-const PROSE_WORD = `${"Freemasonry".repeat(7)}Lod`;
-const PROSE_URL = `https://findlaymason.org/${"temple-floor-refinishing-".repeat(3)}contractor-schedules`;
-const UNBROKEN = `${PROSE_WORD} ${PROSE_URL}`;
 
 /** WCAG 1.4.10 asks for no sideways scrolling at 320 CSS px; the rest are common screens. */
 const WIDTHS = [320, 390, 768, 1024, 1280] as const;
@@ -100,11 +111,11 @@ const EVENTS: readonly Sample[] = [
 	event("eastern-star", "bake-sale", "Holiday bake sale", day(6), "09:00", "13:00"),
 ];
 
-/** Seven entries on one day, every body among them, with a long title and a long word. */
+/** Seven entries on one day, every body among them, one with a long title. */
 const CROWDED: readonly Sample[] = [
 	event("blue-lodge", "crowded-1", LONG_TITLE, crowdedDay, "08:00", "10:00"),
 	event("chapter", "crowded-2", "Chapter officers meeting", crowdedDay, "10:30", "11:30"),
-	event("council", "crowded-3", `${LONG_WORD} lecture`, crowdedDay, "12:00", "13:00"),
+	event("council", "crowded-3", "Scholarship committee lecture", crowdedDay, "12:00", "13:00"),
 	event("commandery", "crowded-4", "Commandery drill team practice", crowdedDay, "15:00", "16:00"),
 	event("eastern-star", "crowded-5", "Worthy Matron's committee", crowdedDay, "17:30", "18:30"),
 	event("temple-board", "crowded-6", "Building committee", crowdedDay, "18:00", "19:00"),
@@ -134,22 +145,12 @@ const notice = (
 	},
 });
 
-// The three newest are the mockup's notices on the home page; the long ones are on /news. The
-// newest carries the unbroken word and link, in its excerpt on every list and on its own page.
-const LONG_NEWS = notice("eastern-star", "long-title", LONG_TITLE, 10);
-const PROSE_NEWS = notice(
-	"temple-board",
-	"closed",
-	"Building closed Thursday for floor refinishing",
-	0,
-	`${UNBROKEN} has the contractor's schedule.`,
-);
+// The three newest are the mockup's notices on the home page; the long one is on /news.
 const NEWS: readonly Sample[] = [
 	notice("blue-lodge", "election", "Election of officers at the next stated meeting", 3),
 	notice("eastern-star", "bake-sale", "Holiday bake sale this Saturday", 2),
-	PROSE_NEWS,
-	LONG_NEWS,
-	notice("council", "long-word", `${LONG_WORD} scholarship`, 11),
+	notice("temple-board", "closed", "Building closed Thursday for floor refinishing", 0),
+	notice("eastern-star", "long-title", LONG_TITLE, 10),
 ];
 
 const OFFICERS = [
@@ -163,13 +164,50 @@ const OFFICERS = [
 
 const crowdedWeekPath = `/?week=${crowded}`;
 const MONTH_GRIDS = [
+	"/calendar",
 	`/calendar?month=${day(3).slice(0, 7)}`,
 	`/calendar?month=${crowdedDay.slice(0, 7)}`,
 ];
 
-/** Every public page: the shared list, each body's pages, the crowded week and month. */
+/**
+ * Every page file in src/pages, at a URL that shows the fuzz content when the page takes a slug.
+ * A newsletter issue's slug is generated, so its check finds one on the archive.
+ */
+const PAGE_FILES: Readonly<Record<string, string | null>> = {
+	"404.astro": "/no-such-page",
+	"index.astro": "/",
+	"bodies/index.astro": "/bodies",
+	"bodies/[slug]/index.astro": `/bodies/${FUZZ_BODY}`,
+	"bodies/[slug]/calendar.astro": `/bodies/${FUZZ_BODY}/calendar`,
+	"bodies/[slug]/news/index.astro": `/bodies/${FUZZ_BODY}/news`,
+	"bodies/[slug]/news/[news].astro": `/bodies/${FUZZ_BODY}/news/${FUZZ_NEWS}`,
+	"calendar.astro": "/calendar",
+	"news/index.astro": "/news",
+	"news/[slug].astro": `/news/${FUZZ_NEWS}`,
+	"newsletters/index.astro": "/newsletters",
+	"newsletters/[slug].astro": null,
+	"pages/[slug].astro": `/pages/${FUZZ_PAGE}`,
+};
+
+/** Pages that show fuzz text, so a check of them cannot pass on a page without it. */
+const FUZZ_ROUTES: readonly string[] = [
+	...Object.values(PAGE_FILES).filter(
+		(route): route is string =>
+			route !== null && route !== "/no-such-page" && route !== "/newsletters",
+	),
+	`/bodies/${FUZZ_STATED_BODY}`,
+	`/?body=${FUZZ_BODY}`,
+	`/calendar?body=${FUZZ_BODY}`,
+	`/news?body=${FUZZ_BODY}`,
+	`/bodies/${FUZZ_BODY}/news?tag=${FUZZ_TAG}`,
+];
+
+/** Every public page: each page file, the shared list, each body's pages, the crowded week. */
 const ROUTES = [
 	...new Set<string>([
+		...FUZZ_ROUTES,
+		"/no-such-page",
+		"/newsletters",
 		...PUBLIC_ROUTES,
 		...Object.keys(BODIES).flatMap((slug) => [
 			`/bodies/${slug}`,
@@ -178,20 +216,7 @@ const ROUTES = [
 		]),
 		crowdedWeekPath,
 		...MONTH_GRIDS,
-		`/bodies/${LONG_NEWS.body}/news/${LONG_NEWS.slug}`,
-		`/bodies/${PROSE_NEWS.body}/news/${PROSE_NEWS.slug}`,
-		`/?body=${PROSE_NEWS.body}`,
 	]),
-];
-
-/** Pages showing the unbroken word and link: as an excerpt, a body's About text, a news item. */
-const PROSE_ROUTES = [
-	"/",
-	"/news",
-	`/?body=${PROSE_NEWS.body}`,
-	`/bodies/${PROSE_NEWS.body}/news`,
-	`/bodies/${PROSE_NEWS.body}/news/${PROSE_NEWS.slug}`,
-	"/bodies/blue-lodge",
 ];
 
 /** Publishes each sample once per week, found again by its slug on a rerun. */
@@ -210,23 +235,31 @@ async function ensure(
 	}
 }
 
-/** The elements that stick out past the right edge of the viewport, innermost first. */
-async function sideways(page: Page): Promise<string[]> {
+/**
+ * What does not fit at this width: the page scrolling sideways, and each innermost box whose
+ * content runs past its right edge without being a scroller or clipped on purpose.
+ */
+async function overflows(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
 		const root = document.documentElement;
+		// oxlint-disable-next-line unicorn/consistent-function-scoping -- it runs in the page.
+		const name = (el: Element) =>
+			`${el.tagName.toLowerCase()}${[...el.classList].map((c) => `.${c}`).join("")} "${(el.textContent ?? "").trim().slice(0, 30)}"`;
 		const over = root.scrollWidth - root.clientWidth;
-		if (over <= 0) return [];
-		const wide = [...document.body.querySelectorAll("*")].filter(
-			(el) => el.getBoundingClientRect().right > root.clientWidth + 0.5,
+		const spilled = [...document.body.querySelectorAll("*")].filter(
+			(el) =>
+				el.clientWidth > 0 &&
+				el.scrollWidth > el.clientWidth + 1 &&
+				getComputedStyle(el).overflowX === "visible",
 		);
-		const innermost = wide.filter((el) => ![...el.children].some((child) => wide.includes(child)));
+		const innermost = spilled.filter(
+			(el) => !spilled.some((other) => other !== el && el.contains(other)),
+		);
 		return [
-			`scrolls sideways by ${over}px`,
-			...innermost.slice(0, 4).map((el) => {
-				const name = `${el.tagName.toLowerCase()}.${[...el.classList].join(".")}`;
-				const text = (el.textContent ?? "").trim().slice(0, 40);
-				return `${name} "${text}" ends at ${Math.round(el.getBoundingClientRect().right)}px`;
-			}),
+			...(over > 0 ? [`the page scrolls sideways by ${over}px`] : []),
+			...innermost
+				.slice(0, 6)
+				.map((el) => `${name(el)} runs ${el.scrollWidth - el.clientWidth}px past its box`),
 		];
 	});
 }
@@ -306,13 +339,10 @@ test("seed a week like the mockup's, a crowded week and two odd-shaped emblems",
 	);
 	await updateBody(admin, ids["blue-lodge"], {
 		emblem: await image(admin, "", readFileSync(new URL("emblem-tall.png", import.meta.url))),
-		schedule_note: `Dinner is served at 6:30 PM before each stated meeting. Menu: ${PROSE_URL}`,
-		description: [
-			...paragraph(
-				"Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Temple. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason.",
-			),
-			{ ...paragraph(`History: ${UNBROKEN}`)[0], _key: "p2" },
-		],
+		schedule_note: "Dinner is served at 6:30 PM before each stated meeting.",
+		description: paragraph(
+			"Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Temple. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason.",
+		),
 	});
 	await updateBody(admin, ids.chapter, {
 		emblem: await image(admin, "", readFileSync(new URL("emblem-wide.png", import.meta.url))),
@@ -343,94 +373,6 @@ test("screenshots: home, a body page and the Temple calendar", async ({ page }) 
 	await shoot(page, "home", "/");
 	await shoot(page, "body", "/bodies/blue-lodge");
 	await shoot(page, "calendar", MONTH_GRIDS[0] ?? "/calendar");
-});
-
-for (const route of ROUTES) {
-	test(`no sideways scrolling: ${route}`, async ({ page }) => {
-		for (const width of WIDTHS) {
-			// oxlint-disable-next-line no-await-in-loop -- one width at a time.
-			await page.setViewportSize({ width, height: 900 });
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			await page.goto(route);
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			await page.evaluate(async () => document.fonts.ready);
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			expect.soft(await sideways(page), `${route} at ${width}px`).toEqual([]);
-		}
-	});
-}
-
-test("no sideways scrolling: a newsletter issue's own page", async ({ page }) => {
-	await page.goto("/newsletters");
-	const route = await page
-		.getByTestId("newsletter-archive")
-		.getByRole("link")
-		.first()
-		.getAttribute("href");
-	for (const width of WIDTHS) {
-		// oxlint-disable-next-line no-await-in-loop -- one width at a time.
-		await page.setViewportSize({ width, height: 900 });
-		// oxlint-disable-next-line no-await-in-loop -- see above.
-		await page.goto(route ?? "/newsletters");
-		// oxlint-disable-next-line no-await-in-loop -- see above.
-		expect.soft(await sideways(page), `${route} at ${width}px`).toEqual([]);
-	}
-});
-
-for (const [surface, paths, days] of [
-	["the week strip", ["/", crowdedWeekPath], '[data-testid="week"] > li'],
-	["the month grid", MONTH_GRIDS, '[data-testid="month-grid"] td[data-date]'],
-] as const) {
-	test(`every entry and its body's name stay inside its day on ${surface}`, async ({ page }) => {
-		for (const path of paths) {
-			for (const width of CALENDAR_WIDTHS) {
-				// oxlint-disable-next-line no-await-in-loop -- one page and width at a time.
-				await page.setViewportSize({ width, height: 900 });
-				// oxlint-disable-next-line no-await-in-loop -- see above.
-				await page.goto(path);
-				// oxlint-disable-next-line no-await-in-loop -- see above.
-				await page.evaluate(async () => document.fonts.ready);
-				// oxlint-disable-next-line no-await-in-loop -- see above.
-				const { entries, out } = await spills(page, days);
-				expect.soft(out, `${path} at ${width}px`).toEqual([]);
-				expect(entries, `${path} has entries at ${width}px`).toBeGreaterThan(0);
-			}
-		}
-	});
-}
-
-test("an unbroken word or link in rich text stays inside its box", async ({ page }) => {
-	for (const route of PROSE_ROUTES) {
-		for (const width of WIDTHS) {
-			// oxlint-disable-next-line no-await-in-loop -- one page and width at a time.
-			await page.setViewportSize({ width, height: 900 });
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			await page.goto(route);
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			await page.evaluate(async () => document.fonts.ready);
-			// oxlint-disable-next-line no-await-in-loop -- see above.
-			const { shown, out } = await page.evaluate((word) => {
-				const boxes = [...document.querySelectorAll<HTMLElement>(".prose, .news-list__excerpt")];
-				const holding = boxes.filter((box) => (box.textContent ?? "").includes(word));
-				const outside = holding.flatMap((box) => {
-					const frame = (box.closest(".card") ?? box.parentElement ?? box).getBoundingClientRect();
-					const own = box.getBoundingClientRect();
-					const name = `${box.tagName.toLowerCase()}.${[...box.classList].join(".")}`;
-					return [
-						...(box.scrollWidth > box.clientWidth + 0.5
-							? [`${name} text runs ${box.scrollWidth - box.clientWidth}px past it`]
-							: []),
-						...(own.right > frame.right + 0.5
-							? [`${name} ends ${Math.round(own.right - frame.right)}px past its box`]
-							: []),
-					];
-				});
-				return { shown: holding.length, out: outside };
-			}, PROSE_WORD);
-			expect(shown, `${route} shows the unbroken word at ${width}px`).toBeGreaterThan(0);
-			expect.soft(out, `${route} at ${width}px`).toEqual([]);
-		}
-	}
 });
 
 test("emblems share one slot and the bodies' names line up", async ({ page }) => {
@@ -480,4 +422,130 @@ test("the search field shows a 2px focus ring like every other control", async (
 	});
 	expect(ring).toMatchObject({ style: "solid", width: "2px" });
 	expect(ring.colour).not.toMatch(/^rgba\(\d+, \d+, \d+, 0\)$/);
+});
+
+/** An API client signed in as the Admin, for a hook that has no test fixtures. */
+async function adminRequest(playwright: PlaywrightWorkerArgs["playwright"], baseURL = "") {
+	return playwright.request.newContext({
+		baseURL,
+		ignoreHTTPSErrors: true,
+		storageState: storageStatePath("admin"),
+		extraHTTPHeaders: { ...API_HEADERS, Origin: new URL(baseURL).origin },
+	});
+}
+
+test.describe("a long word or link in every text field", () => {
+	test.beforeAll(async ({ playwright }, info) => {
+		const admin = await adminRequest(playwright, info.project.use.baseURL);
+		await seedFuzz(admin, readFileSync(new URL("emblem-wide.png", import.meta.url)));
+		await admin.dispose();
+	});
+
+	// FUZZ_KEEP=1 leaves the fuzz content in place to look at.
+	test.afterAll(async ({ playwright }, info) => {
+		if (process.env.FUZZ_KEEP === "1") return;
+		const admin = await adminRequest(playwright, info.project.use.baseURL);
+		await purgeFuzz(admin);
+		await admin.dispose();
+	});
+
+	test("every page file and every collection in the schema is fuzzed", () => {
+		const files = readdirSync("src/pages", { recursive: true, encoding: "utf8" })
+			.filter((file) => file.endsWith(".astro"))
+			.map((file) => file.replaceAll("\\", "/"));
+		expect(files.toSorted(), "page files the check visits").toEqual(
+			Object.keys(PAGE_FILES).toSorted(),
+		);
+		expect(new Set(FUZZ_ENTRIES.map((entry) => entry.collection))).toEqual(
+			new Set(SCHEMA_COLLECTIONS),
+		);
+	});
+
+	for (const route of ROUTES) {
+		test(`nothing spills sideways: ${route}`, async ({ page }) => {
+			for (const width of WIDTHS) {
+				// oxlint-disable-next-line no-await-in-loop -- one width at a time.
+				await page.setViewportSize({ width, height: 900 });
+				// oxlint-disable-next-line no-await-in-loop -- see above.
+				await page.goto(route);
+				// oxlint-disable-next-line no-await-in-loop -- see above.
+				await page.evaluate(async () => document.fonts.ready);
+				if (FUZZ_ROUTES.includes(route)) {
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					await expect(page.locator("main"), `${route} shows the long word`).toContainText(
+						FUZZ_WORD,
+					);
+				}
+				// oxlint-disable-next-line no-await-in-loop -- see above.
+				expect.soft(await overflows(page), `${route} at ${width}px`).toEqual([]);
+			}
+		});
+	}
+
+	test("nothing spills sideways: a newsletter issue's own page", async ({ page }) => {
+		await page.goto("/newsletters");
+		const route = await page
+			.getByTestId("newsletter-archive")
+			.getByRole("link")
+			.first()
+			.getAttribute("href");
+		for (const width of WIDTHS) {
+			// oxlint-disable-next-line no-await-in-loop -- one width at a time.
+			await page.setViewportSize({ width, height: 900 });
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await page.goto(route ?? "/newsletters");
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			expect.soft(await overflows(page), `${route} at ${width}px`).toEqual([]);
+		}
+	});
+
+	for (const [surface, paths, days] of [
+		["the week strip", ["/", crowdedWeekPath], '[data-testid="week"] > li'],
+		["the month grid", MONTH_GRIDS, '[data-testid="month-grid"] td[data-date]'],
+	] as const) {
+		test(`every entry and its body's name stay inside its day on ${surface}`, async ({ page }) => {
+			for (const path of paths) {
+				for (const width of CALENDAR_WIDTHS) {
+					// oxlint-disable-next-line no-await-in-loop -- one page and width at a time.
+					await page.setViewportSize({ width, height: 900 });
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					await page.goto(path);
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					await page.evaluate(async () => document.fonts.ready);
+					// oxlint-disable-next-line no-await-in-loop -- see above.
+					const { entries, out } = await spills(page, days);
+					expect.soft(out, `${path} at ${width}px`).toEqual([]);
+					expect(entries, `${path} has entries at ${width}px`).toBeGreaterThan(0);
+				}
+			}
+		});
+	}
+
+	test("pages with the long word and link are AA in both schemes", async ({ page }) => {
+		const routes = [
+			"/",
+			`/bodies/${FUZZ_BODY}`,
+			`/bodies/${FUZZ_BODY}/news/${FUZZ_NEWS}`,
+			`/pages/${FUZZ_PAGE}`,
+		];
+		for (const route of routes) {
+			for (const scheme of ["light", "dark"] as const) {
+				// oxlint-disable-next-line no-await-in-loop -- one page and scheme at a time.
+				await page.emulateMedia({ colorScheme: scheme });
+				// oxlint-disable-next-line no-await-in-loop -- see above.
+				await page.goto(route);
+				// oxlint-disable-next-line no-await-in-loop -- see above.
+				const results = await new AxeBuilder({ page })
+					.withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
+					.analyze();
+				console.log(`axe / fuzz ${route} (${scheme}): ${results.violations.length} violations`);
+				expect
+					.soft(
+						results.violations.map((v) => v.id),
+						`${route} (${scheme})`,
+					)
+					.toEqual([]);
+			}
+		}
+	});
 });
