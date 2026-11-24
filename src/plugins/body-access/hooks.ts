@@ -185,7 +185,7 @@ const FIX: Readonly<Record<UnreadableRow["problem"], (rows: string, many: boolea
 
 const listed = (numbers: readonly number[]) =>
 	numbers.length === 1
-		? `${numbers.join("")}`
+		? numbers.join("")
 		: `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
 
 /**

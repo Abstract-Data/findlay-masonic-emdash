@@ -13,7 +13,7 @@ export function parseSiteEnv(raw: string | undefined): SiteEnv {
 }
 
 // trim() keeps the zero-width spaces and joiners a pasted id can carry.
-const BLANK = /^[\s\u200B\u200C\u200D\uFEFF]*$/u;
+const BLANK = /^(?:\s|\u200B|\u200C|\u200D|\uFEFF)*$/u;
 
 // Resend's test inboxes (delivered@, bounced@, complained@resend.dev, with optional +labels)
 // accept mail without reaching a person.
