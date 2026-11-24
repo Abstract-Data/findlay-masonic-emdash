@@ -28,11 +28,15 @@ describe("withFooter (constitution § Newsletter and email)", () => {
 	});
 
 	it("gives the same email when applied twice", () => {
-		expect(withFooter(withFooter(composed, SUBJECT), SUBJECT)).toEqual(withFooter(composed, SUBJECT));
+		expect(withFooter(withFooter(composed, SUBJECT), SUBJECT)).toEqual(
+			withFooter(composed, SUBJECT),
+		);
 	});
 
 	it("appends the footer to HTML that has no body element", () => {
-		expect(hasUnsubscribeLink(withFooter({ html: "<p>Hi</p>", text: "Hi" }, SUBJECT).html)).toBe(true);
+		expect(hasUnsubscribeLink(withFooter({ html: "<p>Hi</p>", text: "Hi" }, SUBJECT).html)).toBe(
+			true,
+		);
 	});
 
 	it("is the only source of the link: composed HTML without the footer has none", () => {
@@ -41,7 +45,9 @@ describe("withFooter (constitution § Newsletter and email)", () => {
 
 	it("titles the email with its subject, once, however often it is footed", () => {
 		const twice = withFooter(withFooter(composed, "Draft"), SUBJECT).html;
-		expect(twice).toContain("<head><title>Spring News &amp; &lt;Events></title><meta charset=\"utf-8\">");
+		expect(twice).toContain(
+			'<head><title>Spring News &amp; &lt;Events></title><meta charset="utf-8">',
+		);
 		expect(twice.match(/<title>/g)).toHaveLength(1);
 	});
 });
