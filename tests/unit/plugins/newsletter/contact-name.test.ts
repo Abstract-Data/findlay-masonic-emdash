@@ -26,6 +26,7 @@ async function send(name: string): Promise<{ outcome: string; email: EmailMessag
 	};
 	const outcome = await contact(deps, {
 		remoteIp: "203.0.113.9",
+		siteOrigins: ["https://findlaymason.org"],
 		fields: Object.entries(fields).map(([field, value]) => ({ name: field, value })),
 	});
 	return { outcome, email: sent[0] };

@@ -1,6 +1,6 @@
 import { dummyVerifier, emptyOutbox, fakeMailer, unsubscribeEverywhere } from "@adapters/dev-fakes";
 import type { Mailer } from "@adapters/resend-mailer";
-import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
+import { DUMMY_TURNSTILE_TOKEN, siteverify, TURNSTILE_FIELD } from "@adapters/turnstile";
 import { err } from "@core/ids";
 import { kvRateLimiter } from "@plugins/newsletter/rate-limit";
 import {
@@ -176,6 +176,26 @@ describe("public subscribe (FR-7.1)", () => {
 			email: "a@b.test",
 			bodies: [LODGE, CHAPTER],
 		});
+	});
+});
+
+/** Cloudflare's siteverify, answering every token as solved where `solved` says. */
+const solvedAt = (solved: { hostname: string; action: string }) =>
+	siteverify("secret", async () => Response.json({ success: true, ...solved }));
+
+describe("the Turnstile token comes from this site's signup form (M7 review L7)", () => {
+	it.each([
+		["this site's signup form", { hostname: "findlaymason.org", action: "subscribe" }, "ok"],
+		[
+			"the contact form",
+			{ hostname: "findlaymason.org", action: "contact" },
+			"verification-failed",
+		],
+		["another site", { hostname: "evil.example", action: "subscribe" }, "verification-failed"],
+	])("answers a token solved in %s with %s", async (_, solved, outcome) => {
+		const { deps, outbox } = setup({ verifier: solvedAt(solved) });
+		expect(await subscribe(deps, request({ email: "a@example.test", ...token }))).toBe(outcome);
+		expect(outbox.contacts.size).toBe(outcome === "ok" ? 1 : 0);
 	});
 });
 

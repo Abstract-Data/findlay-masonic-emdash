@@ -1,4 +1,9 @@
-import { TURNSTILE_FIELD, type TurnstileVerifier } from "@adapters/turnstile";
+import {
+	hostnamesOf,
+	TURNSTILE_ACTION,
+	TURNSTILE_FIELD,
+	type TurnstileVerifier,
+} from "@adapters/turnstile";
 import { z } from "astro/zod";
 import type { EmailMessage } from "emdash";
 import type { FormLimit, RateLimiter } from "./rate-limit";
@@ -99,14 +104,17 @@ export function contactEmail(input: ContactInput, body: ContactBody, siteName: s
  */
 export async function contact(
 	deps: ContactDeps,
-	request: Pick<SubscribeRequest, "fields" | "remoteIp">,
+	request: Pick<SubscribeRequest, "fields" | "remoteIp" | "siteOrigins">,
 ): Promise<ContactOutcome> {
 	const input = parseContact(request.fields);
 	if (input === null) return "invalid";
 	const { verifier, send } = deps;
 	if (verifier === null || send === null) return "unavailable";
 	const token = request.fields.find((field) => field.name === TURNSTILE_FIELD)?.value ?? null;
-	const verdict = await verifier.verify(token, request.remoteIp);
+	const verdict = await verifier.verify(token, request.remoteIp, {
+		hostnames: hostnamesOf(request.siteOrigins),
+		action: TURNSTILE_ACTION.contact,
+	});
 	if (!verdict.ok) return verdict.reason === "unavailable" ? "unavailable" : "verification-failed";
 	const body = await deps.body(input.body);
 	if (body === null) return "invalid";

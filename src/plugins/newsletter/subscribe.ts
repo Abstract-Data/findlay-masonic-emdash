@@ -1,5 +1,10 @@
 import type { ContactSignup, Mailer } from "@adapters/resend-mailer";
-import { TURNSTILE_FIELD, type TurnstileVerifier } from "@adapters/turnstile";
+import {
+	hostnamesOf,
+	TURNSTILE_ACTION,
+	TURNSTILE_FIELD,
+	type TurnstileVerifier,
+} from "@adapters/turnstile";
 import { z } from "astro/zod";
 import type { FormLimit, RateLimiter } from "./rate-limit";
 
@@ -93,7 +98,10 @@ export async function subscribe(
 		return "unavailable";
 	}
 	const token = request.fields.find((field) => field.name === TURNSTILE_FIELD)?.value ?? null;
-	const verdict = await verifier.verify(token, request.remoteIp);
+	const verdict = await verifier.verify(token, request.remoteIp, {
+		hostnames: hostnamesOf(request.siteOrigins),
+		action: TURNSTILE_ACTION.subscribe,
+	});
 	if (!verdict.ok) return verdict.reason === "unavailable" ? "unavailable" : "verification-failed";
 	if (!(await deps.limiter.allow(request.remoteIp, SIGNUP_TARGET)).ok) return "rate-limited";
 	const contact: ContactSignup = {

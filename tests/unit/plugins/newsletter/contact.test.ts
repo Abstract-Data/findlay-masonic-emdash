@@ -36,6 +36,7 @@ function setup(overrides: Partial<ContactDeps> = {}) {
 
 const form = (overrides: Record<string, string> = {}) => ({
 	remoteIp: "203.0.113.9",
+	siteOrigins: ["https://findlaymason.org"],
 	fields: Object.entries({
 		body: "lodge",
 		name: "Jane Visitor",
