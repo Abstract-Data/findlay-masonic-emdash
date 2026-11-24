@@ -72,5 +72,5 @@ export async function archivedEmail(
 	const answer = await archiveRoute(locals, pageUrl, "archive/issue", { slug });
 	if (answer.status === "not-found") return null;
 	const found = email.parse(answer.data);
-	return { ...found, html: archiveHtml(found.html, signupUrl) };
+	return { ...found, html: archiveHtml(found.html, signupUrl, found.subject) };
 }

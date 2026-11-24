@@ -34,9 +34,11 @@ const PUBLIC_ROUTES = [
 	"/no-such-page",
 ];
 
-async function violations(page: Page, scope?: string) {
+async function violations(page: Page, scope?: string, exclude?: string) {
 	const builder = new AxeBuilder({ page }).withTags(TAGS);
-	const results = await (scope === undefined ? builder : builder.include(scope)).analyze();
+	if (scope !== undefined) builder.include(scope);
+	if (exclude !== undefined) builder.exclude(exclude);
+	const results = await builder.analyze();
 	return results.violations.map((v) => ({
 		rule: v.id,
 		impact: v.impact,
@@ -49,7 +51,7 @@ async function violations(page: Page, scope?: string) {
  * animates colours for 150 ms when the scheme changes, and halfway through, a link's text and
  * background are both mid-grey, so axe scans only once every transition has finished.
  */
-async function inBothSchemes(page: Page, label: string): Promise<void> {
+async function inBothSchemes(page: Page, label: string, exclude?: string): Promise<void> {
 	const backgrounds = new Set<string>();
 	for (const scheme of SCHEMES) {
 		// oxlint-disable-next-line no-await-in-loop -- one colour scheme at a time.
@@ -61,7 +63,7 @@ async function inBothSchemes(page: Page, label: string): Promise<void> {
 		// oxlint-disable-next-line no-await-in-loop -- see above.
 		backgrounds.add(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
 		// oxlint-disable-next-line no-await-in-loop -- see above.
-		const found = await violations(page);
+		const found = await violations(page, undefined, exclude);
 		console.log(`axe ${label} (${scheme}): ${found.length} violations`);
 		expect(found, `${label} in ${scheme} mode`).toEqual([]);
 	}
@@ -85,11 +87,21 @@ test.describe("public routes, as a visitor", () => {
 		await inBothSchemes(page, new URL(page.url()).pathname);
 	});
 
-	test("axe AA: a newsletter issue's own page", async ({ page }) => {
+	// The email sits in a sandboxed frame that runs no script, so axe cannot enter it there; the
+	// page is scanned around it, and the emailed HTML on its own.
+	test("axe AA: a newsletter issue's own page, and the email it shows", async ({ page }) => {
 		await page.goto("/newsletters");
 		const first = page.getByTestId("newsletter-archive").getByRole("link").first();
 		await page.goto((await first.getAttribute("href")) ?? "/");
-		await inBothSchemes(page, new URL(page.url()).pathname);
+		const frame = '[data-testid="newsletter-email"]';
+		const html = await page.locator(frame).getAttribute("srcdoc");
+		await inBothSchemes(page, new URL(page.url()).pathname, frame);
+
+		await page.emulateMedia({ colorScheme: "light" });
+		await page.setContent(html ?? "");
+		const found = await violations(page);
+		console.log(`axe the emailed issue: ${found.length} violations`);
+		expect(found).toEqual([]);
 	});
 });
 

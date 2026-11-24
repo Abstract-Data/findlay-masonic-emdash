@@ -345,7 +345,7 @@ export async function testSend(
 	if (record.content.email === null) {
 		return fail("not-composed", "Save the issue before sending a test.");
 	}
-	const email = withFooter(record.content.email);
+	const email = withFooter(record.content.email, record.content.subject);
 	const sent = await mailer.sendEmail({
 		from,
 		to: testAllowlist,
@@ -409,7 +409,7 @@ export async function approve(
 	const creating: IssueRecord = {
 		...record,
 		lifecycle: approved.value,
-		sent: withFooter(record.content.email),
+		sent: withFooter(record.content.email, record.content.subject),
 		slug: await freeSlug(deps, record, input.sendAt ?? now),
 		sendingUntil: now.add(SENDING_HOLD),
 	};
