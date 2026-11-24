@@ -141,7 +141,9 @@ function levelOf(entry: LogEvent): Level {
 }
 
 const MAX_STRING = 500;
-const EMAIL = /[^\s@<>"'(),;:]+@[^\s@<>"'(),;:]+\.[^\s@<>"'(),;:]+/g;
+// A local part, then dotted labels ending in a letters-only top-level domain, so a package
+// specifier (`astro@7.4.13`) is no address. Every run is bounded, which keeps a long line linear.
+const EMAIL = /[^\s@<>"'(),;:]{1,64}@(?:[\p{L}\p{N}-]{1,63}\.){1,10}\p{L}{2,63}(?![\p{L}\p{N}-])/gu;
 // Resend keys (re_...), Turnstile secrets (0x...), bearer and session tokens are long unbroken
 // runs; 26-character entry ULIDs and the dash-separated groups of issue UUIDs stay readable.
 const TOKEN = /[\w+/=]{32,}/g;
@@ -181,13 +183,35 @@ export function log(entry: LogEvent): void {
 }
 
 const LEVELS = ["debug", "log", "info", "warn", "error"] as const;
+const OTHER_WRITERS = ["trace", "assert", "group", "groupCollapsed", "dir", "table"] as const;
+const MAX_CAUSES = 5;
 
-function withoutEmails(argument: unknown): unknown {
-	if (typeof argument === "string") return argument.replaceAll(EMAIL, "[email]");
-	if (!(argument instanceof Error)) return argument;
+function stringWithoutEmails(argument: unknown): unknown {
+	return typeof argument === "string" ? argument.replaceAll(EMAIL, "[email]") : argument;
+}
+
+/**
+ * The error with every address taken out of its message, stack and own fields, and its class,
+ * `code`, `cause` chain and `AggregateError.errors` kept, so the log still explains the failure.
+ */
+function withoutEmails(argument: unknown, depth = 0): unknown {
+	if (!(argument instanceof Error) || depth > MAX_CAUSES) return stringWithoutEmails(argument);
+	const inner = (value: unknown): unknown =>
+		Array.isArray(value)
+			? value.map((item: unknown) => withoutEmails(item, depth + 1))
+			: withoutEmails(value, depth + 1);
 	const copy = new Error(argument.message.replaceAll(EMAIL, "[email]"));
-	copy.name = argument.name;
-	copy.stack = argument.stack?.replaceAll(EMAIL, "[email]");
+	Object.setPrototypeOf(copy, Object.getPrototypeOf(argument));
+	for (const key of Reflect.ownKeys(argument)) {
+		const field = Object.getOwnPropertyDescriptor(argument, key);
+		if (key === "message" || field === undefined || !("value" in field)) continue;
+		Object.defineProperty(copy, key, { ...field, value: inner(field.value) });
+	}
+	Object.defineProperty(copy, "stack", {
+		value: stringWithoutEmails(argument.stack),
+		writable: true,
+		configurable: true,
+	});
 	return copy;
 }
 
@@ -195,13 +219,20 @@ function withoutEmails(argument: unknown): unknown {
  * Everything the Worker writes to the console reaches Workers Logs and Axiom, EmDash's own lines
  * included, and some of those quote an address: a failed delivery names its recipient (a body's
  * private contact recipient or an invitee), a sign-in names the user. This wraps each console
- * method so every string and error argument has its addresses replaced by `[email]`; other
- * objects pass as they are. Installed once, at the Worker's entry (src/worker.ts).
+ * method that writes, so every string and error argument of a level method, and every string
+ * argument of the others, has its addresses replaced by `[email]`; other objects pass as they
+ * are. Installed once, at the Worker's entry (src/worker.ts).
  */
 export function redactConsoleEmails(target: Console): void {
 	for (const level of LEVELS) {
 		const write = target[level].bind(target);
-		target[level] = (...args: unknown[]) => write(...args.map(withoutEmails));
+		target[level] = (...args: unknown[]) => write(...args.map((arg) => withoutEmails(arg)));
+	}
+	for (const method of OTHER_WRITERS) {
+		const original = target[method];
+		Reflect.set(target, method, (...args: unknown[]) =>
+			Reflect.apply(original, target, args.map(stringWithoutEmails)),
+		);
 	}
 }
 
