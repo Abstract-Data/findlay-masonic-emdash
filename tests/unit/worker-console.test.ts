@@ -164,3 +164,59 @@ describe("redaction time grows with the line, not its square (M7 review round 2)
 		expect(performance.now() - started).toBeLessThan(250);
 	});
 });
+
+/** Every message, stack and string along an error's cause chain, stopping after `limit` links. */
+function causeChain(start: unknown, limit = 20): { texts: string[]; nodes: unknown[] } {
+	const texts: string[] = [];
+	const nodes: unknown[] = [];
+	let node: unknown = start;
+	for (let link = 0; link < limit && node !== undefined && node !== null; link += 1) {
+		nodes.push(node);
+		if (node instanceof Error) {
+			texts.push(node.message, String(node.stack));
+			node = node.cause;
+		} else {
+			texts.push(typeof node === "string" ? node : JSON.stringify(node));
+			node = undefined;
+		}
+	}
+	return { texts, nodes };
+}
+
+describe("redaction that cannot be walked around (M7 review round 3)", () => {
+	it("redacts or drops a cause past the depth limit instead of passing it on as it was", () => {
+		let error = new Error(`deepest cause for ${ADDRESS}`);
+		const deepest = error;
+		for (let depth = 0; depth < 8; depth += 1) error = new Error(`wrapper ${depth}`, { cause: error });
+		console.error(error);
+		const { texts, nodes } = causeChain(loggedError());
+		expect(texts.join("\n")).not.toContain(ADDRESS);
+		expect(nodes).not.toContain(deepest);
+	});
+
+	it("redacts an error that is its own cause, and the loop ends", () => {
+		const error = new Error(`loop for ${ADDRESS}`);
+		error.cause = error;
+		console.error(error);
+		const { texts, nodes } = causeChain(loggedError());
+		expect(texts.join("\n")).not.toContain(ADDRESS);
+		expect(nodes).not.toContain(error);
+	});
+
+	it("finds an address on a punycode top-level domain", () => {
+		written.length = 0;
+		console.log(`to secretary@example.xn--p1ai and lodge@xn--80ak6aa92e.xn--p1ai.`);
+		expect(written).toEqual([["to [email] and [email]."]]);
+	});
+
+	it("logs an error whose stack getter throws", () => {
+		const error = new Error(`no stack for ${ADDRESS}`);
+		Object.defineProperty(error, "stack", {
+			get() {
+				throw new Error("stack unavailable");
+			},
+		});
+		expect(() => console.error(error)).not.toThrow();
+		expect(loggedError().message).toBe("no stack for [email]");
+	});
+});

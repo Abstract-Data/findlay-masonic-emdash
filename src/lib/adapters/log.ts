@@ -141,9 +141,11 @@ function levelOf(entry: LogEvent): Level {
 }
 
 const MAX_STRING = 500;
-// A local part, then dotted labels ending in a letters-only top-level domain, so a package
-// specifier (`astro@7.4.13`) is no address. Every run is bounded, which keeps a long line linear.
-const EMAIL = /[^\s@<>"'(),;:]{1,64}@(?:[\p{L}\p{N}-]{1,63}\.){1,10}\p{L}{2,63}(?![\p{L}\p{N}-])/gu;
+// A local part, then dotted labels ending in a letters-only or punycode (`xn--p1ai`) top-level
+// domain, so a package specifier (`astro@7.4.13`) is no address. Every run is bounded, which
+// keeps a long line linear.
+const EMAIL =
+	/[^\s@<>"'(),;:]{1,64}@(?:[\p{L}\p{N}-]{1,63}\.){1,10}(?:\p{L}{2,63}|xn--[\p{L}\p{N}-]{1,59})(?![\p{L}\p{N}-])/gu;
 // Resend keys (re_...), Turnstile secrets (0x...), bearer and session tokens are long unbroken
 // runs; 26-character entry ULIDs and the dash-separated groups of issue UUIDs stay readable.
 const TOKEN = /[\w+/=]{32,}/g;
@@ -190,17 +192,37 @@ function stringWithoutEmails(argument: unknown): unknown {
 	return typeof argument === "string" ? argument.replaceAll(EMAIL, "[email]") : argument;
 }
 
+/** What `read` returns, or undefined when reading it throws (a getter can). */
+function safely<T>(read: () => T): T | undefined {
+	try {
+		return read();
+	} catch {
+		return undefined;
+	}
+}
+
 /**
  * The error with every address taken out of its message, stack and own fields, and its class,
  * `code`, `cause` chain and `AggregateError.errors` kept, so the log still explains the failure.
+ * An error past the depth limit, or one already on the way down (a cycle), becomes its redacted
+ * "Name: message" line, so the original never reaches the console.
  */
-function withoutEmails(argument: unknown, depth = 0): unknown {
-	if (!(argument instanceof Error) || depth > MAX_CAUSES) return stringWithoutEmails(argument);
+function withoutEmails(
+	argument: unknown,
+	depth = 0,
+	seen: ReadonlySet<Error> = new Set(),
+): unknown {
+	if (!(argument instanceof Error)) return stringWithoutEmails(argument);
+	const message = safely(() => argument.message.replaceAll(EMAIL, "[email]")) ?? "";
+	if (depth > MAX_CAUSES || seen.has(argument)) {
+		return `${safely(() => argument.name) ?? "Error"}: ${message}`;
+	}
+	const below = new Set(seen).add(argument);
 	const inner = (value: unknown): unknown =>
 		Array.isArray(value)
-			? value.map((item: unknown) => withoutEmails(item, depth + 1))
-			: withoutEmails(value, depth + 1);
-	const copy = new Error(argument.message.replaceAll(EMAIL, "[email]"));
+			? value.map((item: unknown) => withoutEmails(item, depth + 1, below))
+			: withoutEmails(value, depth + 1, below);
+	const copy = new Error(message);
 	Object.setPrototypeOf(copy, Object.getPrototypeOf(argument));
 	for (const key of Reflect.ownKeys(argument)) {
 		const field = Object.getOwnPropertyDescriptor(argument, key);
@@ -208,7 +230,7 @@ function withoutEmails(argument: unknown, depth = 0): unknown {
 		Object.defineProperty(copy, key, { ...field, value: inner(field.value) });
 	}
 	Object.defineProperty(copy, "stack", {
-		value: stringWithoutEmails(argument.stack),
+		value: stringWithoutEmails(safely(() => argument.stack) ?? `${copy.name}: ${message}`),
 		writable: true,
 		configurable: true,
 	});
