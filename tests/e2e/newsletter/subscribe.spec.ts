@@ -1,6 +1,6 @@
 import type { APIRequestContext } from "@playwright/test";
 import { data, expect, test, unique } from "../body-access";
-import { FAKE, NEWSLETTER_API, outbox } from "../newsletter";
+import { FAKE, NEWSLETTER_API, outbox, resetRateLimits } from "../newsletter";
 import { BODY_NAMES, storageStatePath } from "../roles";
 
 const SUBSCRIBE = `${NEWSLETTER_API}/subscribe`;
@@ -21,6 +21,12 @@ test.describe("newsletter signup (FR-7)", () => {
 		const entry = `/_emdash/api/content/bodies/${bodies.chapter}`;
 		await data(admin.put(entry, { data: { data: { resend_topic_id: CHAPTER_TOPIC } } }));
 		await data(admin.post(`${entry}/publish`, { data: {} }));
+	});
+
+	// Every signup here comes from one address and counts against the hourly limit, as do earlier
+	// runs on the same database, so each test starts from empty counters.
+	test.beforeEach(async ({ as }) => {
+		await resetRateLimits(await as("admin"));
 	});
 
 	test("a visitor subscribes with the plain form and lands in the Segment and Topics", async ({

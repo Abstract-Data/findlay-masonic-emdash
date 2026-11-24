@@ -1,15 +1,28 @@
 import type { ContactSignup, Mailer } from "@adapters/resend-mailer";
 import { TURNSTILE_FIELD, type TurnstileVerifier } from "@adapters/turnstile";
 import { z } from "astro/zod";
+import type { FormLimit, RateLimiter } from "./rate-limit";
 
 /** Where the signup form posts back to, with `?subscribe=<outcome>` added. */
 export const SIGNUP_PAGE = "/newsletters";
+
+/** Five signups an hour from one network, and sixty an hour from everyone. */
+export const SUBSCRIBE_LIMIT: FormLimit = {
+	namespace: "subscribe-rate",
+	perSender: 5,
+	perTarget: 60,
+	windowSeconds: 60 * 60,
+};
+
+/** The one target every signup counts against. */
+export const SIGNUP_TARGET = "newsletter";
 
 export type SubscribeOutcome =
 	| "ok"
 	| "previously-unsubscribed"
 	| "invalid"
 	| "verification-failed"
+	| "rate-limited"
 	| "unavailable";
 
 export interface SubscribeRequest {
@@ -28,6 +41,7 @@ export interface SubscribeDeps {
 	readonly newsletterTopicId: string | null;
 	/** Body id to its Resend Topic, from `bodies.resend_topic_id`; null when unset. */
 	readonly bodyTopics: ReadonlyMap<string, string | null>;
+	readonly limiter: RateLimiter;
 }
 
 /**
@@ -58,7 +72,8 @@ export function parseSignup(fields: SubscribeRequest["fields"]): Signup | null {
 }
 
 /**
- * FR-7.1: validate, verify the Turnstile token, then create or update the Resend contact in the
+ * FR-7.1: validate, verify the Turnstile token, count the signup against the rate limits (one
+ * network, then everyone, as the contact form does), then create or update the Resend contact in the
  * subscribers Segment with the newsletter Topic and each chosen body's Topic. Bodies without a
  * Topic are skipped; an unknown body makes the request invalid. A contact that unsubscribed from
  * all email is left as it is.
@@ -78,6 +93,7 @@ export async function subscribe(
 	const token = request.fields.find((field) => field.name === TURNSTILE_FIELD)?.value ?? null;
 	const verdict = await verifier.verify(token, request.remoteIp);
 	if (!verdict.ok) return verdict.reason === "unavailable" ? "unavailable" : "verification-failed";
+	if (!(await deps.limiter.allow(request.remoteIp, SIGNUP_TARGET)).ok) return "rate-limited";
 	const bodyTopics = signup.bodies.flatMap((body) => deps.bodyTopics.get(body) ?? []);
 	const contact: ContactSignup = {
 		email: signup.email,

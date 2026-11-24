@@ -31,7 +31,13 @@ import {
 	type NewsletterDeps,
 	type NewsletterError,
 } from "./service";
-import { sameSite, SIGNUP_PAGE, subscribe, type SubscribeRequest } from "./subscribe";
+import {
+	sameSite,
+	SIGNUP_PAGE,
+	subscribe,
+	SUBSCRIBE_LIMIT,
+	type SubscribeRequest,
+} from "./subscribe";
 
 /** Admins only (spec Q5): EmDash grants settings:manage to role 50 alone. */
 export const ADMIN_PERMISSION = "settings:manage";
@@ -244,6 +250,7 @@ export const routes: Record<string, PluginRoute> = {
 					segmentId: config.segmentId,
 					newsletterTopicId: config.topicId,
 					bodyTopics: bodyTopics(await published(ctx, "bodies")),
+					limiter: kvRateLimiter(ctx.kv, Date.now, SUBSCRIBE_LIMIT),
 				},
 				request,
 			);
@@ -299,9 +306,14 @@ export const routes: Record<string, PluginRoute> = {
 					...admin,
 					methods: ["POST"],
 					handler: async (ctx: RouteContext) => {
-						const rows = await ctx.kv.list(`${CONTACT_LIMIT.namespace}:`);
-						await Promise.all(rows.map(async ({ key }) => ctx.kv.delete(key)));
-						return { cleared: rows.length };
+						const counters = await Promise.all(
+							[CONTACT_LIMIT, SUBSCRIBE_LIMIT].map(async (limit) =>
+								ctx.kv.list(`${limit.namespace}:`),
+							),
+						);
+						const keys = counters.flat().map(({ key }) => key);
+						await Promise.all(keys.map(async (key) => ctx.kv.delete(key)));
+						return { cleared: keys.length };
 					},
 				},
 				/** What Resend records when a recipient unsubscribes from all email. */

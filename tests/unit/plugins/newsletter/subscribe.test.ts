@@ -2,15 +2,18 @@ import { dummyVerifier, emptyOutbox, fakeMailer, unsubscribeEverywhere } from "@
 import type { Mailer } from "@adapters/resend-mailer";
 import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
 import { err } from "@core/ids";
+import { kvRateLimiter } from "@plugins/newsletter/rate-limit";
 import {
 	parseSignup,
 	sameSite,
 	subscribe,
+	SUBSCRIBE_LIMIT,
 	type SubscribeDeps,
 	type SubscribeRequest,
 } from "@plugins/newsletter/subscribe";
 import { describe, expect, it } from "vitest";
 import { CHAPTER, LODGE, bodyId } from "../../fixtures";
+import { memoryCounter } from "./memory-counter";
 
 const SITE = "https://findlaymason.org";
 const COUNCIL = bodyId(3);
@@ -43,12 +46,53 @@ function setup(overrides: Partial<SubscribeDeps> = {}) {
 			[CHAPTER, "topic-chapter"],
 			[COUNCIL, null],
 		]),
+		limiter: kvRateLimiter(memoryCounter(), () => 0, SUBSCRIBE_LIMIT),
 		...overrides,
 	};
 	return { deps, outbox };
 }
 
 const token = { [TURNSTILE_FIELD]: DUMMY_TURNSTILE_TOKEN };
+
+/** One signup from each IP, in order, each with its own address. */
+async function signups(deps: SubscribeDeps, ips: readonly string[]): Promise<string[]> {
+	const outcomes: string[] = [];
+	for (const [i, ip] of ips.entries()) {
+		const form = request({ email: `v${i}@example.test`, ...token }, { remoteIp: ip });
+		// oxlint-disable-next-line no-await-in-loop -- the limit counts requests in order.
+		outcomes.push(await subscribe(deps, form));
+	}
+	return outcomes;
+}
+
+describe("signup rate limits (parked c, the contact form's design)", () => {
+	it("takes five signups an hour from one IPv6 /64, whatever its host bits", async () => {
+		const { deps, outbox } = setup();
+		const ips = Array.from({ length: 6 }, (_, i) => `2001:db8:1:2::${i + 1}`);
+		expect(await signups(deps, ips)).toEqual(["ok", "ok", "ok", "ok", "ok", "rate-limited"]);
+		expect(outbox.contacts.size).toBe(5);
+		expect(SUBSCRIBE_LIMIT).toMatchObject({ perSender: 5, perTarget: 60, windowSeconds: 3600 });
+	});
+
+	it("takes sixty an hour from everyone together", async () => {
+		const { deps } = setup();
+		const ips = Array.from({ length: 61 }, (_, i) => `198.51.100.${i}`);
+		const outcomes = await signups(deps, ips);
+		expect(outcomes.filter((o) => o === "ok")).toHaveLength(60);
+		expect(outcomes.at(-1)).toBe("rate-limited");
+	});
+
+	it("counts nothing for a signup refused before it reaches Resend", async () => {
+		const { deps } = setup();
+		for (let i = 0; i < 10; i += 1) {
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await subscribe(deps, request({ email: "not-an-address", ...token }));
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await subscribe(deps, request({ email: "a@example.test", [TURNSTILE_FIELD]: "forged" }));
+		}
+		expect(await subscribe(deps, request({ email: "a@example.test", ...token }))).toBe("ok");
+	});
+});
 
 describe("public subscribe (FR-7.1)", () => {
 	it("puts the contact in the Segment with the newsletter Topic and each chosen body's Topic", async () => {

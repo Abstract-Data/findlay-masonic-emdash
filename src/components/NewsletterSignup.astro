@@ -1,5 +1,6 @@
 ---
 import { loadBodies } from "@adapters/site/content";
+import type { SubscribeOutcome } from "@plugins/newsletter/subscribe";
 import Turnstile from "./Turnstile.astro";
 
 // FR-7.1. A plain form post: the subscribe route answers with a redirect back here, so the
@@ -12,8 +13,9 @@ const MESSAGES: Readonly<Record<string, string>> = {
 		"This address unsubscribed from the Temple's email before, so it was not added. To get the newsletter again, use the “choose which bodies you hear from” link at the bottom of a past newsletter, or contact the Temple.",
 	invalid: "Enter a valid email address and choose only the bodies listed.",
 	"verification-failed": "We could not confirm you are a person. Please try again.",
+	"rate-limited": "Too many signups have come in the last hour. Please try again later.",
 	unavailable: "Signups are not working right now. Please try again later.",
-};
+} satisfies Record<SubscribeOutcome, string>;
 const outcome = Astro.url.searchParams.get("subscribe");
 const message = outcome === null ? undefined : MESSAGES[outcome];
 ---

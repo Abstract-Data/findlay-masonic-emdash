@@ -1,5 +1,6 @@
 ---
 import type { BodyView } from "@adapters/site/views";
+import type { ContactOutcome } from "@plugins/newsletter/contact";
 import Turnstile from "./Turnstile.astro";
 
 // Spec Q12: a plain form post to the newsletter plugin's contact route, which emails the body's
@@ -12,13 +13,15 @@ interface Props {
 }
 
 const { bodies, body } = Astro.props;
+// The limit counts one network's messages and everyone's, so the text blames neither.
 const MESSAGES: Readonly<Record<string, string>> = {
 	sent: "Thank you. Your message has been sent.",
 	invalid: "Please fill in your name, a valid email address and a message.",
 	"verification-failed": "We could not confirm you are a person. Please try again.",
-	"rate-limited": "You have sent several messages in a short time. Please try again in an hour.",
+	"rate-limited":
+		"Too many messages have come in for this body in the last hour. Please try again later.",
 	unavailable: "Messages are not working right now. Please try again later.",
-};
+} satisfies Record<ContactOutcome, string>;
 const outcome = Astro.url.searchParams.get("contact");
 const message = outcome === null ? undefined : MESSAGES[outcome];
 const reachable = body === undefined ? bodies.length > 0 : body.acceptsMessages;
