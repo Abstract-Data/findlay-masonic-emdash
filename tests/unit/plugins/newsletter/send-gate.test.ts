@@ -17,7 +17,7 @@ import { memoryCounter } from "./memory-counter";
 /** Every request the Resend SDK makes, answered as a successful send. */
 function resendApi(): string[] {
 	const sent: string[] = [];
-	vi.stubGlobal("fetch", async (input: string, init: RequestInit = {}) => {
+	vi.stubGlobal("fetch", async (_: string, init: RequestInit = {}) => {
 		const body: unknown = typeof init.body === "string" ? JSON.parse(init.body) : null;
 		sent.push(...[Reflect.get(Object(body), "to") ?? []].flat().map(String));
 		return Response.json({ id: "email-1" });
