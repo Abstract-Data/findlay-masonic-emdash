@@ -9,7 +9,7 @@ import type { Temporal } from "temporal-polyfill";
 import DateTile from "./DateTile.astro";
 import Entry from "./Entry.astro";
 
-// The home page's seven days (direction C). A week with nothing in it is one notice that names
+// The home page's seven days. A week with nothing in it is one notice that names
 // the next thing on the calendar and links to its week, not seven empty cards.
 interface Props {
 	days: readonly CalendarDay[];
@@ -97,8 +97,10 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 		list-style: none;
 	}
 
+	/* The card's width, not its longest word, sets each entry's width. */
 	.day {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		align-content: start;
 		gap: var(--spacing-3);
 		min-height: 13rem;
@@ -147,6 +149,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 
 	.day__entries {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--spacing-2);
 		margin: 0;
 		padding: 0;
@@ -179,6 +182,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 		align-items: center;
 		gap: var(--spacing-1) var(--spacing-3);
 		font-size: var(--font-size-lg);
+		overflow-wrap: anywhere;
 	}
 
 	@media (max-width: 1000px) {
