@@ -95,6 +95,29 @@
 	color: var(--color-text-secondary);
 }
 
+/*
+  The layout's own labels, in this direction's face and case. Base.astro scopes these rules, so
+  each selector here names one element more to outrank them.
+*/
+footer.site-footer .site-footer__widgets .widget__title,
+header.site-header .site-search .emdash-live-search-result-collection {
+	font-family: var(--font-body);
+	font-size: var(--font-size-sm);
+	font-weight: 700;
+	letter-spacing: 0;
+	text-transform: none;
+	color: var(--color-text-secondary);
+}
+
+header.site-header .site-search .emdash-live-search-result-collection {
+	font-size: var(--font-size-xs);
+}
+
+/* The site name in full, which the larger face pushed past the layout's 9rem phone limit. */
+a.brand .brand__name {
+	max-width: none;
+}
+
 .btn {
 	min-height: 2.75rem;
 }

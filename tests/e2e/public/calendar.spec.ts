@@ -73,7 +73,7 @@ test("FR-4.3: a body's month expands its recurring event and leaves out the EXDA
 	await expect(page).toHaveURL(new RegExp(`month=${addMonths(`${month}-01`, 1)}$`));
 });
 
-test("FR-4.4: the Temple calendar labels each body's entries and filters by body", async ({
+test("FR-4.4: the Temple calendar labels and colours each body's entries and filters by body", async ({
 	page,
 }) => {
 	await page.goto(`/calendar?month=${month}`);
@@ -88,22 +88,25 @@ test("FR-4.4: the Temple calendar labels each body's entries and filters by body
 	await expect(practice.first()).toContainText("Eastern Star 23");
 	expect(await daysWith(page, `${RUN} Inspection`)).toEqual([inspectionDay]);
 
+	// Colour-coded too: each body's bar is its colour from theme.css, beside its name.
+	await page.emulateMedia({ colorScheme: "light" });
+	const bar = async (entry: typeof inspection) =>
+		entry.evaluate((el) => getComputedStyle(el).borderInlineStartColor);
+	expect(await bar(inspection)).toBe("rgb(51, 65, 85)");
+	expect(await bar(practice.first())).toBe("rgb(4, 120, 87)");
+
 	// The filter is a plain form: untick the Eastern Star and show the rest.
 	const filter = page.getByTestId("calendar-filter");
-	await filter
-		.getByRole("checkbox", { name: "Findlay Chapter, Order of the Eastern Star No. 23" })
-		.uncheck();
-	await filter.getByRole("button", { name: "Show calendar" }).click();
+	await filter.getByRole("checkbox", { name: "Eastern Star 23" }).uncheck();
+	await filter.getByRole("button", { name: "Update" }).click();
 	await expect(page).toHaveURL(/body=commandery/);
 	expect(new URL(page.url()).searchParams.getAll("body")).not.toContain("eastern-star");
 	await expect(grid.locator('li[data-body="eastern-star"]')).toHaveCount(0);
 	await expect(
 		grid.locator('li[data-body="commandery"]', { hasText: `${RUN} Inspection` }),
 	).toHaveCount(1);
-	await expect(
-		filter.getByRole("checkbox", { name: "Findlay Chapter, Order of the Eastern Star No. 23" }),
-	).not.toBeChecked();
-	await expect(filter.getByRole("checkbox", { name: "Findlay Commandery No. 49" })).toBeChecked();
+	await expect(filter.getByRole("checkbox", { name: "Eastern Star 23" })).not.toBeChecked();
+	await expect(filter.getByRole("checkbox", { name: "Commandery 49" })).toBeChecked();
 });
 
 test("FR-4.5: the ICS feeds carry RRULE, EXDATE and TZID America/New_York", async ({ request }) => {

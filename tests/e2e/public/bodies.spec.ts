@@ -120,10 +120,14 @@ test("FR-1.2: the bodies index lists every body with its emblem and next meeting
 	}
 	const commandery = page.locator('[data-testid="body-card"][data-body="commandery"]');
 	await expect(commandery.locator("img")).toHaveCount(1);
-	await expect(commandery).toContainText(/Next meeting: [A-Z][a-z]{2}, [A-Z][a-z]{2} 15, 10:00 AM/);
-	await expect(page.locator('[data-testid="body-card"][data-body="temple-board"]')).toContainText(
-		"Contact the secretary for meeting times.",
-	);
+	await expect(commandery).toContainText("15th of each month, 10:00 AM");
+	// The next meeting is a date tile: "Tue / Dec 15", or "Tue 15 / Today" on the 15th itself.
+	const tile = commandery.locator("time");
+	await expect(tile).toHaveAttribute("datetime", /^\d{4}-\d{2}-15T10:00-0[45]:00$/);
+	await expect(tile).toContainText(/Next meeting: [A-Z][a-z]{2} ([A-Z][a-z]{2} 15|15 Today)/);
+	const board = page.locator('[data-testid="body-card"][data-body="temple-board"]');
+	await expect(board).toContainText("Contact the secretary for meeting times.");
+	await expect(board).toContainText("No set date");
 });
 
 test("FR-1.4: a body with no stated meeting shows its note, else the secretary message", async ({

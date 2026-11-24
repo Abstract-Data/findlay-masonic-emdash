@@ -1,16 +1,21 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { storageStatePath } from "../roles";
-import { addMonths, findlayToday } from "../public/site";
+import { addDays, addMonths, findlayToday } from "../public/site";
 
 // NFR accessibility (constitution amendment 1): WCAG 2.1 AA, zero axe violations, on every public
 // route and the two plugin admin pages. Runs after the public suites, so lists hold content.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const SCHEMES = ["light", "dark"] as const;
-const month = addMonths(findlayToday(), 2);
+const today = findlayToday();
+const month = addMonths(today, 2);
+// Two weeks on, the Temple Board has nothing: the home page's quiet-week notice.
+const quietWeek = addDays(today, 14 - new Date(`${today}T12:00:00Z`).getUTCDay());
 
 const PUBLIC_ROUTES = [
 	"/",
+	"/?body=council",
+	`/?week=${quietWeek}&body=temple-board`,
 	"/bodies",
 	"/bodies/commandery",
 	"/bodies/temple-board",
@@ -20,6 +25,7 @@ const PUBLIC_ROUTES = [
 	"/news",
 	"/news?body=temple-board",
 	`/calendar?month=${month}`,
+	`/calendar?month=${month}&body=commandery`,
 	`/bodies/eastern-star/calendar?month=${month}`,
 	"/pages/about",
 	"/pages/scholarships",
@@ -75,6 +81,13 @@ test.describe("public routes, as a visitor", () => {
 	test("axe AA: a news item's own page", async ({ page }) => {
 		await page.goto("/bodies/eastern-star/news");
 		const first = page.getByTestId("news-list").getByRole("heading").getByRole("link").first();
+		await page.goto((await first.getAttribute("href")) ?? "/");
+		await inBothSchemes(page, new URL(page.url()).pathname);
+	});
+
+	test("axe AA: a newsletter issue's own page", async ({ page }) => {
+		await page.goto("/newsletters");
+		const first = page.getByTestId("newsletter-archive").getByRole("link").first();
 		await page.goto((await first.getAttribute("href")) ?? "/");
 		await inBothSchemes(page, new URL(page.url()).pathname);
 	});

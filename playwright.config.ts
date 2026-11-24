@@ -88,6 +88,14 @@ export default defineConfig({
 			use: { ...devices["Desktop Chrome"] },
 			dependencies: ["public"],
 		},
+		{
+			// Direction C screenshots and a busy week's axe scan. It seeds a week of sample content,
+			// so it runs after every other project.
+			name: "visual",
+			testDir: "tests/e2e/visual",
+			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["a11y"],
+		},
 	],
 	webServer: {
 		// Astro 7 backgrounds `astro dev` when it detects a coding agent, and the
