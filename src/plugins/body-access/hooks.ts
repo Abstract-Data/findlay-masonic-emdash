@@ -11,6 +11,7 @@ import {
 	type ReadEntry,
 } from "@adapters/emdash/entries";
 import { grantsOf, principalFor, type Directory, type GrantRows } from "@adapters/emdash/grants";
+import { log } from "@adapters/log";
 import {
 	idLikeSlugText,
 	isAdminRole,
@@ -39,6 +40,7 @@ import {
 import type { BodyId } from "@core/ids";
 import {
 	ContentSaveRejectedError,
+	isContentSaveRejection,
 	type ContentDeleteEvent,
 	type ContentHookEvent,
 	type ContentPolicyEvent,
@@ -297,6 +299,50 @@ export function policyHook(change: "publish" | "unpublish" | "schedule") {
 		if (op === null) return;
 		const text = await refusal(ctx, await principalOf(ctx, actor), op);
 		return text === null ? undefined : { cancel: true, reason: text };
+	};
+}
+
+/** beforeSave, logging each refusal as EmDash reports it to the caller: SAVE_REJECTED. */
+export async function loggedBeforeSave(
+	event: ContentHookEvent,
+	ctx: HookContext,
+): Promise<Record<string, unknown> | void> {
+	try {
+		return await beforeSave(event, ctx);
+	} catch (error) {
+		if (isContentSaveRejection(error)) {
+			log({
+				event: "body_access.refused",
+				code: "SAVE_REJECTED",
+				source: "beforeSave",
+				user: actorOf(event.actor)?.id ?? null,
+				collection: event.collection,
+				reason: error.message,
+			});
+		}
+		throw error;
+	}
+}
+
+/** policyHook, logging each cancelled publish, unpublish or schedule. */
+export function loggedPolicyHook(change: "publish" | "unpublish" | "schedule") {
+	const hook = policyHook(change);
+	return async (
+		event: ContentPolicyEvent,
+		ctx: HookContext,
+	): Promise<{ cancel: true; reason: string } | void> => {
+		const decision = await hook(event, ctx);
+		if (decision !== undefined) {
+			log({
+				event: "body_access.refused",
+				code: "BODY_ACCESS_DENIED",
+				source: change,
+				user: actorOf(event.actor)?.id ?? null,
+				collection: event.collection,
+				reason: decision.reason,
+			});
+		}
+		return decision;
 	};
 }
 

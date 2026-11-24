@@ -1,6 +1,11 @@
 import type { RequestActor } from "@adapters/emdash/actor-context";
 import type { EntryRow } from "@adapters/emdash/entries";
-import { guardRequest, type GuardReads, type GuardedRequest } from "@adapters/emdash/request-guard";
+import {
+	guardRequest,
+	refusalResponse,
+	type GuardReads,
+	type GuardedRequest,
+} from "@adapters/emdash/request-guard";
 import type { BodyId } from "@core/ids";
 import { describe, expect, it } from "vitest";
 import { CHAPTER, LODGE, entryId } from "../../fixtures";
@@ -102,10 +107,12 @@ function request(
 }
 
 async function guard(req: GuardedRequest, world: World) {
-	const response = await guardRequest(req, () => reads(world));
-	if (response === null) return null;
+	const refusal = await guardRequest(req, () => reads(world));
+	if (refusal === null) return null;
+	const response = refusalResponse(refusal);
 	const body: unknown = await response.json();
 	const error: unknown = Reflect.get(Object(body), "error");
+	expect(response.headers.get("cache-control")).toBe("private, no-store");
 	return {
 		status: response.status,
 		code: String(Reflect.get(Object(error), "code")),

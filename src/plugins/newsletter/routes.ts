@@ -1,4 +1,5 @@
 import { systemClock } from "@adapters/clock";
+import { log, type LogEvent } from "@adapters/log";
 import { parseEventSeries, parseRecipients } from "@adapters/emdash/parse";
 import { ISSUE_NOT_FOUND } from "@adapters/newsletter/archive";
 import { parseBodies, parseNewsCandidate, type ListedItem } from "@adapters/newsletter/content";
@@ -15,7 +16,7 @@ import {
 } from "emdash";
 import { Temporal } from "temporal-polyfill";
 import { contact, CONTACT_LIMIT, type ContactBody } from "./contact";
-import { kvRateLimiter } from "./rate-limit";
+import { kvRateLimiter, type RateLimiter } from "./rate-limit";
 import { runtime } from "./runtime";
 import {
 	approve,
@@ -110,6 +111,25 @@ async function deps(ctx: RouteContext): Promise<NewsletterDeps> {
 	};
 }
 
+function refusedEvent(
+	action: "test-send" | "approve",
+	issue: string,
+	error: NewsletterError,
+): LogEvent {
+	return { event: "newsletter.refused", action, issue, code: error.code };
+}
+
+/** The limiter, logging which count was full when it refuses. */
+function loggedLimiter(form: "contact" | "subscribe", limiter: RateLimiter): RateLimiter {
+	return {
+		async allow(ip, target) {
+			const verdict = await limiter.allow(ip, target);
+			if (!verdict.ok) log({ event: "form.rate_limited", form, limit: verdict.limit });
+			return verdict;
+		},
+	};
+}
+
 function unwrap<T>(result: { ok: true; value: T } | { ok: false; error: NewsletterError }): T {
 	if (result.ok) return result.value;
 	const code = result.error.code.toUpperCase().replaceAll("-", "_");
@@ -181,8 +201,20 @@ export const routes: Record<string, PluginRoute> = {
 		...admin,
 		methods: ["POST"],
 		input: testInput,
-		handler: async (ctx: RouteContext<z.infer<typeof testInput>>) =>
-			unwrap(await testSend(await deps(ctx), ctx.input)),
+		handler: async (ctx: RouteContext<z.infer<typeof testInput>>) => {
+			const sent = await testSend(await deps(ctx), ctx.input);
+			log(
+				sent.ok
+					? {
+							event: "newsletter.test_sent",
+							issue: ctx.input.id,
+							revision: ctx.input.revision,
+							recipients: sent.value.sentTo.length,
+						}
+					: refusedEvent("test-send", ctx.input.id, sent.error),
+			);
+			return unwrap(sent);
+		},
 	},
 	"issues/approve": {
 		...admin,
@@ -191,7 +223,20 @@ export const routes: Record<string, PluginRoute> = {
 		handler: async (ctx: RouteContext<z.infer<typeof approveInput>>) => {
 			const sendAt = instant(ctx.input.sendAt);
 			if (sendAt === "invalid") throw PluginRouteError.badRequest("The send time is not valid.");
-			return unwrap(await approve(await deps(ctx), { ...ctx.input, sendAt }));
+			const approved = await approve(await deps(ctx), { ...ctx.input, sendAt });
+			log(
+				approved.ok
+					? {
+							event: "newsletter.approved",
+							issue: ctx.input.id,
+							revision: approved.value.revision,
+							status: approved.value.status,
+							broadcast: approved.value.broadcastId,
+							scheduled: sendAt !== null,
+						}
+					: refusedEvent("approve", ctx.input.id, approved.error),
+			);
+			return unwrap(approved);
 		},
 	},
 	"issues/discard": {
@@ -250,10 +295,11 @@ export const routes: Record<string, PluginRoute> = {
 					segmentId: config.segmentId,
 					newsletterTopicId: config.topicId,
 					bodyTopics: bodyTopics(await published(ctx, "bodies")),
-					limiter: kvRateLimiter(ctx.kv, Date.now, SUBSCRIBE_LIMIT),
+					limiter: loggedLimiter("subscribe", kvRateLimiter(ctx.kv, Date.now, SUBSCRIBE_LIMIT)),
 				},
 				request,
 			);
+			log({ event: "form.submitted", form: "subscribe", outcome });
 			return pluginResponse({
 				status: 303,
 				headers: { location: `${SIGNUP_PAGE}?subscribe=${outcome}#signup` },
@@ -282,11 +328,12 @@ export const routes: Record<string, PluginRoute> = {
 					verifier,
 					send: email === undefined ? null : async (message) => email.send(message),
 					body: async (bodyId) => contactBody(await published(ctx, "bodies"), bodyId),
-					limiter: kvRateLimiter(ctx.kv, Date.now, CONTACT_LIMIT),
+					limiter: loggedLimiter("contact", kvRateLimiter(ctx.kv, Date.now, CONTACT_LIMIT)),
 					siteName: ctx.site.name,
 				},
 				request,
 			);
+			log({ event: "form.submitted", form: "contact", outcome });
 			const back = returnPath(request.fields.find((field) => field.name === "from")?.value);
 			return pluginResponse({
 				status: 303,

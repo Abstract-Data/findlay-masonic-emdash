@@ -1,3 +1,4 @@
+import { log } from "@adapters/log";
 import type { Mailer } from "@adapters/resend-mailer";
 import type { EmailDeliverEvent } from "emdash";
 
@@ -26,6 +27,10 @@ export function transport(deps: () => Promise<TransportDeps>) {
 			...(message.cc === undefined ? {} : { cc: message.cc }),
 			...(message.replyTo === undefined ? {} : { replyTo: message.replyTo }),
 		});
-		if (!sent.ok) throw new Error(`Resend did not accept the email: ${sent.error.message}`);
+		if (!sent.ok) {
+			const { kind, status, message: error } = sent.error;
+			log({ event: "email.failed", kind, status, error });
+			throw new Error(`Resend did not accept the email: ${error}`);
+		}
 	};
 }

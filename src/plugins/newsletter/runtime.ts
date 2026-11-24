@@ -1,3 +1,4 @@
+import { log } from "@adapters/log";
 import { chooseProvider, deliversEmail } from "@adapters/providers";
 import { resendMailer, type Mailer } from "@adapters/resend-mailer";
 import { gateOutbound, parseSiteEnv } from "@adapters/send-gate";
@@ -67,6 +68,13 @@ export function realRuntime(settings: Settings): Runtime {
 				: gateOutbound(resendMailer(key), {
 						env: parseSiteEnv(settings.siteEnv),
 						allowlist: config.testAllowlist,
+						onBlocked: (email, blocked) =>
+							log({
+								event: "email.blocked",
+								siteEnv: settings.siteEnv ?? "unset",
+								recipients: email.to.length + (email.cc?.length ?? 0),
+								blocked,
+							}),
 					}),
 		verifier: secret === null ? null : siteverify(secret),
 		config,

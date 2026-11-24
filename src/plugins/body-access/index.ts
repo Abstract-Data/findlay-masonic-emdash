@@ -1,6 +1,6 @@
 import { definePlugin } from "emdash";
 import { GRANTS } from "@adapters/emdash/grants";
-import { beforeDelete, beforeSave, beforeUpload, policyHook } from "./hooks";
+import { beforeDelete, beforeUpload, loggedBeforeSave, loggedPolicyHook } from "./hooks";
 import { listGrants, myBodies, saveGrants } from "./routes";
 
 /**
@@ -22,11 +22,11 @@ export function createPlugin() {
 		],
 		storage: { [GRANTS.collection]: { indexes: GRANTS.indexes } },
 		hooks: {
-			"content:beforeSave": beforeSave,
+			"content:beforeSave": loggedBeforeSave,
 			"content:beforeDelete": beforeDelete,
-			"content:beforePublish": policyHook("publish"),
-			"content:beforeUnpublish": policyHook("unpublish"),
-			"content:beforeSchedule": policyHook("schedule"),
+			"content:beforePublish": loggedPolicyHook("publish"),
+			"content:beforeUnpublish": loggedPolicyHook("unpublish"),
+			"content:beforeSchedule": loggedPolicyHook("schedule"),
 			"media:beforeUpload": beforeUpload,
 		},
 		routes: {

@@ -1,3 +1,4 @@
+import { log, messageOf } from "@adapters/log";
 import { authorize, denialText, type Operation } from "@core/acl/policy";
 import type { BodyId } from "@core/ids";
 import {
@@ -89,13 +90,13 @@ class MissingDraftError extends Error {
 /**
  * The middleware half of the guard: every unsafe EmDash route a signed-in non-admin calls is
  * authorized by core before EmDash runs it, including the writes no content hook sees. Returns
- * the response to send, or null to let the request through. Admins and anonymous requests pass:
+ * the refusal to send, or null to let the request through. Admins and anonymous requests pass:
  * Admins hold every body (FR-5.7), and EmDash refuses anonymous writes itself.
  */
 export async function guardRequest(
 	request: GuardedRequest,
 	reads: () => GuardReads,
-): Promise<Response | null> {
+): Promise<Refusal | null> {
 	const { actor } = request;
 	if (actor === null || isAdminRole(actor.role)) return null;
 	const rule = ruleFor(request.routePattern, request.method);
@@ -107,7 +108,13 @@ export async function guardRequest(
 	const from = reads();
 	const ops = await operationsFor(rule, request, from, save).catch((error: unknown): Stop => {
 		if (error instanceof MissingDraftError) return "missing-draft";
-		console.error("[body-access] a guard lookup failed, so the request was refused:", error);
+		log({
+			event: "body_access.lookup_failed",
+			route: request.routePattern,
+			method: request.method,
+			user: actor.id,
+			error: messageOf(error),
+		});
 		return "lookup-failed";
 	});
 	if (typeof ops === "string") return denied(STOP_TEXT[ops]);
@@ -168,17 +175,25 @@ function readSave(body: unknown): Save {
 	};
 }
 
-function denied(message: string): Response {
-	return Response.json(
-		{ success: false, error: { code: DENIED_CODE, message } },
-		{ status: 403, headers: { "Cache-Control": "private, no-store" } },
-	);
+/** A refused request: the status and EmDash-shaped error the caller gets. */
+export interface Refusal {
+	readonly status: 403 | 422;
+	readonly code: typeof DENIED_CODE | "INVALID_SLUG";
+	readonly message: string;
 }
 
-function idLikeSlug(slug: string): Response {
+function denied(message: string): Refusal {
+	return { status: 403, code: DENIED_CODE, message };
+}
+
+function idLikeSlug(slug: string): Refusal {
+	return { status: 422, code: "INVALID_SLUG", message: idLikeSlugText(slug) };
+}
+
+export function refusalResponse({ status, code, message }: Refusal): Response {
 	return Response.json(
-		{ success: false, error: { code: "INVALID_SLUG", message: idLikeSlugText(slug) } },
-		{ status: 422, headers: { "Cache-Control": "private, no-store" } },
+		{ success: false, error: { code, message } },
+		{ status, headers: { "Cache-Control": "private, no-store" } },
 	);
 }
 
