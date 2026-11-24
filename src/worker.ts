@@ -2,8 +2,7 @@ import handler, { EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/c
 import { pingHeartbeat } from "@adapters/heartbeat";
 import { log, messageOf, redactConsoleEmails } from "@adapters/log";
 import { forSharedCache } from "@adapters/site/cache";
-import { purgeTags } from "@adapters/site/purge";
-import { cache } from "cloudflare:workers";
+import cacheProvider from "@adapters/site/cache-provider";
 import { runScheduledTasks } from "emdash/middleware";
 
 export { EmDashRoom, EmDashRoomSite, PluginBridge };
@@ -13,12 +12,8 @@ redactConsoleEmails(console);
 /** As EmDash's own scheduled handler: wait for content due within the next run's start. */
 const PUBLISH_UPCOMING_WITHIN_MS = 70_000;
 
-// `cache` is the request's or cron run's Workers cache; outside Cloudflare it has no purge.
-const purge = async (tags: readonly string[]) =>
-	purgeTags(
-		typeof cache.purge === "function" ? async (options) => cache.purge(options) : undefined,
-		tags,
-	);
+/** The provider a request purges through on publish, for the purges of a scheduled publish. */
+const routeCache = cacheProvider(undefined);
 
 export default {
 	...handler,
@@ -35,8 +30,9 @@ export default {
 	async scheduled(controller, env) {
 		try {
 			await runScheduledTasks({
-				onPublished: async (refs) => purge([...new Set(refs.flatMap((r) => [r.collection, r.id]))]),
-				invalidateContentCache: purge,
+				onPublished: async (refs) =>
+					routeCache.invalidate({ tags: [...new Set(refs.flatMap((r) => [r.collection, r.id]))] }),
+				invalidateContentCache: async (tags) => routeCache.invalidate({ tags }),
 				publishUpcomingWithinMs: PUBLISH_UPCOMING_WITHIN_MS,
 			});
 		} catch (error) {
