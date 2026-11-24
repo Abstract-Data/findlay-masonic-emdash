@@ -44,7 +44,7 @@ const { occurrence: o, body, showBody, location = null, compact = false } = Astr
 		display: grid;
 		grid-template-columns: minmax(0, 1fr);
 		gap: 2px;
-		padding: var(--spacing-2) var(--spacing-3);
+		padding: var(--spacing-2);
 		border-inline-start: 4px solid var(--body-colour, var(--color-border-strong));
 		border-radius: var(--radius-sm);
 		background: color-mix(
@@ -55,6 +55,7 @@ const { occurrence: o, body, showBody, location = null, compact = false } = Astr
 		font-size: var(--font-size-sm);
 		line-height: var(--leading-snug);
 		overflow-wrap: anywhere;
+		hyphens: auto;
 	}
 
 	.entry__title {
