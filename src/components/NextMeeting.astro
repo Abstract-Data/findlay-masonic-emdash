@@ -151,5 +151,13 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 			grid-template-columns: minmax(0, 1fr);
 			justify-items: start;
 		}
+
+		.next__dates ol {
+			flex-direction: column;
+		}
+
+		.next__dates li + li::before {
+			content: none;
+		}
 	}
 </style>
