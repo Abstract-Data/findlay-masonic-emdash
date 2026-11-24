@@ -127,6 +127,21 @@ export async function loadNewsPage(
 	};
 }
 
+/** Each published news item's slug to the slug of its body, for the given (published) bodies. */
+export async function loadNewsHomes(
+	bodies: readonly BodyView[],
+): Promise<ReadonlyMap<string, string>> {
+	if (bodies.length === 0) return new Map();
+	const result = await getEmDashCollection("news", { where: { body: bodies.map((b) => b.id) } });
+	const slugs = new Map(bodies.map((body) => [body.id, body.slug]));
+	return new Map(
+		views(entries(result)).flatMap((item) => {
+			const body = slugs.get(item.body);
+			return body === undefined ? [] : [[item.slug, body] as const];
+		}),
+	);
+}
+
 export async function loadNewsItem(slug: string): Promise<Loaded<NewsView | null>> {
 	const result = await getEmDashEntry("news", slug);
 	if (result.error !== undefined) throw result.error;

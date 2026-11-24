@@ -1,4 +1,5 @@
-import { BODIES, ensurePage, expect, paragraph, publish, test, unique } from "./site";
+import { data } from "../body-access";
+import { BODIES, CONTENT, ensurePage, expect, paragraph, publish, test, unique } from "./site";
 
 // WCAG 2.4.2 (page titled) and the SEO budget: every public route has its own non-empty title
 // and a meta description, as a visitor sees them, with no SEO panel filled in.
@@ -36,7 +37,19 @@ test("every public route has a unique, non-empty title and a meta description", 
 		},
 		unique("e2e-seo"),
 	);
-	const routes = [...ROUTES, `/bodies/council/news/${news.slug}`];
+	// The newsletter project, which runs first, approved an issue, so the archive links to one.
+	await page.goto("/newsletters");
+	const issue = await page
+		.getByTestId("newsletter-archive")
+		.locator('a[href^="/newsletters/"]')
+		.first()
+		.getAttribute("href");
+	expect(issue, "an archived newsletter issue").toBeTruthy();
+	const routes = [
+		...ROUTES,
+		`/newsletters/${issue?.split("/").at(-1)}`,
+		`/bodies/council/news/${news.slug}`,
+	];
 
 	const heads = [];
 	for (const route of routes) {
@@ -66,4 +79,61 @@ test("every public route has a unique, non-empty title and a meta description", 
 	]).toEqual([]);
 	expect(heads.find((h) => h.route === "/bodies/council")?.title).toContain(BODIES.council);
 	expect(heads.at(-1)?.description).toContain("spring banquet");
+});
+
+test("the sitemap lists news at its body's page, and none of an unpublished body (N3, N4)", async ({
+	admin,
+	ids,
+	request,
+}) => {
+	const listed = await publish(
+		admin,
+		"news",
+		{
+			body: ids.council,
+			title: "E2E-sitemap Lecture night",
+			content: paragraph("A lecture on the Royal Arch."),
+			publish_date: new Date().toISOString(),
+		},
+		unique("e2e-sitemap"),
+	);
+	// A body that was never published, with a published news item of its own.
+	const retired = await data<{ item: { id: string } }>(
+		admin.post(`${CONTENT}/bodies`, {
+			data: {
+				data: { name: "E2E Retired Body", body_type: "Council" },
+				slug: unique("e2e-retired"),
+			},
+		}),
+	);
+	const hidden = await publish(
+		admin,
+		"news",
+		{
+			body: retired.item.id,
+			title: "E2E-sitemap Hidden",
+			content: paragraph("Not on the site."),
+			publish_date: new Date().toISOString(),
+		},
+		unique("e2e-hidden"),
+	);
+	try {
+		const index = await request.get("/sitemap.xml");
+		expect(index.status()).toBe(200);
+		expect(await index.text()).toContain("/sitemap-news.xml</loc>");
+		const news = await request.get("/sitemap-news.xml");
+		expect(news.status()).toBe(200);
+		const xml = await news.text();
+		expect(xml).toContain(`/bodies/council/news/${listed.slug}</loc>`);
+		expect(xml).not.toContain(hidden.slug);
+		expect([...xml.matchAll(/<loc>[^<]*<\/loc>/g)].every(([loc]) => loc.includes("/bodies/"))).toBe(
+			true,
+		);
+		const robots = await request.get("/robots.txt");
+		expect(robots.status()).toBe(200);
+		expect(await robots.text()).toMatch(/^Sitemap: \S+\/sitemap\.xml$/m);
+	} finally {
+		await data(admin.delete(`${CONTENT}/news/${hidden.id}`));
+		await data(admin.delete(`${CONTENT}/bodies/${retired.item.id}`));
+	}
 });
