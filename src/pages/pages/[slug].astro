@@ -4,7 +4,7 @@ import { loadBodies } from "@adapters/site/content";
 import { slugParam } from "@adapters/site/paths";
 import { pageSeo } from "@adapters/site/seo";
 import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
-import { PortableText } from "emdash/ui";
+import RichText from "../../components/RichText.astro";
 import ContactForm from "../../components/ContactForm.astro";
 import Base from "../../layouts/Base.astro";
 import { resolveSiteIdentity } from "../../utils/site-identity";
@@ -59,7 +59,7 @@ const seo = pageSeo(page, {
 			</header>
 
 			<div class="prose page__body" {...page.edit.content}>
-				<PortableText value={page.data.content} />
+				<RichText value={page.data.content} />
 			</div>
 		</div>
 	</article>
@@ -93,6 +93,12 @@ const seo = pageSeo(page, {
 			position: sticky;
 			top: calc(var(--nav-height) + var(--spacing-8));
 			align-self: start;
+			container-type: inline-size;
+		}
+
+		/* Beside the body the title's column is narrow, so a title such as "Scholarships" scales to it. */
+		.page__title {
+			font-size: min(var(--font-size-display), 12cqi);
 		}
 	}
 </style>
