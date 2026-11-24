@@ -156,7 +156,12 @@ describe("structured logs never carry secrets, email bodies or recipient address
 			siteEnv: "staging",
 		});
 		const written = await lines(async () =>
-			mailer?.upsertContact({ email: ADDRESSES[0] ?? "", segmentId: "seg", topicIds: ["topic"] }),
+			mailer?.upsertContact({
+				email: ADDRESSES[0] ?? "",
+				segmentId: "seg",
+				newsletterTopicId: "topic",
+				bodyTopicIds: [],
+			}),
 		);
 		expect(written.map((line) => JSON.parse(line))).toEqual([
 			{

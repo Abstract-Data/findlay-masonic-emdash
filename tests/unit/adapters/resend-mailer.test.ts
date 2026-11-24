@@ -51,6 +51,30 @@ const DRAFT = {
 	text: "Hi",
 };
 
+const SIGNUP = {
+	email: "old@example.test",
+	segmentId: "seg-subscribers",
+	newsletterTopicId: "topic-newsletter",
+	bodyTopicIds: ["topic-lodge", "topic-chapter"],
+};
+
+/** Resend holding old@example.test, whose own Topic choices are `topics`. */
+function existingContact(topics: { id: string; subscription: "opt_in" | "opt_out" }[]): Call[] {
+	return fakeResendApi((call) => {
+		if (call.method !== "GET") return { status: 200, body: { id: "c-1" } };
+		if (call.path.startsWith("/contacts/old@example.test/topics")) {
+			const data = topics.map((topic) => ({ ...topic, name: topic.id, description: null }));
+			return { status: 200, body: { object: "list", has_more: false, data } };
+		}
+		return {
+			status: 200,
+			body: { object: "contact", id: "c-1", email: "old@example.test", unsubscribed: false },
+		};
+	});
+}
+
+const writes = (calls: readonly Call[]) => calls.filter((call) => call.method !== "GET");
+
 /** One broadcast create, as "ok" or "<kind>:<status>". */
 async function createOnce(): Promise<string> {
 	const sent = await mailer().createBroadcast({ ...DRAFT, scheduledAt: null });
@@ -162,7 +186,8 @@ describe("Resend mailer against a fake Resend API", () => {
 		const saved = await mailer().upsertContact({
 			email: "new@example.test",
 			segmentId: "seg-subscribers",
-			topicIds: ["topic-newsletter", "topic-lodge"],
+			newsletterTopicId: "topic-newsletter",
+			bodyTopicIds: ["topic-lodge"],
 		});
 		expect(saved).toEqual({ ok: true, value: "subscribed" });
 		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
@@ -180,23 +205,61 @@ describe("Resend mailer against a fake Resend API", () => {
 	});
 
 	it("FR-7.1: adds an existing contact to the Segment and opts it in to the Topics", async () => {
-		const calls = fakeResendApi((call) =>
-			call.method === "GET"
-				? { status: 200, body: { object: "contact", id: "c-1", email: "old@example.test" } }
-				: { status: 200, body: { id: "c-1" } },
-		);
-		const saved = await mailer().upsertContact({
-			email: "old@example.test",
-			segmentId: "seg-subscribers",
-			topicIds: ["topic-newsletter"],
-		});
-		expect(saved).toEqual({ ok: true, value: "subscribed" });
+		const calls = existingContact([]);
+		expect(await mailer().upsertContact(SIGNUP)).toEqual({ ok: true, value: "subscribed" });
 		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
 			"GET /contacts/old@example.test",
+			"GET /contacts/old@example.test/topics?limit=100",
 			"POST /contacts/old@example.test/segments/seg-subscribers",
 			"PATCH /contacts/old@example.test/topics",
 		]);
-		expect(calls[2]?.body).toEqual([{ id: "topic-newsletter", subscription: "opt_in" }]);
+		expect(calls[3]?.body).toEqual([
+			{ id: "topic-newsletter", subscription: "opt_in" },
+			{ id: "topic-lodge", subscription: "opt_in" },
+			{ id: "topic-chapter", subscription: "opt_in" },
+		]);
+	});
+
+	it("never opts an existing contact back in to a body Topic it opted out of (M7 review M1)", async () => {
+		const calls = existingContact([
+			{ id: "topic-newsletter", subscription: "opt_in" },
+			{ id: "topic-lodge", subscription: "opt_out" },
+		]);
+		expect(await mailer().upsertContact(SIGNUP)).toEqual({ ok: true, value: "subscribed" });
+		expect(writes(calls).at(-1)?.body).toEqual([
+			{ id: "topic-newsletter", subscription: "opt_in" },
+			{ id: "topic-chapter", subscription: "opt_in" },
+		]);
+	});
+
+	it("changes nothing for a contact that opted out of the newsletter Topic, and says so", async () => {
+		const calls = existingContact([
+			{ id: "topic-newsletter", subscription: "opt_out" },
+			{ id: "topic-chapter", subscription: "opt_in" },
+		]);
+		expect(await mailer().upsertContact(SIGNUP)).toEqual({
+			ok: true,
+			value: "previously-unsubscribed",
+		});
+		expect(writes(calls)).toEqual([]);
+	});
+
+	it("changes nothing when the contact's Topics cannot be read", async () => {
+		const calls = fakeResendApi((call) => {
+			if (call.method !== "GET") return { status: 200, body: { id: "c-1" } };
+			if (call.path.includes("/topics")) {
+				return {
+					status: 500,
+					body: { name: "internal_server_error", message: "Oops", statusCode: 500 },
+				};
+			}
+			return { status: 200, body: { object: "contact", id: "c-1", email: "old@example.test" } };
+		});
+		expect(await mailer().upsertContact(SIGNUP)).toMatchObject({
+			ok: false,
+			error: { kind: "unavailable" },
+		});
+		expect(writes(calls)).toEqual([]);
 	});
 
 	it("leaves a contact that unsubscribed from all email untouched, and says so", async () => {
@@ -211,7 +274,8 @@ describe("Resend mailer against a fake Resend API", () => {
 		const saved = await mailer().upsertContact({
 			email: "gone@example.test",
 			segmentId: "seg-subscribers",
-			topicIds: ["topic-newsletter"],
+			newsletterTopicId: "topic-newsletter",
+			bodyTopicIds: [],
 		});
 		expect(saved).toEqual({ ok: true, value: "previously-unsubscribed" });
 		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([

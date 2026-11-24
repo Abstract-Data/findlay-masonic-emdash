@@ -44,13 +44,15 @@ export interface FoundBroadcast {
 export interface ContactSignup {
 	readonly email: string;
 	readonly segmentId: string;
-	/** Topics to opt in to. Topics not listed keep the contact's current choice. */
-	readonly topicIds: readonly string[];
+	readonly newsletterTopicId: string;
+	/** Body Topics to opt in to as well. Topics not listed keep the contact's current choice. */
+	readonly bodyTopicIds: readonly string[];
 }
 
 /**
- * `previously-unsubscribed`: the contact unsubscribed from all email, so nothing was changed. A
- * public form must never reverse that; the contact opts back in from a link in a past email.
+ * `previously-unsubscribed`: the contact unsubscribed from all email or from the newsletter
+ * Topic, so nothing was changed. A public form must never reverse a contact's choice, since
+ * anyone can type anyone's address; the contact opts back in from a link in a past email.
  */
 export type ContactUpsert = "subscribed" | "previously-unsubscribed";
 
@@ -84,6 +86,9 @@ function settle<T>(response: SdkResponse<T>): Result<T, MailerError> {
 	return response.error === null ? ok(response.data) : err(mailerError(response.error));
 }
 
+const optIn = (ids: readonly string[]) =>
+	ids.map((id) => ({ id, subscription: "opt_in" as const }));
+
 const LIST_PAGE = 100;
 /** Broadcasts are listed newest first; a retry looks for a key minted moments before. */
 const LIST_PAGES = 5;
@@ -109,6 +114,30 @@ export function resendMailer(apiKey: string): Mailer {
 		const last = listed.value.data.at(-1);
 		if (!listed.value.has_more || last === undefined || page >= LIST_PAGES) return ok(null);
 		return findBroadcast(name, last.id, page + 1);
+	}
+
+	/** The Topics a contact has opted out of, from every page of its Topic list. */
+	async function optedOut(
+		email: string,
+		after?: string,
+		page = 1,
+	): Promise<Result<ReadonlySet<string>, MailerError>> {
+		const listed = settle(
+			await resend.contacts.topics.list(
+				after === undefined ? { email, limit: LIST_PAGE } : { email, limit: LIST_PAGE, after },
+			),
+		);
+		if (!listed.ok) return listed;
+		const out = listed.value.data.flatMap((topic) =>
+			topic.subscription === "opt_out" ? [topic.id] : [],
+		);
+		const last = listed.value.data.at(-1);
+		if (!listed.value.has_more || last === undefined) return ok(new Set(out));
+		if (page >= LIST_PAGES) {
+			return err({ kind: "rejected", status: null, message: "The contact has too many Topics." });
+		}
+		const rest = await optedOut(email, last.id, page + 1);
+		return rest.ok ? ok(new Set([...out, ...rest.value])) : rest;
 	}
 
 	async function segmentContacts(
@@ -180,27 +209,35 @@ export function resendMailer(apiKey: string): Mailer {
 			return settle(await resend.broadcasts.send(id, scheduledAt === null ? {} : { scheduledAt }));
 		},
 
+		/**
+		 * A new contact joins the Segment with the newsletter Topic and the chosen body Topics. An
+		 * existing one keeps every choice it made: a global unsubscribe or an opt-out of the
+		 * newsletter changes nothing, and a body Topic it opted out of stays out.
+		 */
 		async upsertContact(signup) {
-			const topics = signup.topicIds.map((id) => ({ id, subscription: "opt_in" as const }));
-			const existing = await resend.contacts.get({ email: signup.email });
+			const { email, segmentId } = signup;
+			const wanted = [...new Set([signup.newsletterTopicId, ...signup.bodyTopicIds])];
+			const existing = await resend.contacts.get({ email });
 			const missing = existing.error?.name === "not_found" || existing.error?.statusCode === 404;
 			if (existing.error !== null && !missing) return err(mailerError(existing.error));
 			if (missing) {
 				const created = settle(
 					await resend.contacts.create({
-						email: signup.email,
-						segments: [{ id: signup.segmentId }],
-						topics,
+						email,
+						segments: [{ id: segmentId }],
+						topics: optIn(wanted),
 					}),
 				);
 				return created.ok ? ok("subscribed") : created;
 			}
 			if (existing.data?.unsubscribed === true) return ok("previously-unsubscribed");
-			const added = settle(
-				await resend.contacts.segments.add({ email: signup.email, segmentId: signup.segmentId }),
-			);
+			const refused = await optedOut(email);
+			if (!refused.ok) return refused;
+			if (refused.value.has(signup.newsletterTopicId)) return ok("previously-unsubscribed");
+			const added = settle(await resend.contacts.segments.add({ email, segmentId }));
 			if (!added.ok) return added;
-			const updated = settle(await resend.contacts.topics.update({ email: signup.email, topics }));
+			const topics = optIn(wanted.filter((id) => !refused.value.has(id)));
+			const updated = settle(await resend.contacts.topics.update({ email, topics }));
 			return updated.ok ? ok("subscribed") : updated;
 		},
 

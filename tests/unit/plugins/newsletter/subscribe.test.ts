@@ -108,6 +108,7 @@ describe("public subscribe (FR-7.1)", () => {
 				{
 					segments: new Set(["seg-subscribers"]),
 					topics: new Set(["topic-newsletter", "topic-lodge"]),
+					optedOut: new Set(),
 					unsubscribed: false,
 				},
 			],
@@ -153,6 +154,7 @@ describe("public subscribe (FR-7.1)", () => {
 		expect(outbox.contacts.get("gone@example.test")).toEqual({
 			segments: new Set(),
 			topics: new Set(),
+			optedOut: new Set(),
 			unsubscribed: true,
 		});
 	});

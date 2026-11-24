@@ -77,8 +77,8 @@ export function parseSignup(fields: SubscribeRequest["fields"]): Signup | null {
  * FR-7.1: validate, verify the Turnstile token, count the signup against the rate limits (one
  * network, then everyone, as the contact form does), then create or update the Resend contact in the
  * subscribers Segment with the newsletter Topic and each chosen body's Topic. Bodies without a
- * Topic are skipped; an unknown body makes the request invalid. A contact that unsubscribed from
- * all email is left as it is.
+ * Topic are skipped; an unknown body makes the request invalid. An existing contact keeps every
+ * opt-out it made (resend-mailer.ts `upsertContact`).
  */
 export async function subscribe(
 	deps: SubscribeDeps,
@@ -96,11 +96,11 @@ export async function subscribe(
 	const verdict = await verifier.verify(token, request.remoteIp);
 	if (!verdict.ok) return verdict.reason === "unavailable" ? "unavailable" : "verification-failed";
 	if (!(await deps.limiter.allow(request.remoteIp, SIGNUP_TARGET)).ok) return "rate-limited";
-	const bodyTopics = signup.bodies.flatMap((body) => deps.bodyTopics.get(body) ?? []);
 	const contact: ContactSignup = {
 		email: signup.email,
 		segmentId,
-		topicIds: [...new Set([newsletterTopicId, ...bodyTopics])],
+		newsletterTopicId,
+		bodyTopicIds: signup.bodies.flatMap((body) => deps.bodyTopics.get(body) ?? []),
 	};
 	const saved = await mailer.upsertContact(contact);
 	if (!saved.ok) return saved.error.kind === "blocked" ? "test-site" : "unavailable";
