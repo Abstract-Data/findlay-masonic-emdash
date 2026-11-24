@@ -92,6 +92,7 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 
 	.next__text {
 		display: grid;
+		grid-template-columns: minmax(0, 1fr);
 		gap: var(--spacing-2);
 		justify-items: start;
 	}
@@ -112,6 +113,12 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 
 	.next__note {
 		color: var(--color-text-secondary);
+	}
+
+	.next__rule,
+	.next__note {
+		max-width: 100%;
+		overflow-wrap: anywhere;
 	}
 
 	.next__dates {

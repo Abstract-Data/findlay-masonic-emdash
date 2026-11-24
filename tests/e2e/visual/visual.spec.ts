@@ -35,6 +35,10 @@ const crowdedDay = addDays(crowded, 3);
 
 const LONG_TITLE = "Annual Thanksgiving dinner for the widows and their families";
 const LONG_WORD = "Pneumonoultramicroscopicsilicovolcanoconiosis";
+/** Rich text that cannot break at a space: an 80-letter word and a 120-character link. */
+const PROSE_WORD = `${"Freemasonry".repeat(7)}Lod`;
+const PROSE_URL = `https://findlaymason.org/${"temple-floor-refinishing-".repeat(3)}contractor-schedules`;
+const UNBROKEN = `${PROSE_WORD} ${PROSE_URL}`;
 
 /** WCAG 1.4.10 asks for no sideways scrolling at 320 CSS px; the rest are common screens. */
 const WIDTHS = [320, 390, 768, 1024, 1280] as const;
@@ -114,24 +118,36 @@ const CROWDED: readonly Sample[] = [
 	),
 ];
 
-const notice = (body: BodySlug, slug: string, title: string, minutesAgo: number): Sample => ({
+const notice = (
+	body: BodySlug,
+	slug: string,
+	title: string,
+	minutesAgo: number,
+	text = "Members and families are welcome. Dinner is served in the dining room beforehand.",
+): Sample => ({
 	body,
 	slug: `${SAMPLE}-${slug}`,
 	fields: {
 		title,
-		content: paragraph(
-			"Members and families are welcome. Dinner is served in the dining room beforehand.",
-		),
+		content: paragraph(text),
 		publish_date: new Date(Date.now() - minutesAgo * 60_000).toISOString(),
 	},
 });
 
-// The three newest are the mockup's notices on the home page; the long ones are on /news.
+// The three newest are the mockup's notices on the home page; the long ones are on /news. The
+// newest carries the unbroken word and link, in its excerpt on every list and on its own page.
 const LONG_NEWS = notice("eastern-star", "long-title", LONG_TITLE, 10);
+const PROSE_NEWS = notice(
+	"temple-board",
+	"closed",
+	"Building closed Thursday for floor refinishing",
+	0,
+	`${UNBROKEN} has the contractor's schedule.`,
+);
 const NEWS: readonly Sample[] = [
 	notice("blue-lodge", "election", "Election of officers at the next stated meeting", 3),
 	notice("eastern-star", "bake-sale", "Holiday bake sale this Saturday", 2),
-	notice("temple-board", "closed", "Building closed Thursday for floor refinishing", 1),
+	PROSE_NEWS,
 	LONG_NEWS,
 	notice("council", "long-word", `${LONG_WORD} scholarship`, 11),
 ];
@@ -163,7 +179,19 @@ const ROUTES = [
 		crowdedWeekPath,
 		...MONTH_GRIDS,
 		`/bodies/${LONG_NEWS.body}/news/${LONG_NEWS.slug}`,
+		`/bodies/${PROSE_NEWS.body}/news/${PROSE_NEWS.slug}`,
+		`/?body=${PROSE_NEWS.body}`,
 	]),
+];
+
+/** Pages showing the unbroken word and link: as an excerpt, a body's About text, a news item. */
+const PROSE_ROUTES = [
+	"/",
+	"/news",
+	`/?body=${PROSE_NEWS.body}`,
+	`/bodies/${PROSE_NEWS.body}/news`,
+	`/bodies/${PROSE_NEWS.body}/news/${PROSE_NEWS.slug}`,
+	"/bodies/blue-lodge",
 ];
 
 /** Publishes each sample once per week, found again by its slug on a rerun. */
@@ -278,10 +306,13 @@ test("seed a week like the mockup's, a crowded week and two odd-shaped emblems",
 	);
 	await updateBody(admin, ids["blue-lodge"], {
 		emblem: await image(admin, "", readFileSync(new URL("emblem-tall.png", import.meta.url))),
-		schedule_note: "Dinner is served at 6:30 PM before each stated meeting.",
-		description: paragraph(
-			"Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Temple. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason.",
-		),
+		schedule_note: `Dinner is served at 6:30 PM before each stated meeting. Menu: ${PROSE_URL}`,
+		description: [
+			...paragraph(
+				"Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Temple. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason.",
+			),
+			{ ...paragraph(`History: ${UNBROKEN}`)[0], _key: "p2" },
+		],
 	});
 	await updateBody(admin, ids.chapter, {
 		emblem: await image(admin, "", readFileSync(new URL("emblem-wide.png", import.meta.url))),
@@ -367,6 +398,40 @@ for (const [surface, paths, days] of [
 		}
 	});
 }
+
+test("an unbroken word or link in rich text stays inside its box", async ({ page }) => {
+	for (const route of PROSE_ROUTES) {
+		for (const width of WIDTHS) {
+			// oxlint-disable-next-line no-await-in-loop -- one page and width at a time.
+			await page.setViewportSize({ width, height: 900 });
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await page.goto(route);
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			await page.evaluate(async () => document.fonts.ready);
+			// oxlint-disable-next-line no-await-in-loop -- see above.
+			const { shown, out } = await page.evaluate((word) => {
+				const boxes = [...document.querySelectorAll<HTMLElement>(".prose, .news-list__excerpt")];
+				const holding = boxes.filter((box) => (box.textContent ?? "").includes(word));
+				const outside = holding.flatMap((box) => {
+					const frame = (box.closest(".card") ?? box.parentElement ?? box).getBoundingClientRect();
+					const own = box.getBoundingClientRect();
+					const name = `${box.tagName.toLowerCase()}.${[...box.classList].join(".")}`;
+					return [
+						...(box.scrollWidth > box.clientWidth + 0.5
+							? [`${name} text runs ${box.scrollWidth - box.clientWidth}px past it`]
+							: []),
+						...(own.right > frame.right + 0.5
+							? [`${name} ends ${Math.round(own.right - frame.right)}px past its box`]
+							: []),
+					];
+				});
+				return { shown: holding.length, out: outside };
+			}, PROSE_WORD);
+			expect(shown, `${route} shows the unbroken word at ${width}px`).toBeGreaterThan(0);
+			expect.soft(out, `${route} at ${width}px`).toEqual([]);
+		}
+	}
+});
 
 test("emblems share one slot and the bodies' names line up", async ({ page }) => {
 	for (const width of WIDTHS) {

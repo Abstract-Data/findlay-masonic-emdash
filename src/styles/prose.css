@@ -31,7 +31,7 @@
 		font-size: var(--font-size-lg);
 		line-height: 1.75;
 		color: var(--prose-color);
-		overflow-wrap: break-word;
+		overflow-wrap: anywhere;
 	}
 
 	/* Vertical rhythm */
