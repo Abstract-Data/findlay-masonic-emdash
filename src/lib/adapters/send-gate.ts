@@ -72,7 +72,7 @@ export function gateOutbound(
 		send: () => Promise<Result<T, MailerError>>,
 	): Promise<Result<T, MailerError>> {
 		// Resend's SDK lists every contact in the account when it is given no Segment id.
-		if (segmentId == null || segmentId === "") {
+		if (segmentId === null || segmentId === undefined || segmentId === "") {
 			return refuse(
 				{ action: "broadcast", recipients: 0, blocked: 0 },
 				"a Broadcast must go to a Segment it can check.",
