@@ -3,7 +3,7 @@ import { EmailNode } from "@react-email/editor/core";
 import { StarterKit } from "@react-email/editor/extensions";
 import { EmailTheming } from "@react-email/editor/plugins";
 import type { ReactElement } from "react";
-import { NEWSLETTER_THEME, NODE_STYLES } from "./theme";
+import { NEWSLETTER_THEME, NODE_STYLES, sectionBar } from "./theme";
 
 /** "imageSrc" to "data-image-src". */
 const dataName = (name: string) =>
@@ -47,11 +47,19 @@ export const BodySection = EmailNode.create({
 		{ ...HTMLAttributes, "data-type": NODE.section, class: "fm-body-section" },
 		0,
 	],
-	renderToReactEmail: ({ children, style }): ReactElement => (
+	renderToReactEmail: ({ node, children, style }): ReactElement => (
 		<table role="presentation" width="100%" cellPadding={0} cellSpacing={0} border={0}>
 			<tbody>
 				<tr>
-					<td style={{ ...style, ...NODE_STYLES.section }}>{children}</td>
+					<td
+						style={{
+							...style,
+							...NODE_STYLES.section,
+							borderTop: `4px solid ${sectionBar(node.attrs?.colour)}`,
+						}}
+					>
+						{children}
+					</td>
 				</tr>
 			</tbody>
 		</table>

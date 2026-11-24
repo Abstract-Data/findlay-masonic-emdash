@@ -1,3 +1,4 @@
+import type { BodyColour } from "../bodies/colour";
 import type { AbsoluteUrl, BodyId, EntryId } from "../ids";
 
 /**
@@ -10,10 +11,11 @@ export const NODE = { section: "bodySection", card: "articleCard" } as const;
 export const UPCOMING_EVENTS_HEADING = "Upcoming events";
 
 /** Every attribute of each custom node with its default, so the editor declares exactly these. */
-export const SECTION_ATTR_DEFAULTS = { bodyId: "", heading: "" } as const satisfies Record<
-	keyof BodySectionNode["attrs"],
-	string
->;
+export const SECTION_ATTR_DEFAULTS = {
+	bodyId: "",
+	heading: "",
+	colour: "",
+} as const satisfies Record<keyof BodySectionNode["attrs"], string>;
 
 export const CARD_ATTR_DEFAULTS = {
 	newsId: "",
@@ -80,7 +82,12 @@ export interface EventListNode {
 
 export interface BodySectionNode {
 	readonly type: typeof NODE.section;
-	readonly attrs: { readonly bodyId: BodyId; readonly heading: string };
+	readonly attrs: {
+		readonly bodyId: BodyId;
+		readonly heading: string;
+		/** The body's colour name ("Blue"), which draws the section's bar; "" for none. */
+		readonly colour: BodyColour | "";
+	};
 	readonly content:
 		| readonly [HeadingNode, ...ArticleCardNode[]]
 		| readonly [HeadingNode, ...ArticleCardNode[], HeadingNode, EventListNode];

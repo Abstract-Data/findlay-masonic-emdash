@@ -1,4 +1,5 @@
 import { Temporal } from "temporal-polyfill";
+import type { BodyColour } from "../bodies/colour";
 import type { AbsoluteUrl, BodyId, EntryId } from "../ids";
 import { formatOccurrence } from "../recurrence/describe";
 import type { Occurrence } from "../recurrence/series";
@@ -19,6 +20,7 @@ export interface BodySummary {
 	readonly id: BodyId;
 	readonly name: string;
 	readonly displayOrder: number;
+	readonly colour: BodyColour | null;
 }
 
 export interface NewsCandidate {
@@ -107,7 +109,7 @@ function section(
 	const heading = headingNode(2, body.name);
 	return {
 		type: NODE.section,
-		attrs: { bodyId: body.id, heading: body.name },
+		attrs: { bodyId: body.id, heading: body.name, colour: body.colour ?? "" },
 		content:
 			upcoming.length === 0
 				? [heading, ...cards]

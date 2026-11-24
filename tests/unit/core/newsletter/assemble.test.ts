@@ -7,9 +7,9 @@ import { CHAPTER, LODGE, bodyId, entryId, instant, series, timed, url } from "..
 
 const COUNCIL = bodyId(3);
 const bodies: BodySummary[] = [
-	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2 },
-	{ id: COUNCIL, name: "Findlay Council No. 50", displayOrder: 3 },
-	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1 },
+	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2, colour: "Red" },
+	{ id: COUNCIL, name: "Findlay Council No. 50", displayOrder: 3, colour: null },
+	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1, colour: "Blue" },
 ];
 const now = instant("2027-04-15T14:00:00Z");
 const window: IssueWindow = { kind: "first", from: instant("2027-01-15T15:00:00Z"), to: now };
@@ -67,7 +67,7 @@ describe("assemble (FR-6.1)", () => {
 					content: [
 						{
 							type: NODE.section,
-							attrs: { bodyId: LODGE, heading: "Findlay Lodge No. 227" },
+							attrs: { bodyId: LODGE, heading: "Findlay Lodge No. 227", colour: "Blue" },
 							content: [
 								{
 									type: "heading",
@@ -124,7 +124,7 @@ describe("assemble (FR-6.1)", () => {
 						},
 						{
 							type: NODE.section,
-							attrs: { bodyId: CHAPTER, heading: "Findlay Chapter No. 58" },
+							attrs: { bodyId: CHAPTER, heading: "Findlay Chapter No. 58", colour: "Red" },
 							content: [
 								{
 									type: "heading",
@@ -176,9 +176,9 @@ describe("assemble (FR-6.1)", () => {
 
 	it("orders bodies with the same display order by name", () => {
 		const tied: BodySummary[] = [
-			{ id: CHAPTER, name: "Beta", displayOrder: 1 },
-			{ id: COUNCIL, name: "Alpha", displayOrder: 1 },
-			{ id: LODGE, name: "Alpha", displayOrder: 1 },
+			{ id: CHAPTER, name: "Beta", displayOrder: 1, colour: null },
+			{ id: COUNCIL, name: "Alpha", displayOrder: 1, colour: null },
+			{ id: LODGE, name: "Alpha", displayOrder: 1, colour: null },
 		];
 		const { doc } = assemble({
 			bodies: tied,

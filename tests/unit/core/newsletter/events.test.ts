@@ -10,8 +10,8 @@ import { CHAPTER, LODGE, entryId, instant, series, timed } from "../../fixtures"
 const now = instant("2027-04-15T14:00:00Z");
 const window: IssueWindow = { kind: "first", from: instant("2027-01-15T15:00:00Z"), to: now };
 const bodies: BodySummary[] = [
-	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1 },
-	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2 },
+	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1, colour: "Blue" },
+	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2, colour: "Red" },
 ];
 const stated = series({
 	body: LODGE,

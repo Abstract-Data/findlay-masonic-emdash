@@ -20,8 +20,8 @@ import { MemoryRows } from "./memory-rows";
 
 const NOW = instant("2027-04-15T14:00:00Z");
 const BODIES: BodySummary[] = [
-	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2 },
-	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1 },
+	{ id: CHAPTER, name: "Findlay Chapter No. 58", displayOrder: 2, colour: "Red" },
+	{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1, colour: "Blue" },
 ];
 const STATED = series({
 	body: LODGE,

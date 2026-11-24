@@ -67,17 +67,19 @@ describe("news items as newsletter candidates (FR-6.1)", () => {
 		expect(parseNewsCandidate(newsItem(data, { publishedAt: null }), slugs, ORIGIN)).toBeNull();
 	});
 
-	it("reads bodies with their names, order and page slugs", () => {
+	it("reads bodies with their names, order, colour and page slugs", () => {
 		const listing = parseBodies([
 			{
 				id: LODGE,
 				slug: "blue-lodge",
 				publishedAt: null,
-				data: { name: "Findlay Lodge", number: 227, display_order: 1 },
+				data: { name: "Findlay Lodge", number: 227, body_type: "Blue Lodge", display_order: 1 },
 			},
 			{ id: "not-a-ulid", slug: "x", publishedAt: null, data: { name: "Broken" } },
 		]);
-		expect(listing.bodies).toEqual([{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1 }]);
+		expect(listing.bodies).toEqual([
+			{ id: LODGE, name: "Findlay Lodge No. 227", displayOrder: 1, colour: "Blue" },
+		]);
 		expect([...listing.slugs]).toEqual([[LODGE, "blue-lodge"]]);
 	});
 });

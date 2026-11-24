@@ -30,7 +30,12 @@ export function parseBodies(items: readonly ListedItem[]): BodyListing {
 	for (const item of items) {
 		const record = parseBodyRecord(item);
 		if (record === null) continue;
-		bodies.push({ id: record.id, name: record.displayName, displayOrder: record.order });
+		bodies.push({
+			id: record.id,
+			name: record.displayName,
+			displayOrder: record.order,
+			colour: record.colour,
+		});
 		if (item.slug !== null) slugs.set(record.id, item.slug);
 	}
 	return { bodies, slugs };
