@@ -236,8 +236,8 @@ async function ensure(
 }
 
 /**
- * What does not fit at this width: the page scrolling sideways, and each innermost box whose
- * content runs past its right edge without being a scroller or clipped on purpose.
+ * What does not fit at this width: the page scrolling sideways, each innermost box whose content
+ * runs past its right edge without being a scroller, and text cut off with an ellipsis.
  */
 async function overflows(page: Page): Promise<string[]> {
 	return page.evaluate(() => {
@@ -255,11 +255,16 @@ async function overflows(page: Page): Promise<string[]> {
 		const innermost = spilled.filter(
 			(el) => !spilled.some((other) => other !== el && el.contains(other)),
 		);
+		const cut = [...document.body.querySelectorAll("*")].filter(
+			(el) =>
+				el.scrollWidth > el.clientWidth + 1 && getComputedStyle(el).textOverflow === "ellipsis",
+		);
 		return [
 			...(over > 0 ? [`the page scrolls sideways by ${over}px`] : []),
 			...innermost
 				.slice(0, 6)
 				.map((el) => `${name(el)} runs ${el.scrollWidth - el.clientWidth}px past its box`),
+			...cut.map((el) => `${name(el)} is cut off with an ellipsis`),
 		];
 	});
 }
@@ -409,6 +414,25 @@ test("emblems share one slot and the bodies' names line up", async ({ page }) =>
 				.soft(new Set(cards.map((card) => card.indent)).size, `names line up at ${width}px`)
 				.toBe(1);
 		}
+	}
+});
+
+test("the site's name shows in full at every width", async ({ page }) => {
+	for (const width of [...WIDTHS, 900]) {
+		// oxlint-disable-next-line no-await-in-loop -- one width at a time.
+		await page.setViewportSize({ width, height: 900 });
+		// oxlint-disable-next-line no-await-in-loop -- see above.
+		await page.goto("/");
+		// oxlint-disable-next-line no-await-in-loop -- see above.
+		await page.evaluate(async () => document.fonts.ready);
+		// oxlint-disable-next-line no-await-in-loop -- see above.
+		const hidden = await page
+			.getByRole("banner")
+			.locator(".brand__name")
+			.evaluate((name) => name.scrollWidth - name.clientWidth);
+		expect
+			.soft(hidden, `px of "Findlay Masonic Temple" hidden at ${width}px`)
+			.toBeLessThanOrEqual(0);
 	}
 });
 
