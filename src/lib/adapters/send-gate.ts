@@ -68,10 +68,11 @@ export function gateOutbound(
 	};
 
 	async function toAllowlistedSegment<T>(
-		segmentId: string | null,
+		segmentId: string | null | undefined,
 		send: () => Promise<Result<T, MailerError>>,
 	): Promise<Result<T, MailerError>> {
-		if (segmentId === null) {
+		// Resend's SDK lists every contact in the account when it is given no Segment id.
+		if (segmentId == null || segmentId === "") {
 			return refuse(
 				{ action: "broadcast", recipients: 0, blocked: 0 },
 				"a Broadcast must go to a Segment it can check.",

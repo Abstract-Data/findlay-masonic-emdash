@@ -294,6 +294,26 @@ describe("non-production Broadcasts go only to a Segment of allowlisted inboxes 
 		expect(writes(calls)).toEqual([]);
 	});
 
+	it.each([
+		["omits segment_id", { object: "broadcast", id: "b-1" }],
+		["has an empty segment_id", { object: "broadcast", id: "b-1", segment_id: "" }],
+	])(
+		"refuses a Broadcast whose Resend record %s, without listing the account's contacts",
+		async (_, record) => {
+			const calls = resendRoutes((call) => {
+				if (call.path === "/broadcasts/b-1") return { status: 200, body: record };
+				if (call.path.startsWith("/contacts")) {
+					const data = [{ id: "c-1", email: "admin@example.test" }];
+					return { status: 200, body: { object: "list", has_more: false, data } };
+				}
+				return { status: 200, body: { id: "b-1" } };
+			});
+			const sent = await workerMailer("staging").sendBroadcast("b-1", null);
+			expect(sent).toMatchObject({ ok: false, error: { kind: "blocked" } });
+			expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual(["GET /broadcasts/b-1"]);
+		},
+	);
+
 	it("sends a Resend draft Broadcast whose Segment is all allowlisted", async () => {
 		const calls = segmentOf(["admin@example.test"]);
 		expect((await workerMailer("staging").sendBroadcast("b-1", null)).ok).toBe(true);

@@ -245,7 +245,7 @@ export function resendMailer(apiKey: string): Mailer {
 
 		async broadcastSegment(id) {
 			const found = settle(await resend.broadcasts.get(id));
-			return found.ok ? ok(found.value.segment_id) : found;
+			return found.ok ? ok(found.value.segment_id || null) : found;
 		},
 	};
 }
