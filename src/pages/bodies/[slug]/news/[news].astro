@@ -2,9 +2,10 @@
 import { cacheRoute } from "@adapters/site/cache";
 import { loadBody } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
+import { pageSeo } from "@adapters/site/seo";
 import { parseNewsView } from "@adapters/site/views";
 import { formatDate, SITE_TZ } from "@core/time";
-import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettingsWithCacheHint } from "emdash";
+import { decodeSlug, getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../../../layouts/Base.astro";
 import { resolveSiteIdentity } from "../../../../utils/site-identity";
@@ -29,10 +30,13 @@ cacheRoute(Astro.cache, [hint, cacheHint, settings.cacheHint]);
 const date = item.publishedAt.toZonedDateTimeISO(SITE_TZ).toPlainDate();
 const labels = new Map(body.tags.map((tag) => [tag.slug, tag.label]));
 const { siteTitle } = resolveSiteIdentity(settings.data);
-const seo = getSeoMeta(entry, {
+const seo = pageSeo(entry, {
 	siteTitle,
-	siteUrl: Astro.url.origin,
+	origin: Astro.url.origin,
 	path: paths.newsItem(body.slug, item.slug),
+	title: item.title,
+	text: item.content,
+	fallback: `News from ${body.displayName}.`,
 });
 ---
 

@@ -3,13 +3,14 @@ import { systemClock } from "@adapters/clock";
 import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
 import { loadBodyNews, loadCalendar, loadOfficers } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
+import { pageSeo } from "@adapters/site/seo";
 import { parseBodyView } from "@adapters/site/views";
 import { currentRoster } from "@core/bodies/officers";
 import { agenda } from "@core/calendar/month";
 import { daysAhead, expand } from "@core/recurrence/expand";
 import { meetings } from "@core/recurrence/meetings";
 import { SITE_TZ } from "@core/time";
-import { decodeSlug, getEmDashEntry, getSeoMeta, getSiteSettingsWithCacheHint } from "emdash";
+import { decodeSlug, getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Agenda from "../../../components/Agenda.astro";
 import ContactForm from "../../../components/ContactForm.astro";
@@ -57,10 +58,13 @@ const upcoming = agenda(
 );
 const bodies = new Map([[body.id, body]]);
 const { siteTitle } = resolveSiteIdentity(settings.data);
-const seo = getSeoMeta(entry, {
+const seo = pageSeo(entry, {
 	siteTitle,
-	siteUrl: Astro.url.origin,
+	origin: Astro.url.origin,
 	path: paths.body(body.slug),
+	title: body.displayName,
+	text: body.description,
+	fallback: `${body.displayName} at the ${siteTitle}: meeting schedule, officers, news and events.`,
 });
 ---
 
