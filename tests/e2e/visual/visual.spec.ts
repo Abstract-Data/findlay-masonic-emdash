@@ -188,7 +188,7 @@ async function sideways(page: Page): Promise<string[]> {
 		const root = document.documentElement;
 		const over = root.scrollWidth - root.clientWidth;
 		if (over <= 0) return [];
-		const wide = [...document.body.querySelectorAll<HTMLElement>("*")].filter(
+		const wide = [...document.body.querySelectorAll("*")].filter(
 			(el) => el.getBoundingClientRect().right > root.clientWidth + 0.5,
 		);
 		const innermost = wide.filter((el) => ![...el.children].some((child) => wide.includes(child)));
