@@ -38,12 +38,20 @@ async function violations(page: Page, scope?: string) {
 	}));
 }
 
-/** Light then dark, checking that the dark pass really renders the dark palette. */
+/**
+ * Light then dark, checking that the dark pass really renders the dark palette. The layout
+ * animates colours for 150 ms when the scheme changes, and halfway through, a link's text and
+ * background are both mid-grey, so axe scans only once every transition has finished.
+ */
 async function inBothSchemes(page: Page, label: string): Promise<void> {
 	const backgrounds = new Set<string>();
 	for (const scheme of SCHEMES) {
 		// oxlint-disable-next-line no-await-in-loop -- one colour scheme at a time.
 		await page.emulateMedia({ colorScheme: scheme });
+		// oxlint-disable-next-line no-await-in-loop -- see above.
+		await page.evaluate(async () =>
+			Promise.all(document.getAnimations().map(async (a) => a.finished.catch(() => null))),
+		);
 		// oxlint-disable-next-line no-await-in-loop -- see above.
 		backgrounds.add(await page.evaluate(() => getComputedStyle(document.body).backgroundColor));
 		// oxlint-disable-next-line no-await-in-loop -- see above.
