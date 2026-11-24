@@ -44,11 +44,7 @@ const rows = items.flatMap((item) => {
 		{rows.map(({ item, body, date, tags }) => (
 			<li data-body={body.slug} data-colour={cards ? (body.colour ?? undefined) : undefined}>
 				<article class:list={["news-list__item", { card: cards }]}>
-					{cards && showBody && (
-						<a class="body-label" href={paths.body(body.slug)}>
-							{body.label}
-						</a>
-					)}
+					{cards && showBody && <span class="body-label">{body.label}</span>}
 					<Title class="news-list__title">
 						<a href={paths.newsItem(body.slug, item.slug)}>{item.title}</a>
 					</Title>
