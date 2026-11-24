@@ -236,7 +236,9 @@ textarea.input {
 	resize: vertical;
 }
 
-input[type="checkbox"] {
+/* flex: none, so a long label beside one in a flex row cannot squeeze it. */
+input:is([type="checkbox"], [type="radio"]) {
+	flex: none;
 	width: 1.15rem;
 	height: 1.15rem;
 	margin: 0;
