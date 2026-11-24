@@ -51,7 +51,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
 		!context.cookies.headers().next().done ||
 		(method !== "GET" && method !== "HEAD");
 	if (!personal) return response;
-	if (context.cache?.enabled === true) context.cache.set(false);
+	if (context.cache.enabled) context.cache.set(false);
 	return privateResponse(response);
 });
 
