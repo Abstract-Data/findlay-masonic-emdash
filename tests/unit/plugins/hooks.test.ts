@@ -127,6 +127,41 @@ describe("beforeSave: a contact recipient the form would drop (M7 review round 2
 		await expect(save).rejects.toThrow(/row 3 .*one email address/);
 	});
 
+	it("names every bad row in plain English and says how to fix each (M7 review round 3)", async () => {
+		const save = beforeSave(
+			recipientsSave(
+				"secretary@example.test",
+				"one@example.test, two@example.test",
+				"the secretary",
+				"",
+				"Lodge Secretary",
+			),
+			context([]),
+		);
+		const text = await save.then(
+			() => "",
+			(error: unknown) => (error instanceof Error ? error.message : String(error)),
+		);
+		expect(text).toContain(
+			"rows 2, 3 and 5 are not one email address each, so the contact form would not send to them.",
+		);
+		expect(text).toContain("Row 2 holds more than one address: put each on its own row.");
+		expect(text).toContain(
+			"Row 3 is not an email address: write one like secretary@example.org or Secretary <secretary@example.org>.",
+		);
+		expect(text).toContain("Row 5 is not an email address");
+	});
+
+	it("names one bad row in the singular", async () => {
+		const save = beforeSave(
+			recipientsSave("secretary@example.test", "x; y@example.test"),
+			context([]),
+		);
+		await expect(save).rejects.toThrow(
+			/^Contact form recipients: row 2 is not one email address, so the contact form would not send to it\. Row 2 holds more than one address/,
+		);
+	});
+
 	it("saves bare and named addresses and blank rows", async () => {
 		const save = beforeSave(
 			recipientsSave("secretary@example.test", "Grand Master <gm@example.test>", " "),

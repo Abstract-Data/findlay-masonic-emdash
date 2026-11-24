@@ -102,15 +102,24 @@ export function parseRecipients(rows: unknown): string[] {
 	return (rowValues(rows, "email") ?? []).flatMap((value) => parseMailbox(value) ?? []);
 }
 
-/** The 1-based numbers of the recipient rows that are neither blank nor one address. */
-export function unreadableRecipientRows(rows: unknown): number[] {
+/** A recipient row the contact form would drop: its 1-based number, and what is wrong with it. */
+export interface UnreadableRow {
+	readonly row: number;
+	readonly problem: "several" | "not-an-address";
+}
+
+/** The recipient rows that are neither blank nor one address. */
+export function unreadableRecipientRows(rows: unknown): UnreadableRow[] {
 	if (rows === null || rows === undefined) return [];
-	if (!Array.isArray(rows)) return [1];
-	return rows.flatMap((row: unknown, index) => {
+	if (!Array.isArray(rows)) return [{ row: 1, problem: "not-an-address" }];
+	return rows.flatMap((row: unknown, index): UnreadableRow[] => {
 		const value: unknown =
 			typeof row === "object" && row !== null ? Reflect.get(row, "email") : null;
 		if (value === undefined || (typeof value === "string" && value.trim() === "")) return [];
-		return typeof value === "string" && parseMailbox(value) !== null ? [] : [index + 1];
+		if (typeof value === "string" && parseMailbox(value) !== null) return [];
+		const several =
+			typeof value === "string" && ((value.match(/@/g) ?? []).length > 1 || /[,;]/.test(value));
+		return [{ row: index + 1, problem: several ? "several" : "not-an-address" }];
 	});
 }
 

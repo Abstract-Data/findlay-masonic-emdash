@@ -24,6 +24,7 @@ import {
 	unreadableRecipientRows,
 	toStoredInstant,
 	type BodyRecord,
+	type UnreadableRow,
 } from "@adapters/emdash/parse";
 import {
 	checkOfficerTitle,
@@ -170,10 +171,22 @@ export async function beforeSave(
 	return decision?.outcome === "assign" ? { ...event.content, body } : undefined;
 }
 
-/** Why a body's contact recipients were refused: the contact form would drop these rows. */
-function recipientRowsText(rows: readonly number[]): string {
-	const which = rows.length === 1 ? `row ${rows[0]} is` : `rows ${rows.join(", ")} are`;
-	return `Contact form recipients: ${which} not one email address, so the contact form would not send to it. Write one address per row, such as secretary@example.org or Secretary <secretary@example.org>, or leave the row empty.`;
+const FIX: Readonly<Record<UnreadableRow["problem"], string>> = {
+	several: "holds more than one address: put each on its own row.",
+	"not-an-address":
+		"is not an email address: write one like secretary@example.org or Secretary <secretary@example.org>.",
+};
+
+/** Why a body's contact recipients were refused, and how to fix each row the form would drop. */
+function recipientRowsText(rows: readonly UnreadableRow[]): string {
+	const numbers = rows.map(({ row }) => row);
+	const which =
+		numbers.length === 1
+			? `row ${numbers.join("")} is not one email address, so the contact form would not send to it.`
+			: `rows ${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)} are not one email address each, so the contact form would not send to them.`;
+	const fixes = rows.map(({ row, problem }) => `Row ${row} ${FIX[problem]}`);
+	const empty = numbers.length === 1 ? "Or empty the row." : "Or empty those rows.";
+	return ["Contact form recipients:", which, ...fixes, empty].join(" ");
 }
 
 /**
