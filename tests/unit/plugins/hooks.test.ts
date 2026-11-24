@@ -110,6 +110,13 @@ describe("beforeSave: pending drafts (red team 7)", () => {
 	});
 });
 
+/** The message a refused save shows the editor, or "" when the save goes through. */
+const refusal = async (event: ContentHookEvent) =>
+	beforeSave(event, context([])).then(
+		() => "",
+		(error: unknown) => (error instanceof Error ? error.message : String(error)),
+	);
+
 const recipientsSave = (...emails: string[]): ContentHookEvent => ({
 	collection: "bodies",
 	id: LODGE,
@@ -147,9 +154,44 @@ describe("beforeSave: a contact recipient the form would drop (M7 review round 2
 		);
 		expect(text).toContain("Row 2 holds more than one address: put each on its own row.");
 		expect(text).toContain(
-			"Row 3 is not an email address: write one like secretary@example.org or Secretary <secretary@example.org>.",
+			"Rows 3 and 5 are not email addresses: write each like secretary@example.org or Secretary <secretary@example.org>.",
 		);
-		expect(text).toContain("Row 5 is not an email address");
+	});
+
+	it("groups rows that share a problem, so four bad rows read as two fixes (polish N2)", async () => {
+		const text = await refusal(
+			recipientsSave(
+				"the secretary",
+				"a@example.test, b@example.test",
+				"Lodge Secretary",
+				"c@example.test; d@example.test",
+			),
+		);
+		expect(text).toBe(
+			"Contact form recipients: rows 1, 2, 3 and 4 are not one email address each, so the contact form would not send to them. " +
+				"Rows 1 and 3 are not email addresses: write each like secretary@example.org or Secretary <secretary@example.org>. " +
+				"Rows 2 and 4 each hold more than one address: put each on its own row. " +
+				"Or empty those rows.",
+		);
+	});
+
+	it("tells a row with one address and a trailing comma or semicolon to drop it (polish N2)", async () => {
+		const text = await refusal(
+			recipientsSave("secretary@example.test", "a@example.test,", "b@example.test ; "),
+		);
+		expect(text).toContain("Rows 2 and 3 end with a comma or semicolon: remove it.");
+		expect(text).not.toContain("more than one address");
+	});
+
+	it("tells an unquoted name with a comma to quote it, and saves a quoted one (polish N2)", async () => {
+		const text = await refusal(recipientsSave("Smith, Jr <a@example.test>"));
+		expect(text).toContain(
+			'Row 1 has a comma or semicolon in its name: put the name in double quotes, like "Smith, Jr" <secretary@example.org>.',
+		);
+		expect(text).not.toContain("more than one address");
+		await expect(
+			beforeSave(recipientsSave('"Smith, Jr" <a@example.test>'), context([])),
+		).resolves.toBeUndefined();
 	});
 
 	it("names one bad row in the singular", async () => {

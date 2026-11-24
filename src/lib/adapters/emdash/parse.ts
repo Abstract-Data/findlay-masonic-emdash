@@ -1,5 +1,5 @@
 import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
-import { parseMailbox } from "@core/address";
+import { parseAddress, parseMailbox } from "@core/address";
 import { bodyColour, type BodyColour } from "@core/bodies/colour";
 import { displayName } from "@core/bodies/label";
 import type { Editor } from "@core/acl/policy";
@@ -105,7 +105,19 @@ export function parseRecipients(rows: unknown): string[] {
 /** A recipient row the contact form would drop: its 1-based number, and what is wrong with it. */
 export interface UnreadableRow {
 	readonly row: number;
-	readonly problem: "several" | "not-an-address";
+	readonly problem: "several" | "trailing-separator" | "unquoted-name" | "not-an-address";
+}
+
+// `Smith, Jr <a@example.org>`: one address whose name needs quotes to keep its comma.
+const UNQUOTED_NAME = /^[^"<>@]*[,;][^"<>@]*<([^<>]*)>$/u;
+
+function problemOf(value: string): UnreadableRow["problem"] {
+	const trimmed = value.trim();
+	if (parseMailbox(trimmed.replace(/[\s,;]+$/u, "")) !== null) return "trailing-separator";
+	const named = UNQUOTED_NAME.exec(trimmed)?.[1];
+	if (named !== undefined && parseAddress(named) !== null) return "unquoted-name";
+	const parts = trimmed.split(/[,;]/u).filter((part) => part.trim() !== "");
+	return parts.length > 1 || (trimmed.match(/@/g) ?? []).length > 1 ? "several" : "not-an-address";
 }
 
 /** The recipient rows that are neither blank nor one address. */
@@ -116,10 +128,9 @@ export function unreadableRecipientRows(rows: unknown): UnreadableRow[] {
 		const value: unknown =
 			typeof row === "object" && row !== null ? Reflect.get(row, "email") : null;
 		if (value === undefined || (typeof value === "string" && value.trim() === "")) return [];
-		if (typeof value === "string" && parseMailbox(value) !== null) return [];
-		const several =
-			typeof value === "string" && ((value.match(/@/g) ?? []).length > 1 || /[,;]/.test(value));
-		return [{ row: index + 1, problem: several ? "several" : "not-an-address" }];
+		if (typeof value !== "string") return [{ row: index + 1, problem: "not-an-address" }];
+		if (parseMailbox(value) !== null) return [];
+		return [{ row: index + 1, problem: problemOf(value) }];
 	});
 }
 

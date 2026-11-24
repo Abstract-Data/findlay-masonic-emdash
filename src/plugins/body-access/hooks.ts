@@ -171,20 +171,37 @@ export async function beforeSave(
 	return decision?.outcome === "assign" ? { ...event.content, body } : undefined;
 }
 
-const FIX: Readonly<Record<UnreadableRow["problem"], string>> = {
-	several: "holds more than one address: put each on its own row.",
-	"not-an-address":
-		"is not an email address: write one like secretary@example.org or Secretary <secretary@example.org>.",
+/** How to tell an editor that `rows` ("Row 2", "Rows 2 and 4") share a problem, and its fix. */
+const FIX: Readonly<Record<UnreadableRow["problem"], (rows: string, many: boolean) => string>> = {
+	several: (rows, many) =>
+		`${rows} ${many ? "each hold" : "holds"} more than one address: put each on its own row.`,
+	"trailing-separator": (rows, many) =>
+		`${rows} ${many ? "end" : "ends"} with a comma or semicolon: remove it.`,
+	"unquoted-name": (rows, many) =>
+		`${rows} ${many ? "have a comma or semicolon in their names: put each name" : "has a comma or semicolon in its name: put the name"} in double quotes, like "Smith, Jr" <secretary@example.org>.`,
+	"not-an-address": (rows, many) =>
+		`${rows} ${many ? "are not email addresses: write each" : "is not an email address: write one"} like secretary@example.org or Secretary <secretary@example.org>.`,
 };
 
-/** Why a body's contact recipients were refused, and how to fix each row the form would drop. */
+const listed = (numbers: readonly number[]) =>
+	numbers.length === 1
+		? `${numbers.join("")}`
+		: `${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)}`;
+
+/**
+ * Why a body's contact recipients were refused, and how to fix each row the form would drop.
+ * Rows with the same problem share one sentence.
+ */
 function recipientRowsText(rows: readonly UnreadableRow[]): string {
 	const numbers = rows.map(({ row }) => row);
 	const which =
 		numbers.length === 1
-			? `row ${numbers.join("")} is not one email address, so the contact form would not send to it.`
-			: `rows ${numbers.slice(0, -1).join(", ")} and ${numbers.at(-1)} are not one email address each, so the contact form would not send to them.`;
-	const fixes = rows.map(({ row, problem }) => `Row ${row} ${FIX[problem]}`);
+			? `row ${listed(numbers)} is not one email address, so the contact form would not send to it.`
+			: `rows ${listed(numbers)} are not one email address each, so the contact form would not send to them.`;
+	const fixes = [...Map.groupBy(rows, ({ problem }) => problem)].map(([problem, group]) => {
+		const many = group.length > 1;
+		return FIX[problem](`${many ? "Rows" : "Row"} ${listed(group.map(({ row }) => row))}`, many);
+	});
 	const empty = numbers.length === 1 ? "Or empty the row." : "Or empty those rows.";
 	return ["Contact form recipients:", which, ...fixes, empty].join(" ");
 }
