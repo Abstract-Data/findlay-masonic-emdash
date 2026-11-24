@@ -97,6 +97,20 @@ describe("parseRecipients (spec Q12)", () => {
 		expect(parseRecipients(null)).toEqual([]);
 		expect(parseRecipients("a@example.test")).toEqual([]);
 	});
+
+	it("keeps only rows that hold exactly one address (M7 review L4)", () => {
+		const rows = [
+			"secretary@example.test",
+			"victim@example.com,delivered@resend.dev",
+			"one@example.test; two@example.test",
+			"Grand Master <gm@example.test>",
+			"no-at-sign.example.test",
+			"two@@example.test",
+			"spaced out@example.test",
+			"trailing@example",
+		].map((email) => ({ email }));
+		expect(parseRecipients(rows)).toEqual(["secretary@example.test"]);
+	});
 });
 
 const officer = (extra: Partial<EmDashCollections["officers"]> = {}) => ({

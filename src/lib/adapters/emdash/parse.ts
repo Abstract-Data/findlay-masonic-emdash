@@ -1,4 +1,5 @@
 import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
+import { parseAddress } from "@core/address";
 import { bodyColour, type BodyColour } from "@core/bodies/colour";
 import { displayName } from "@core/bodies/label";
 import type { Editor } from "@core/acl/policy";
@@ -96,10 +97,7 @@ export function parseTagVocabulary(rows: unknown): Result<ReadonlySet<TagSlug>, 
  * form sends to (spec Q12), never rendered publicly. Blank or malformed rows are dropped.
  */
 export function parseRecipients(rows: unknown): string[] {
-	return (rowValues(rows, "email") ?? []).flatMap((value) => {
-		const email = value.trim();
-		return email === "" ? [] : [email];
-	});
+	return (rowValues(rows, "email") ?? []).flatMap((value) => parseAddress(value) ?? []);
 }
 
 /** EmDash stores datetimes as UTC instants; core works in SITE_TZ wall time. */

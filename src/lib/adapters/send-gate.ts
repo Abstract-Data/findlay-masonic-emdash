@@ -1,3 +1,4 @@
+import { parseAddress } from "@core/address";
 import { err, type Result } from "@core/ids";
 import type { Mailer, MailerError, OutgoingEmail } from "./resend-mailer";
 
@@ -15,15 +16,21 @@ export function parseSiteEnv(raw: string | undefined): SiteEnv {
 // accept mail without reaching a person.
 const RESEND_TEST = /@resend\.dev$/i;
 
-/** The recipients of an email that a non-production Worker may not reach. */
+/**
+ * The recipients of an email that a non-production Worker may not reach. A recipient that is not
+ * exactly one address ("a@x.com,b@resend.dev", a display name) counts as off the list.
+ */
 export function offAllowlist(email: OutgoingEmail, allowlist: readonly string[]): string[] {
 	const reachable = reachableBy(allowlist);
 	return [...email.to, ...(email.cc ?? [])].filter((address) => !reachable(address));
 }
 
-function reachableBy(allowlist: readonly string[]): (address: string) => boolean {
+function reachableBy(allowlist: readonly string[]): (raw: string) => boolean {
 	const allowed = new Set(allowlist.map((address) => address.toLowerCase()));
-	return (address) => allowed.has(address.trim().toLowerCase()) || RESEND_TEST.test(address.trim());
+	return (raw) => {
+		const address = parseAddress(raw);
+		return address !== null && (allowed.has(address.toLowerCase()) || RESEND_TEST.test(address));
+	};
 }
 
 /** What a non-production Worker refused: one email, one signup or one Broadcast. */

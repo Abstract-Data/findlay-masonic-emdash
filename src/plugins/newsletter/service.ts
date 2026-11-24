@@ -1,6 +1,7 @@
 import type { Clock } from "@adapters/clock";
 import type { IssueRecord, IssueStore, Versioned } from "@adapters/newsletter/issues";
 import type { Mailer, MailerError } from "@adapters/resend-mailer";
+import { parseAddress } from "@core/address";
 import { err, ok, type IssueId, type Result } from "@core/ids";
 import { assemble, type BodySummary, type NewsCandidate } from "@core/newsletter/assemble";
 import { issueSlug, withFooter, type ComposedEmail } from "@core/newsletter/email-html";
@@ -31,11 +32,9 @@ export interface NewsletterConfig {
 	readonly testAllowlist: readonly string[];
 }
 
-const ADDRESS = /^[^\s@<>,;]+@[^\s@<>,;]+\.[^\s@<>,;]+$/;
-
 /** NEWSLETTER_TEST_ALLOWLIST: comma- or space-separated addresses; anything else is dropped. */
 export function parseAllowlist(raw: string): string[] {
-	const addresses = raw.split(/[\s,;]+/).filter((address) => ADDRESS.test(address));
+	const addresses = raw.split(/[\s,;]+/).flatMap((part) => parseAddress(part) ?? []);
 	return [...new Set(addresses.map((address) => address.toLowerCase()))];
 }
 

@@ -116,6 +116,25 @@ describe("parseSiteEnv and offAllowlist", () => {
 		};
 		expect(offAllowlist(email, ["B@example.test"])).toEqual(["a@example.test", "c@example.test"]);
 	});
+
+	it("counts a recipient that is not exactly one address as off the list (M7 review L4)", () => {
+		const smuggled = [
+			"victim@example.com,delivered@resend.dev",
+			"victim@example.com, admin@example.test",
+			"Victim <victim@example.com> delivered@resend.dev",
+			"admin@example.test\nvictim@example.com",
+		];
+		const email = { from: "x@example.test", to: smuggled, subject: "s", text: "t" };
+		expect(offAllowlist(email, ["admin@example.test"])).toEqual(smuggled);
+	});
+
+	it("sends nothing to a smuggled pair on staging", async () => {
+		const sent = resendApi();
+		await expect(
+			deliver("staging")(message("victim@example.com,delivered@resend.dev")),
+		).rejects.toThrow("not the production site");
+		expect(sent).toEqual([]);
+	});
 });
 
 interface ApiCall {

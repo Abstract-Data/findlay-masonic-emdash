@@ -569,6 +569,12 @@ An independent adversarial review of f0fc275 failed M7 on two blocking items (B1
 - [x] **TR.3 [AGENT] M1: the signup form never reverses a contact's opt-out.** `upsertContact` opted an existing contact in to every ticked Topic, so anyone could re-subscribe someone else to Topics they had left. It now reads the contact's Topic list first (every page; if it cannot, nothing changes), answers `previously-unsubscribed` and changes nothing for a contact that opted out of the newsletter Topic, and opts in only the ticked Topics the contact has not opted out of. A new contact still gets the newsletter Topic and the ticked body Topics. The port's `ContactSignup` names the newsletter Topic apart from the body Topics.
   Verify: `tests/unit/adapters/resend-mailer.test.ts` against a stubbed Resend HTTP API.
   Evidence: the old adapter, given an existing contact opted out of the Lodge Topic, sent `PATCH /contacts/…/topics` with `{"id":"topic-lodge","subscription":"opt_in"}` (a one-off probe in the old input shape). Green after: 12 mailer tests, 291 in the adapters and newsletter suites.
+- [x] **TR.4 [AGENT] L3: a form status that names no outcome shows nothing.** Both forms looked their message up in a plain object, so `?subscribe=constructor` or `__proto__` rendered something every object inherits. `ownEntry` (`src/lib/core/lookup.ts`) reads only a table's own keys. A grep of `src` for tables indexed by request input found only these two; the route table is a `Map`, and the other lookups take typed keys.
+  Verify: `tests/unit/core/lookup.test.ts`; `tests/e2e/public/pages.spec.ts` "a form status of …".
+  Evidence: against the old components the three e2e cases failed (a message rendered for each); green after.
+- [x] **TR.5 [AGENT] L4: each recipient is exactly one address.** The gate's Resend-test check matched the end of a string, so `"victim@example.com,delivered@resend.dev"` passed, and `parseRecipients` only trimmed. `parseAddress` (`src/lib/core/address.ts`) accepts one bare address and nothing that separates, quotes or names another; the gate counts anything else as off the list, `parseRecipients` drops the row, and `parseAllowlist` uses the same rule.
+  Verify: `send-gate.test.ts` (L4 cases), `views.test.ts` "keeps only rows that hold exactly one address".
+  Evidence: 3 failed against the old code (the smuggled pair was sent on staging); 2890 unit tests green after.
 
 ---
 
