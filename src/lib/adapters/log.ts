@@ -91,6 +91,18 @@ export type LogEvent =
 			readonly error: string;
 	  }
 	| {
+			/** Entries past their scheduled time are still unpublished, so no heartbeat went. */
+			readonly event: "scheduler.overdue";
+			/** How many, up to 100 a collection. */
+			readonly entries: number;
+			readonly collections: number;
+	  }
+	| {
+			/** The overdue check could not run, so no heartbeat went. */
+			readonly event: "scheduler.check_failed";
+			readonly error: string;
+	  }
+	| {
 			/** Edge copies were not purged; they live until their max-age. */
 			readonly event: "cache.purge_failed";
 			readonly tags: number;
@@ -106,6 +118,8 @@ function levelOf(entry: LogEvent): Level {
 		case "body_access.lookup_failed":
 		case "email.failed":
 		case "scheduler.failed":
+		case "scheduler.overdue":
+		case "scheduler.check_failed":
 			return "error";
 		case "body_access.refused":
 		case "form.rate_limited":

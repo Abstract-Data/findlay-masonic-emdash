@@ -1,4 +1,5 @@
 import handler, { EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";
+import { nothingOverdue } from "@adapters/emdash/overdue";
 import { pingHeartbeat } from "@adapters/heartbeat";
 import { log, messageOf, redactConsoleEmails } from "@adapters/log";
 import { forSharedCache } from "@adapters/site/cache";
@@ -21,13 +22,15 @@ export default {
 		return forSharedCache(request, await handler.fetch(request, env, ctx));
 	},
 	/**
-	 * EmDash's createScheduledHandler queues the run in waitUntil and swallows its failure, so a
-	 * ping after it proved nothing. Here the run is awaited, and the heartbeat goes only after
-	 * it returned: the cron fired, EmDash started against D1 and finished its maintenance pass.
-	 * A step EmDash treats as non-fatal (one collection's publish sweep, cleanup) logs its own
-	 * `[scheduled-publish]` error and does not stop the ping (docs/observability/axiom.md).
+	 * The heartbeat means "nothing is overdue". EmDash's createScheduledHandler queues the run in
+	 * waitUntil and swallows its failure, and the run itself catches a failed publish sweep and
+	 * returns normally, so neither its start nor its return proves the publishing happened. Here
+	 * the run is awaited, then the ping goes only if no collection still holds an entry the run
+	 * had to publish: one due by its end, or by the end of its publish window if it ran longer
+	 * (docs/runbooks/incident.md).
 	 */
 	async scheduled(controller, env) {
+		const started = Date.now();
 		try {
 			await runScheduledTasks({
 				onPublished: async (refs) =>
@@ -43,6 +46,8 @@ export default {
 			Reflect.get(env, "CHECKLY_HEARTBEAT_URL"),
 			controller.scheduledTime,
 			async (url) => fetch(url),
+			async () =>
+				nothingOverdue(new Date(Math.min(Date.now(), started + PUBLISH_UPCOMING_WITHIN_MS))),
 		);
 	},
 } satisfies ExportedHandler<Env>;

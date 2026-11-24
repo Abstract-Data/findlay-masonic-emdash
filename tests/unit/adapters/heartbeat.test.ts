@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const PING_ID = ["fake", "test", "ping", "0000"].join("-");
 const URL_SECRET = `https://ping.checklyhq.com/${PING_ID}`;
 const TOP_OF_HOUR = Date.UTC(2026, 10, 24, 15, 0, 0);
+const ok = async () => true;
 
 afterEach(() => {
 	vi.restoreAllMocks();
@@ -17,10 +18,12 @@ describe("the scheduler heartbeat (Checkly HeartbeatMonitor)", () => {
 			pinged.push(url);
 			return new Response(null, { status: 200 });
 		};
-		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, send)).toBe("pinged");
+		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, send, ok)).toBe("pinged");
 		for (let minute = 1; minute < 60; minute += 1) {
 			// oxlint-disable-next-line no-await-in-loop -- one scheduled run at a time.
-			expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR + minute * 60_000, send)).toBe("skipped");
+			expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR + minute * 60_000, send, ok)).toBe(
+				"skipped",
+			);
 		}
 		expect(pinged).toEqual([URL_SECRET]);
 	});
@@ -29,10 +32,20 @@ describe("the scheduler heartbeat (Checkly HeartbeatMonitor)", () => {
 		"pings nothing when the URL is %s",
 		async (url) => {
 			const send = vi.fn<(url: string) => Promise<Response>>(async () => new Response(null));
-			expect(await pingHeartbeat(url, TOP_OF_HOUR, send)).toBe("skipped");
+			expect(await pingHeartbeat(url, TOP_OF_HOUR, send, ok)).toBe("skipped");
 			expect(send).not.toHaveBeenCalled();
 		},
 	);
+
+	it("withholds the ping when the run left something undone, and asks only when a ping is due", async () => {
+		const send = vi.fn<(url: string) => Promise<Response>>(async () => new Response(null));
+		const healthy = vi.fn<() => Promise<boolean>>(async () => false);
+		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, send, healthy)).toBe("withheld");
+		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR + 60_000, send, healthy)).toBe("skipped");
+		expect(await pingHeartbeat(undefined, TOP_OF_HOUR, send, healthy)).toBe("skipped");
+		expect(send).not.toHaveBeenCalled();
+		expect(healthy).toHaveBeenCalledTimes(1);
+	});
 
 	it("reports a failed ping without throwing or logging the URL", async () => {
 		const warned: string[] = [];
@@ -40,9 +53,14 @@ describe("the scheduler heartbeat (Checkly HeartbeatMonitor)", () => {
 		const down = async () => {
 			throw new TypeError(`fetch failed for ${URL_SECRET}`);
 		};
-		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, down)).toBe("failed");
+		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, down, ok)).toBe("failed");
 		expect(
-			await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, async () => new Response(null, { status: 503 })),
+			await pingHeartbeat(
+				URL_SECRET,
+				TOP_OF_HOUR,
+				async () => new Response(null, { status: 503 }),
+				ok,
+			),
 		).toBe("failed");
 		expect(warned.map((line) => JSON.parse(line).event)).toEqual([
 			"heartbeat.failed",

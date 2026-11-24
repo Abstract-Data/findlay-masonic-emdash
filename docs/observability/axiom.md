@@ -30,6 +30,8 @@ Besides Cloudflare's own invocation logs, the site writes one JSON object per li
 | `email.failed` | error | `kind` (`rejected`, `unavailable`, `blocked`), `status`, `error` | Resend did not accept an email (invites, contact messages), or the gate refused it |
 | `heartbeat.failed` | warn | `status`, `error` | The scheduler ran but its Checkly heartbeat ping did not land |
 | `scheduler.failed` | error | `error` | EmDash's scheduled run threw, so that cron run sent no heartbeat |
+| `scheduler.overdue` | error | `entries`, `collections` (counts, up to 100 a collection) | At the top of the hour, entries the run had to publish are still waiting, so no heartbeat went |
+| `scheduler.check_failed` | error | `error` | The overdue check could not read the database, so no heartbeat went |
 | `cache.purge_failed` | warn | `tags` (a count), `error` | A scheduled publish could not purge its pages' edge copies; they expire on their own within the hour |
 
 ## Queries
@@ -105,19 +107,19 @@ Alert: any `form.submitted` with `outcome == "unavailable"` (the forms are broke
 
 ### Scheduled work and cache purges
 
-The Checkly heartbeat proves the cron fires and EmDash's scheduled run returns (`checkly/scheduler.check.ts`). EmDash treats a failure inside the run as non-fatal: one collection's publish sweep, the cleanup or a purge logs its own plain-text line (`[scheduled-publish] …`, `[cron] …`, `[cleanup] …`, `[cache] Failed to invalidate …`) and the run still returns. These lines are not JSON, so they are matched on the body:
+The Checkly heartbeat proves the cron fires, EmDash's scheduled run returns and, at the top of the hour, that nothing it had to publish is still waiting (`checkly/scheduler.check.ts`). EmDash treats a failure inside the run as non-fatal: one collection's publish sweep, the cleanup or a purge logs its own plain-text line (`[scheduled-publish] …`, `[cron] …`, `[cleanup] …`, `[cache] Failed to invalidate …`) and the run still returns. A failed publish leaves its entry due, which the next hourly check reports as `scheduler.overdue` and withholds the ping; the other lines stop nothing. These lines are not JSON, so they are matched on the body:
 
 ```kusto
 ['findlay-masonic-production-logs']
 | extend e = parse_json(body)
-| where tostring(e.event) in ("scheduler.failed", "cache.purge_failed", "heartbeat.failed")
+| where tostring(e.event) in ("scheduler.failed", "scheduler.overdue", "scheduler.check_failed", "cache.purge_failed", "heartbeat.failed")
 	or body startswith "[scheduled-publish]" or body startswith "[cron]"
 	or body startswith "[cleanup]" or body startswith "[cache] Failed"
 | project _time, event = coalesce(tostring(e.event), extract(@"^\[([^\]]+)\]", 1, body)), error = coalesce(tostring(e.error), body)
 | order by _time desc
 ```
 
-Alert: any `scheduler.failed` or `[scheduled-publish]` line (scheduled content may not go live). A `cache.purge_failed` or `[cache] Failed` line is a warning: the page shows old content until its max-age runs out (an hour for content pages).
+Alert: any `scheduler.failed`, `scheduler.overdue`, `scheduler.check_failed` or `[scheduled-publish]` line (scheduled content may not go live; [incident.md](../runbooks/incident.md) § 6 finds the waiting entries). A `cache.purge_failed` or `[cache] Failed` line is a warning: the page shows old content until its max-age runs out (an hour for content pages).
 
 ### Newsletter sends
 

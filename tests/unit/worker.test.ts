@@ -3,15 +3,38 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // src/worker.ts runs under workerd; here EmDash's Worker package and its scheduled-task runner
 // are replaced so the Worker's own scheduled() can run in Node. The stand-in for
 // createScheduledHandler does what @emdash-cms/cloudflare 1.6 does (dist/worker.mjs): queue
-// runScheduledTasks in waitUntil and log, not throw, its failure.
+// runScheduledTasks in waitUntil and log, not throw, its failure. The content store answers
+// findReadyToPublish as EmDash 1.6 does: entries whose scheduled_at is at or before the time.
 const emdash = vi.hoisted(() => ({
 	runScheduledTasks: vi.fn<(options?: unknown) => Promise<{ published: unknown[] }>>(),
+	/** Each collection's entries still waiting to be published, by when they were due. */
+	scheduled: new Map<string, { id: string; title: string; scheduledAt: string }[]>(),
+	/** What withEmDashRuntime throws instead of running, as it does when EmDash is not set up. */
+	runtimeError: null as Error | null,
 	purge:
 		vi.fn<(options: { tags?: string[] }) => Promise<{ success: boolean; errors: unknown[] }>>(),
 	/** What EmDash's Astro handler answers a request with. */
 	page: vi.fn<(request: Request) => Response>(),
 }));
-vi.mock("emdash/middleware", () => ({ runScheduledTasks: emdash.runScheduledTasks }));
+vi.mock("emdash/middleware", () => ({
+	runScheduledTasks: emdash.runScheduledTasks,
+	withEmDashRuntime: async (run: (runtime: unknown) => unknown) => {
+		if (emdash.runtimeError !== null) throw emdash.runtimeError;
+		const collections = [...emdash.scheduled.keys()].map((slug) => ({ slug }));
+		return run({ db: "d1", schemaRegistry: { listCollections: async () => collections } });
+	},
+}));
+vi.mock("emdash", async (original) => ({
+	...(await original<object>()),
+	ContentRepository: class {
+		async findReadyToPublish(type: string, limit: number, currentTime: Date) {
+			const due = (emdash.scheduled.get(type) ?? []).filter(
+				(entry) => entry.scheduledAt <= currentTime.toISOString(),
+			);
+			return due.slice(0, limit);
+		}
+	},
+}));
 vi.mock("cloudflare:workers", () => ({ cache: { purge: emdash.purge } }));
 vi.mock("@emdash-cms/cloudflare/worker", () => ({
 	default: { fetch: async (request: Request) => emdash.page(request) },
@@ -73,8 +96,11 @@ beforeEach(() => {
 afterEach(() => {
 	vi.unstubAllGlobals();
 	vi.restoreAllMocks();
+	vi.useRealTimers();
 	emdash.runScheduledTasks.mockReset();
 	emdash.purge.mockReset();
+	emdash.scheduled.clear();
+	emdash.runtimeError = null;
 });
 
 describe("the Worker's cron run and its heartbeat (M7 review B2)", () => {
@@ -117,6 +143,94 @@ describe("the Worker's cron run and its heartbeat (M7 review B2)", () => {
 		emdash.runScheduledTasks.mockResolvedValue({ published: [] });
 		expect(await cron()).toBe("resolved");
 		expect(emdash.runScheduledTasks).toHaveBeenCalledTimes(1);
+	});
+});
+
+const NOW = TOP_OF_HOUR + 20_000;
+const ago = (ms: number) => new Date(NOW - ms).toISOString();
+
+/** The JSON lines the Worker logged at `level`. */
+function logged(level: "error" | "warn"): Record<string, unknown>[] {
+	return vi
+		.mocked(console[level])
+		.mock.calls.flatMap(([line]) =>
+			typeof line === "string" && line.startsWith("{") ? [JSON.parse(line)] : [],
+		);
+}
+
+describe("the heartbeat means nothing is overdue (M7 review round 2, B2)", () => {
+	beforeEach(() => {
+		vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
+		emdash.runScheduledTasks.mockResolvedValue({ published: [] });
+	});
+
+	it("sends no heartbeat while an entry the run should have published is still waiting", async () => {
+		const events = heartbeat();
+		emdash.scheduled.set("news", [
+			{ id: "01NEWS", title: "Ladies' Night", scheduledAt: ago(5 * 60_000) },
+		]);
+		expect(await cron()).toBe("resolved");
+		expect(events).toEqual([]);
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.overdue", entries: 1, collections: 1 },
+		]);
+		expect(JSON.stringify(logged("error"))).not.toContain("Ladies");
+	});
+
+	it("checks every collection, not only news", async () => {
+		const events = heartbeat();
+		emdash.scheduled.set("news", []);
+		emdash.scheduled.set("events", [
+			{ id: "01EVENT", title: "Installation", scheduledAt: ago(3 * 60_000) },
+			{ id: "01EVEN2", title: "Picnic", scheduledAt: ago(60 * 60_000) },
+		]);
+		emdash.scheduled.set("pages", [
+			{ id: "01PAGE", title: "History", scheduledAt: ago(10 * 60_000) },
+		]);
+		await cron();
+		expect(events).toEqual([]);
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.overdue", entries: 3, collections: 2 },
+		]);
+	});
+
+	it("counts an entry that fell due during the run and is still waiting", async () => {
+		const events = heartbeat();
+		emdash.runScheduledTasks.mockImplementation(async () => {
+			vi.setSystemTime(NOW + 9_000);
+			return { published: [] };
+		});
+		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Due", scheduledAt: ago(-7_000) }]);
+		await cron();
+		expect(events).toEqual([]);
+	});
+
+	it("pings when what is waiting fell due after the run's publish window", async () => {
+		const events = heartbeat();
+		emdash.runScheduledTasks.mockImplementation(async () => {
+			vi.setSystemTime(NOW + 100_000);
+			return { published: [] };
+		});
+		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Later", scheduledAt: ago(-90_000) }]);
+		await cron();
+		expect(events).toEqual([`ping ${PING}`]);
+	});
+
+	it("sends no heartbeat when the overdue check cannot run", async () => {
+		const events = heartbeat();
+		emdash.runtimeError = new Error("EmDash is not configured");
+		expect(await cron()).toBe("resolved");
+		expect(events).toEqual([]);
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.check_failed", error: "Error: EmDash is not configured" },
+		]);
+	});
+
+	it("checks nothing on the runs that send no heartbeat", async () => {
+		heartbeat();
+		emdash.runtimeError = new Error("no database");
+		await cron(TOP_OF_HOUR + 60_000);
+		expect(logged("error")).toEqual([]);
 	});
 });
 
