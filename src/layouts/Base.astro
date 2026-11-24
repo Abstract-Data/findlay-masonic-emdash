@@ -878,9 +878,7 @@ const year = new Date().getFullYear();
 				color: var(--color-text);
 				font-family: var(--font-body);
 				font-size: var(--font-size-sm);
-				transition:
-					border-color var(--transition-fast),
-					box-shadow var(--transition-fast);
+				transition: border-color var(--transition-fast);
 			}
 
 			.site-search :global(.site-search-input)::placeholder {
@@ -892,9 +890,9 @@ const year = new Date().getFullYear();
 			}
 
 			.site-search :global(.site-search-input):focus {
-				outline: 2px solid transparent;
+				outline: 2px solid var(--color-brand);
+				outline-offset: 2px;
 				border-color: var(--color-muted);
-				box-shadow: 0 0 0 3px var(--color-brand-ring);
 			}
 
 			.site-search__kbd {
