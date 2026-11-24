@@ -81,8 +81,14 @@ export function isoWeekday(date: Temporal.PlainDate): IsoWeekday {
 	return date.dayOfWeek as IsoWeekday;
 }
 
-function monthShort(date: Temporal.PlainDate): string {
-	return MONTH_SHORT[isoMonth(date)];
+/** "Tue" */
+export function formatWeekday(date: Temporal.PlainDate): string {
+	return WEEKDAY_SHORT[isoWeekday(date)];
+}
+
+/** "Mar 9" */
+export function formatMonthDay(date: Temporal.PlainDate): string {
+	return `${MONTH_SHORT[isoMonth(date)]} ${date.day}`;
 }
 
 /** "7:30 PM". Fixed English, no Intl, so output is identical in every runtime. */
@@ -94,12 +100,22 @@ export function formatTime(time: { readonly hour: number; readonly minute: numbe
 
 /** "Tue, Mar 9" */
 export function formatDay(date: Temporal.PlainDate): string {
-	return `${WEEKDAY_SHORT[isoWeekday(date)]}, ${monthShort(date)} ${date.day}`;
+	return `${formatWeekday(date)}, ${formatMonthDay(date)}`;
 }
 
 /** "Mar 9, 2027" */
 export function formatDate(date: Temporal.PlainDate): string {
-	return `${monthShort(date)} ${date.day}, ${date.year}`;
+	return `${formatMonthDay(date)}, ${date.year}`;
+}
+
+/**
+ * Whole seconds from `now` to the next local midnight in SITE_TZ, when "today" moves on. Rounded
+ * down, so `now` plus the result never passes midnight.
+ */
+export function secondsToMidnight(now: Temporal.Instant): number {
+	const tomorrow = now.toZonedDateTimeISO(SITE_TZ).toPlainDate().add({ days: 1 });
+	const midnight = tomorrow.toZonedDateTime(SITE_TZ).epochMilliseconds;
+	return Math.floor((midnight - now.epochMilliseconds) / 1000);
 }
 
 /** RFC 5545 DATE: "20270309" */

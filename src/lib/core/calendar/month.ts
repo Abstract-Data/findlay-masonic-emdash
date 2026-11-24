@@ -22,8 +22,9 @@ export interface AgendaDay {
 }
 
 const MONTH_PARAM = /^(\d{4})-(\d{2})$/;
-const FIRST_YEAR = 1900;
-const LAST_YEAR = 2199;
+/** The years a `?month=` or `?week=` may name; outside them the page shows the present. */
+export const FIRST_YEAR = 1900;
+export const LAST_YEAR = 2199;
 const DAYS_IN_WEEK = 7;
 
 /** `?month=2026-12`; anything else, or a year far outside the site's life, is this month. */
@@ -114,7 +115,8 @@ export function datetimeOf(o: Occurrence): string {
 		: o.start.toString({ smallestUnit: "minute", timeZoneName: "never" });
 }
 
-function listedByDay(occurrences: readonly Occurrence[]): Map<string, Occurrence[]> {
+/** Each local date (ISO string) with the occurrences listed on it. */
+export function listedByDay(occurrences: readonly Occurrence[]): Map<string, Occurrence[]> {
 	const byDay = new Map<string, Occurrence[]>();
 	for (const o of occurrences) {
 		for (const day of listedDays(o)) {
