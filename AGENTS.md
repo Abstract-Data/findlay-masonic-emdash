@@ -1,6 +1,6 @@
 This is the Findlay Masonic platform: an EmDash CMS site on Astro 7 and Cloudflare Workers that replaces findlaymason.org. Six Masonic bodies each maintain their own page, calendar and news, and an admin builds the newsletter.
 
-The public pages (M4) are built in plain semantic markup on the EmDash starter's neutral styles; the visual design waits for the operator to choose a direction. A restyle belongs in `src/styles/theme.css` and the components in `src/components/`, not in the page data flow.
+The public pages follow design direction C, "Noticeboard" (`docs/design/direction-c/`): calendar first, Atkinson Hyperlegible Next, one ink brand colour and six body identity colours. A restyle belongs in `src/styles/theme.css` and the components in `src/components/`, not in the page data flow.
 
 ## Where decisions live
 
@@ -82,13 +82,23 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 - Public pages read content only through EmDash's query functions (`getEmDashCollection`, `getEmDashEntry`), via the loaders in `src/lib/adapters/site/content.ts`. Never read `Astro.locals.emdash.db` on a public page: EmDash gives anonymous visitors a reduced `locals.emdash` with no `db`, so the page is empty for them while it works for a signed-in Admin.
 - Loaders parse entries into views (`src/lib/adapters/site/views.ts`); schedules, officer terms, month grids and paging are pure functions in `src/lib/core`. Links come from `paths` in `src/lib/adapters/site/paths.ts`.
 - `bodies.contact_recipients` never reaches a page: views carry only `acceptsMessages`. The contact form posts to the newsletter plugin's `contact` route, which sends through EmDash's email pipeline (`email:deliver`).
-- Each route registers its content hints with `cacheRoute`, which also sets how long the edge may keep the page: an hour by default, `CLOCK_BOUND` for pages that show what comes next (meetings, upcoming events, today), `UNTAGGED` for pages whose data carries no cache tags. A route that calls nothing is never cached. `src/middleware.ts` takes any response for a signed-in user, or that sets a cookie, back out of the cache; never cache per-visitor output another way.
+- Each route registers its content hints with `cacheRoute`, which also sets how long the edge may keep the page: an hour by default, `clockBound(now)` for pages that show what comes next or what is on today (meetings, upcoming events, "Today", "Tonight"), which is fifteen minutes and never past local midnight in America/New_York, and `UNTAGGED` for pages whose data carries no cache tags. A route that calls nothing is never cached. `src/middleware.ts` takes any response for a signed-in user, or that sets a cookie, back out of the cache; never cache per-visitor output another way.
 - Log through `log()` in `src/lib/adapters/log.ts`, adding an event type for a new event; never `console.log` a request body, an email address or a secret.
+
+### Visual character (direction C)
+
+- Tokens and the shared pieces (`.card`, `.body-label`, `.field`, `.input`, `.chip`, `.eyebrow`) live in `src/styles/theme.css`; component layout lives in each component's scoped style. Don't edit `tokens.css`; Base.astro holds the layout's own styles.
+- One brand colour, the navy ink `--color-brand`, for buttons, links and focus rings. Never add a second accent.
+- Body identity colours (FR-4.4) appear only as a bar, a swatch, a 12% tint or a date tile, and always beside the body's name. Put `data-colour={body.colour}` on the body's element; theme.css turns it into `--body-colour`. A new colour needs a light and dark value in theme.css, an entry in `BODY_COLOURS` (`src/lib/core/bodies/colour.ts`) and the seed's `colour` options (PATH_ASK), and `tests/unit/styles/contrast.test.ts` must stay green.
+- Sentence-case labels in the body face; no mono capitals. Buttons and form fields are at least 44px tall.
+- The font is committed (`src/assets/fonts/`) and loaded by the local provider in `astro.config.mjs`.
 
 ### Tests
 
 - Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
 - End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) axe in `tests/e2e/a11y/` and the read-only synthetic monitors in `tests/e2e/monitor/` (tag `@monitor`; Checkly runs them against production). Tag smoke tests `@smoke`.
+- The `visual` project (`tests/e2e/visual/`) runs last: it seeds a busy week, scans it with axe and screenshots home, a body page and the calendar at 1280 and 390 px in both schemes. `VISUAL_OUT=docs/design/direction-c/built pnpm e2e --project visual` refreshes the committed set.
+- Lighthouse runs against a production build under `wrangler dev`: `CHROME_PATH=<chromium> node tests/perf/lighthouse.mjs <base URL> [runs per page]`.
 - Assert what a user or caller can observe, not internals.
 
 ## Key files

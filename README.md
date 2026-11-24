@@ -2,7 +2,17 @@
 
 The website of the Masonic bodies that meet at the Findlay Masonic Temple in Findlay, Ohio, replacing findlaymason.org. Each body (Findlay Lodge No. 227, Chapter No. 58, Council No. 50, Commandery No. 49, the Order of the Eastern Star No. 23 and the Temple Board) keeps its own page, officers, news and calendar, edited by its own officers in the [EmDash](https://github.com/emdash-cms/emdash) admin. Admins also build and send the quarterly newsletter.
 
-It runs on Cloudflare Workers with D1 and R2, built with Astro 7 and EmDash. The visual design is still being chosen (plan M4); the pages use the EmDash starter's neutral styles until then.
+It runs on Cloudflare Workers with D1 and R2, built with Astro 7 and EmDash.
+
+## Design
+
+The site follows design direction C, "Noticeboard", chosen by the operator on 2026-11-24. The mockup, its notes and the reference screenshots are in [`docs/design/direction-c/`](docs/design/direction-c/), and screenshots of the built pages are in its `built/` folder.
+
+- **Calendar first.** The home page opens on this week at the Temple, with a filter by body, links to the previous and next weeks, the month view and a calendar feed for phones. Each body's page opens on its next stated meeting.
+- **Legible type.** Atkinson Hyperlegible Next, designed for low-vision readers, at 18px. Labels are in sentence case.
+- **One ink, six body colours.** Buttons, links and focus rings use one navy ink. Each body has an identity colour, which appears only as a bar, a swatch, a light tint or a date tile, and always beside the body's name.
+
+To change the look, edit `src/styles/theme.css` (tokens, the body colours in light and dark, and the few shared pieces) and the components in `src/components/`. `tests/unit/styles/contrast.test.ts` checks every colour pair there against WCAG AA. An editor picks a body's colour from the **Calendar colour** field on the body, out of six named colours; a body without one takes its type's default. The font file is committed in `src/assets/fonts/` under its SIL Open Font License. The newsletter's email theme is `src/plugins/newsletter/theme.ts`. The "Thinking of joining?" card on the home page writes to Findlay Lodge No. 227; `JOINING_BODY` in `src/pages/index.astro` names another body.
 
 ## Pages
 
