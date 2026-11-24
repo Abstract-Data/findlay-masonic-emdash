@@ -77,9 +77,14 @@ const line =
 		object-fit: contain;
 	}
 
-	/* Once any card has an emblem, a card without one keeps its name in line with theirs. */
-	:global(.body-cards:has(.body-card__emblem)) .body-card:not(:has(:global(.body-card__emblem))) {
-		padding-inline-start: calc(var(--spacing-4) * 2 + var(--emblem-width));
+	/*
+	  Once any card has an emblem, a card without one keeps its name in line with theirs, except
+	  on the narrowest phones, where the name needs the room more.
+	*/
+	@media (min-width: 361px) {
+		:global(.body-cards:has(.body-card__emblem)) .body-card:not(:has(:global(.body-card__emblem))) {
+			padding-inline-start: calc(var(--spacing-4) * 2 + var(--emblem-width));
+		}
 	}
 
 	.body-card__text {

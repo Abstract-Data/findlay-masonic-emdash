@@ -396,9 +396,12 @@ test("emblems share one slot and the bodies' names line up", async ({ page }) =>
 				`one emblem slot at ${width}px`,
 			)
 			.toBe(1);
-		expect
-			.soft(new Set(cards.map((card) => card.indent)).size, `names line up at ${width}px`)
-			.toBe(1);
+		// At 320 px a name needs the room more than it needs to line up.
+		if (width > 320) {
+			expect
+				.soft(new Set(cards.map((card) => card.indent)).size, `names line up at ${width}px`)
+				.toBe(1);
+		}
 	}
 });
 
