@@ -1,5 +1,6 @@
 import { actorStore, type RequestActor } from "@adapters/emdash/actor-context";
 import {
+	MISSING_DRAFT_TEXT,
 	overlayDraft,
 	saveOperation,
 	scopeOf,
@@ -11,6 +12,9 @@ import {
 } from "@adapters/emdash/entries";
 import { grantsOf, principalFor, type Directory, type GrantRows } from "@adapters/emdash/grants";
 import {
+	idLikeSlugText,
+	isAdminRole,
+	looksLikeEntryId,
 	parseBodyId,
 	parseBodyRecord,
 	parseErrorText,
@@ -42,8 +46,6 @@ import {
 } from "emdash";
 
 const UNIDENTIFIED = "The signed-in account could not be identified, so the change was refused.";
-const UNREADABLE_DRAFT =
-	"The entry's pending draft could not be read, so the change was refused. Try again, or ask a Temple administrator.";
 const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
 
 /** The slice of EmDash's plugin context the hooks and routes read; PluginContext fits it. */
@@ -109,7 +111,7 @@ export async function readEntry(
 		? ((await ctx.content?.getRevision?.(collection, live.id, draftId)) ?? null)
 		: null;
 	const entry = overlayDraft(live, draft);
-	if (entry === null) throw new ContentSaveRejectedError(UNREADABLE_DRAFT);
+	if (entry === null) throw new ContentSaveRejectedError(MISSING_DRAFT_TEXT);
 	return entry;
 }
 
@@ -258,6 +260,24 @@ export async function beforeDelete(
 }
 
 /**
+ * ADR-002 risk 9, below Admin: a slug shaped like an entry id. The middleware refuses one in a
+ * save request, but a co-editing room's checkpoint saves through EmDash without a request the
+ * middleware sees, and content:beforeSave is never handed the slug: EmDash stages it on the draft
+ * revision as `_slug` after the hooks run. A staged slug goes live only when the draft is
+ * published, so publishing and scheduling are where it is refused.
+ */
+async function idLikeStagedSlug(
+	ctx: HookContext,
+	actor: RequestActor,
+	collection: string,
+	id: string,
+): Promise<string | null> {
+	if (isAdminRole(actor.role)) return null;
+	const slug = (await readEntry(ctx, collection, id))?.stagedSlug;
+	return slug !== undefined && looksLikeEntryId(slug) ? idLikeSlugText(slug) : null;
+}
+
+/**
  * FR-5.4 publish, unpublish and schedule, against the live and the draft body. EmDash hands
  * beforeUnpublish the live entry only, so each hook reads the entry itself.
  */
@@ -269,6 +289,10 @@ export function policyHook(change: "publish" | "unpublish" | "schedule") {
 		const { source } = event.origin;
 		const actor = source === "scheduler" || source === "system" ? null : actorOf(event.actor);
 		const id = typeof event.content.id === "string" ? event.content.id : "";
+		if (actor !== null && change !== "unpublish") {
+			const slug = await idLikeStagedSlug(ctx, actor, event.collection, id);
+			if (slug !== null) return { cancel: true, reason: slug };
+		}
 		const op = actor === null ? null : await stateChange(ctx, change, event.collection, id);
 		if (op === null) return;
 		const text = await refusal(ctx, await principalOf(ctx, actor), op);

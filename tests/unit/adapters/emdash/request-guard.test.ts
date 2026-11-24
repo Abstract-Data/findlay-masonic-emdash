@@ -173,10 +173,12 @@ describe("guardRequest: every entry a route's [id] could name (ADR-002, red team
 	});
 
 	it("refuses a request that names no entry, so EmDash cannot find one another way", async () => {
-		expect(await guard(request(ENTRY, "PUT", { id: "nothing" }), {})).toMatchObject({
+		const refusal = await guard(request(ENTRY, "PUT", { id: "nothing" }), {});
+		expect(refusal).toMatchObject({
 			status: 403,
-			message: expect.stringContaining("cannot make this change"),
+			message: expect.stringContaining("No entry matches this request"),
 		});
+		expect(refusal?.message).not.toContain("Only a Temple administrator can");
 	});
 
 	it("checks every entry a restored revision's entry id could name", async () => {
@@ -198,11 +200,16 @@ describe("guardRequest: pending drafts (red team 3 and 7)", () => {
 		expect(await guard(req, { entries: [staying] })).toBeNull();
 	});
 
-	it("refuses a write when the entry's pending draft cannot be read", async () => {
+	it("refuses a write when the entry's pending draft is missing, and says to discard it", async () => {
 		const unreadable: Stored = { id: entryId(1), body: LODGE, draft: "missing" };
-		expect(
-			await guard(request(ENTRY, "PUT", { id: entryId(1) }), { entries: [unreadable] }),
-		).toMatchObject({ status: 403, message: expect.stringContaining("cannot make this change") });
+		const refusal = await guard(request(ENTRY, "PUT", { id: entryId(1) }), {
+			entries: [unreadable],
+		});
+		expect(refusal).toMatchObject({
+			status: 403,
+			message: expect.stringContaining("Choose Discard changes on the entry"),
+		});
+		expect(refusal?.message).not.toContain("Only a Temple administrator can");
 	});
 });
 
@@ -300,6 +307,16 @@ describe("guardRequest: media items (ADR-002 O1, red team 5)", () => {
 
 	it("refuses when the item cannot be read, rather than letting the change through", async () => {
 		expect(await guard(item("M1"), { mediaFails: true })).toMatchObject({ status: 403 });
+	});
+
+	it("says a failed lookup could not be checked, not that only an Admin may (parked a)", async () => {
+		const refusal = await guard(item("M1"), { mediaFails: true });
+		expect(refusal).toEqual({
+			status: 403,
+			code: "BODY_ACCESS_DENIED",
+			message: expect.stringContaining("could not be checked against your body grants"),
+		});
+		expect(refusal?.message).not.toContain("Only a Temple administrator can");
 	});
 });
 

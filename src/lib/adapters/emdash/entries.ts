@@ -40,7 +40,21 @@ export interface EntryRow {
 	readonly draftRevisionId?: string | null;
 }
 
-export type ReadEntry = StoredEntry & { readonly data: Record<string, unknown> };
+export type ReadEntry = StoredEntry & {
+	readonly data: Record<string, unknown>;
+	/** The slug the pending draft stages (`_slug`), which goes live when it is published. */
+	readonly stagedSlug?: string;
+};
+
+/** Where EmDash stages a draft's new slug in the revision's data (content-save.ts). */
+const STAGED_SLUG = "_slug";
+
+/**
+ * What an editor or an Admin sees when an entry names a draft revision that no longer exists.
+ * Saving again cannot help; discarding the draft gives the entry back its live values.
+ */
+export const MISSING_DRAFT_TEXT =
+	"The entry's pending draft is missing, so the change was refused. Choose Discard changes on the entry to drop the broken draft, then make the change again.";
 
 /**
  * The entry as EmDash's routes read it, with its draft's values over the live ones. Null when
@@ -54,7 +68,13 @@ export function overlayDraft(
 	if (!row.draftRevisionId) return { id: row.id, data: row.data };
 	if (draft === null) return null;
 	const staged = Object.entries(draft.data).filter(([key]) => !key.startsWith("_"));
-	return { id: row.id, data: { ...row.data, ...Object.fromEntries(staged) }, liveData: row.data };
+	const slug = draft.data[STAGED_SLUG];
+	return {
+		id: row.id,
+		data: { ...row.data, ...Object.fromEntries(staged) },
+		liveData: row.data,
+		...(typeof slug === "string" ? { stagedSlug: slug } : {}),
+	};
 }
 
 export type OwnedScope = Exclude<Scope, "site">;

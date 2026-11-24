@@ -47,6 +47,11 @@ export function looksLikeEntryId(slug: string): boolean {
 	return EMDASH_ID_SHAPE.test(slug);
 }
 
+/** Why a slug that looks like an entry id is refused below Admin (ADR-002). */
+export function idLikeSlugText(slug: string): string {
+	return `The slug ${slug} looks like an entry id, so it could make a change reach the wrong entry. Choose a slug made of words, such as spring-banquet.`;
+}
+
 export function parseBodyId(raw: unknown): BodyId | null {
 	return isBodyId(raw) ? raw : null;
 }

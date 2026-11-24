@@ -148,11 +148,12 @@ describe("entryOperation (writes with no content hook)", () => {
 describe("overlayDraft (ADR-002 live and draft bodies)", () => {
 	const row = { id: "E1", data: { body: LODGE, title: "Live" }, draftRevisionId: "R1" };
 
-	it("reads the draft's values over the live ones, keeping the live values apart", () => {
+	it("reads the draft's values over the live ones, keeping the live values and staged slug apart", () => {
 		expect(overlayDraft(row, { data: { body: CHAPTER, _slug: "moved" } })).toEqual({
 			id: "E1",
 			data: { body: CHAPTER, title: "Live" },
 			liveData: { body: LODGE, title: "Live" },
+			stagedSlug: "moved",
 		});
 	});
 

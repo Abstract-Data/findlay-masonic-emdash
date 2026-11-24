@@ -91,12 +91,55 @@ describe("beforeSave: pending drafts (red team 7)", () => {
 	it("refuses an update when the entry's pending draft cannot be read", async () => {
 		const entry = { id: entryId(1), data: { body: LODGE }, draftRevisionId: "R1" };
 		const update = newsSave(LODGE, { isNew: false, id: entryId(1), actor: lodgeEditor });
-		await expect(beforeSave(update, context([entry]))).rejects.toThrow(
-			"pending draft could not be read",
-		);
+		await expect(beforeSave(update, context([entry]))).rejects.toThrow("pending draft is missing");
 		await expect(
 			beforeSave(update, context([entry], { R1: { body: LODGE } })),
 		).resolves.toBeUndefined();
+	});
+
+	it("tells an Admin and an editor alike to discard the missing draft (parked b)", async () => {
+		const entry = { id: entryId(1), data: { body: LODGE }, draftRevisionId: "R1" };
+		const by = async (actor: RequestActor) =>
+			beforeSave(newsSave(LODGE, { isNew: false, id: entryId(1), actor }), context([entry]));
+		for (const actor of [{ id: "admin", role: 50 }, lodgeEditor]) {
+			// oxlint-disable-next-line no-await-in-loop -- one actor at a time.
+			const refusal = await by(actor).catch((error: unknown) => String(error));
+			expect(refusal).toContain("Choose Discard changes on the entry");
+			expect(refusal).not.toContain("ask a Temple administrator");
+		}
+	});
+});
+
+// A co-editing room's checkpoint stages its slug on the draft as `_slug`, past the middleware,
+// and content:beforeSave is never handed it; publishing is when it would go live.
+const staged = (slug: string) => ({
+	entry: { id: entryId(1), data: { body: LODGE }, draftRevisionId: "R1" },
+	drafts: { R1: { body: LODGE, _slug: slug } },
+});
+
+describe("publish and schedule: a staged slug shaped like an entry id (parked d)", () => {
+	it.each(["publish", "schedule"] as const)(
+		"refuses an editor's %s of a draft whose staged slug looks like an entry id",
+		async (change) => {
+			const { entry, drafts } = staged(entryId(9));
+			const event = { ...policy("news", entryId(1)), actor: lodgeEditor };
+			expect(await policyHook(change)(event, context([entry], drafts))).toEqual({
+				cancel: true,
+				reason: expect.stringContaining("looks like an entry id"),
+			});
+		},
+	);
+
+	it("publishes a staged slug made of words, and leaves an Admin's slug to the Admin", async () => {
+		const event = { ...policy("news", entryId(1)), actor: lodgeEditor };
+		const words = staged("spring-banquet");
+		expect(
+			await policyHook("publish")(event, context([words.entry], words.drafts)),
+		).toBeUndefined();
+		const ids = staged(entryId(9));
+		const admin = { ...event, actor: { id: "admin", role: 50 } };
+		expect(await policyHook("publish")(admin, context([ids.entry], ids.drafts))).toBeUndefined();
+		expect(await policyHook("unpublish")(event, context([ids.entry], ids.drafts))).toBeUndefined();
 	});
 });
 

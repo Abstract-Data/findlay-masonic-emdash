@@ -9,6 +9,7 @@ import {
 import type { RequestActor } from "./actor-context";
 import {
 	entryOperation,
+	MISSING_DRAFT_TEXT,
 	overlayDraft,
 	revisionRestoreOperation,
 	scopeOf,
@@ -17,7 +18,13 @@ import {
 	type ReadEntry,
 } from "./entries";
 import { GRANTS, grantsOf, principalFor, type Directory } from "./grants";
-import { isAdminRole, looksLikeEntryId, parseBodyRecord, parseUserId } from "./parse";
+import {
+	idLikeSlugText,
+	isAdminRole,
+	looksLikeEntryId,
+	parseBodyRecord,
+	parseUserId,
+} from "./parse";
 import { ruleFor, savesEntry, type Lookup, type RouteRule } from "./route-table";
 
 type EmDash = NonNullable<App.Locals["emdash"]>;
@@ -62,6 +69,24 @@ export const DENIED_CODE = "BODY_ACCESS_DENIED";
 const UNLISTED: Operation = { kind: "admin-only", action: "unlisted" };
 
 /**
+ * Why the guard refused before any policy decision: what it needed to read was not there, or
+ * the read failed. None of these is about the user's role, so none says only an Admin can.
+ */
+type Stop = "no-entry" | "missing-draft" | "lookup-failed";
+
+const STOP_TEXT: Readonly<Record<Stop, string>> = {
+	"no-entry":
+		"No entry matches this request, so the change was refused. Reload the page and try again.",
+	"missing-draft": MISSING_DRAFT_TEXT,
+	"lookup-failed":
+		"The change could not be checked against your body grants, because a lookup failed, so it was refused. Try again in a moment; if it keeps failing, tell a Temple administrator.",
+};
+
+class MissingDraftError extends Error {
+	override readonly name = "MissingDraftError";
+}
+
+/**
  * The middleware half of the guard: every unsafe EmDash route a signed-in non-admin calls is
  * authorized by core before EmDash runs it, including the writes no content hook sees. Returns
  * the response to send, or null to let the request through. Admins and anonymous requests pass:
@@ -80,10 +105,12 @@ export async function guardRequest(
 		: NO_SAVE;
 	if (save.slug !== null && looksLikeEntryId(save.slug)) return idLikeSlug(save.slug);
 	const from = reads();
-	const ops = await operationsFor(rule, request, from, save).catch((error: unknown) => {
+	const ops = await operationsFor(rule, request, from, save).catch((error: unknown): Stop => {
+		if (error instanceof MissingDraftError) return "missing-draft";
 		console.error("[body-access] a guard lookup failed, so the request was refused:", error);
-		return [UNLISTED];
+		return "lookup-failed";
 	});
+	if (typeof ops === "string") return denied(STOP_TEXT[ops]);
 	if (ops.length === 0) return null;
 	const principal = await principalFor(actor, [], from.directory);
 	if (principal === null) {
@@ -149,9 +176,8 @@ function denied(message: string): Response {
 }
 
 function idLikeSlug(slug: string): Response {
-	const message = `The slug ${slug} looks like an entry id, so it could make a change reach the wrong entry. Choose a slug made of words, such as spring-banquet.`;
 	return Response.json(
-		{ success: false, error: { code: "INVALID_SLUG", message } },
+		{ success: false, error: { code: "INVALID_SLUG", message: idLikeSlugText(slug) } },
 		{ status: 422, headers: { "Cache-Control": "private, no-store" } },
 	);
 }
@@ -177,7 +203,7 @@ async function operationsFor(
 	request: GuardedRequest,
 	reads: GuardReads,
 	save: Save,
-): Promise<readonly Operation[]> {
+): Promise<readonly Operation[] | "no-entry"> {
 	const { params } = request;
 	switch (rule.kind) {
 		case "pass":
@@ -199,7 +225,7 @@ async function operationsFor(
 			if (scope === "unlisted") return [UNLISTED];
 			const named = await entriesNamed(reads, rule.lookup, collection, params.id ?? "", request);
 			// Refused rather than passed: a miss here must not leave EmDash to find the entry another way.
-			if (named.length === 0) return [UNLISTED];
+			if (named.length === 0) return "no-entry";
 			const ops = named.map((entry) => entryOperation(rule.action, scope, entry));
 			const unpublishes = save.unpublishes
 				? named.map((entry) => stateChangeOperation("unpublish", scope, entry))
@@ -235,14 +261,14 @@ async function entriesNamed(
 async function withDraft(reads: GuardReads, row: EntryRow): Promise<ReadEntry> {
 	const draft = row.draftRevisionId ? await reads.revision(row.draftRevisionId) : null;
 	const entry = overlayDraft(row, draft);
-	if (entry === null) throw new Error(`the draft revision of ${row.id} could not be read`);
+	if (entry === null) throw new MissingDraftError(`the draft revision of ${row.id} is missing`);
 	return entry;
 }
 
 async function revisionRestore(
 	reads: GuardReads,
 	revisionId: string,
-): Promise<readonly Operation[]> {
+): Promise<readonly Operation[] | "no-entry"> {
 	const revision = await reads.revision(revisionId);
 	if (revision === null) return [];
 	const { collection, entryId, data } = revision;
@@ -253,6 +279,6 @@ async function revisionRestore(
 	// the id or the slug, so both are checked.
 	const current = await entriesNamed(reads, "live", collection, entryId, { locale: undefined });
 	return current.length === 0
-		? [UNLISTED]
+		? "no-entry"
 		: current.map((entry) => revisionRestoreOperation(scope, entry, data));
 }
