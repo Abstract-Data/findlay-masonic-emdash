@@ -15,7 +15,8 @@ import MonthGrid from "../components/MonthGrid.astro";
 import MonthNav from "../components/MonthNav.astro";
 import Base from "../layouts/Base.astro";
 
-// FR-4.4: every body's occurrences for a month, labelled by body, narrowed by `?body=` slugs.
+// FR-4.4: every body's occurrences for a month, labelled and coloured by body, narrowed by
+// `?body=` slugs.
 const now = systemClock.now();
 const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
 const month = parseMonth(Astro.url.searchParams.get("month"), today);
@@ -45,34 +46,29 @@ const monthName = formatMonth(month);
 	title={`Temple calendar, ${monthName}`}
 	description="Meetings and events at the Findlay Masonic Temple."
 >
-	<header class="band intro">
-		<div class="frame">
-			<h1 class="intro__title">Temple calendar</h1>
-			<p class="intro__lead">Meetings and events of every body that meets at the Temple.</p>
-		</div>
-	</header>
-	<section class="band section" aria-label="Choose bodies">
-		<div class="frame">
+	<section class="band calendar-lead" aria-labelledby="month-title">
+		<div class="frame calendar-month">
+			<div class="calendar-head">
+				<div>
+					<p class="eyebrow">Temple calendar</p>
+					<h1 id="month-title" class="calendar-head__title">
+						{monthName}
+					</h1>
+				</div>
+				<MonthNav month={month} href={href} />
+			</div>
 			<CalendarFilter
 				bodies={bodies.value}
 				selected={new Set(chosen.map((body) => body.id))}
-				month={month.toString()}
 				action={paths.calendar}
+				keep={{ month: month.toString() }}
 			/>
-		</div>
-	</section>
-	<section class="band section" aria-labelledby="month-title">
-		<div class="frame calendar-month">
-			<h2 id="month-title" class="section-head__title">
-				{monthName}
-			</h2>
-			<MonthNav month={month} href={href} />
 			<MonthGrid grid={grid} bodies={byBody} showBody={true} />
 		</div>
 	</section>
 	<section class="band section" aria-labelledby="agenda-title">
 		<div class="frame">
-			<h2 id="agenda-title" class="section-head__title">
+			<h2 id="agenda-title" class="section-head__title calendar-section-title">
 				Events in {monthName}
 			</h2>
 			<Agenda
@@ -86,17 +82,39 @@ const monthName = formatMonth(month);
 	</section>
 	<section class="band section" aria-labelledby="feed-title">
 		<div class="frame">
-			<h2 id="feed-title" class="section-head__title">
-				Subscribe to every body's events
+			<h2 id="feed-title" class="section-head__title calendar-section-title">
+				Every body's events on your phone
 			</h2>
-			<FeedLinks path={paths.feed} />
+			<FeedLinks path={paths.feed} label="Add the Temple calendar to my phone" />
 		</div>
 	</section>
 </Base>
 
 <style>
+	.calendar-lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
 	.calendar-month {
 		display: grid;
-		gap: var(--spacing-5);
+		gap: var(--spacing-6);
+	}
+
+	.calendar-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.calendar-head__title {
+		margin-top: var(--spacing-1);
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.calendar-section-title {
+		margin-bottom: var(--spacing-6);
 	}
 </style>

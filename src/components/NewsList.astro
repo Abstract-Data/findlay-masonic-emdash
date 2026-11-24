@@ -5,17 +5,21 @@ import type { BodyId } from "@core/ids";
 import { excerpt } from "@core/newsletter/excerpt";
 import { formatDate, SITE_TZ } from "@core/time";
 
-// FR-1.1, 3.3, 3.4: news newest first; the combined list labels each item with its body.
+// FR-1.1, 3.3, 3.4: news newest first. As notice cards, each is ruled in its body's colour and,
+// on a list of several bodies, labelled with the body's name; as a list (a body page's side
+// column), each is its date and title.
 interface Props {
 	items: readonly NewsView[];
 	bodies: ReadonlyMap<BodyId, BodyView>;
 	showBody: boolean;
 	empty: string;
 	headingLevel?: 2 | 3;
+	layout?: "cards" | "list";
 }
 
-const { items, bodies, showBody, empty, headingLevel = 3 } = Astro.props;
+const { items, bodies, showBody, empty, headingLevel = 3, layout = "cards" } = Astro.props;
 const Title = `h${headingLevel}` as const;
+const cards = layout === "cards";
 const rows = items.flatMap((item) => {
 	const body = bodies.get(item.body);
 	if (body === undefined) return [];
@@ -36,26 +40,23 @@ const rows = items.flatMap((item) => {
 		{empty}
 	</p>
 ) : (
-	<ul class="news-list" data-testid="news-list">
+	<ul class:list={["news-list", `news-list--${layout}`]} data-testid="news-list">
 		{rows.map(({ item, body, date, tags }) => (
-			<li data-body={body.slug}>
-				<article class="news-list__item">
+			<li data-body={body.slug} data-colour={cards ? (body.colour ?? undefined) : undefined}>
+				<article class:list={["news-list__item", { card: cards }]}>
+					{cards && showBody && (
+						<a class="body-label" href={paths.body(body.slug)}>
+							{body.label}
+						</a>
+					)}
 					<Title class="news-list__title">
 						<a href={paths.newsItem(body.slug, item.slug)}>{item.title}</a>
 					</Title>
-					<p class="news-list__meta">
+					{cards && <p class="news-list__excerpt">{excerpt(item.content)}</p>}
+					<p class="news-list__date">
 						<time datetime={date.toString()}>{formatDate(date)}</time>
-						{showBody && (
-							<>
-								{" · "}
-								<a class="body-label" href={paths.body(body.slug)}>
-									{body.label}
-								</a>
-							</>
-						)}
 					</p>
-					<p class="news-list__excerpt">{excerpt(item.content)}</p>
-					{tags.length > 0 && (
+					{cards && tags.length > 0 && (
 						<ul class="chips" aria-label="Tags">
 							{tags.map((tag) => (
 								<li>
@@ -77,20 +78,72 @@ const rows = items.flatMap((item) => {
 
 <style>
 	.news-list {
-		list-style: none;
-		padding: 0;
 		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.news-list--cards {
 		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
 		gap: var(--spacing-6);
 	}
 
-	.news-list__item {
-		display: grid;
-		gap: var(--spacing-2);
+	.news-list--cards .news-list__item {
+		display: flex;
+		flex-direction: column;
+		align-items: flex-start;
+		gap: var(--spacing-3);
+		height: 100%;
+		padding: var(--spacing-6);
+		border-top: 4px solid var(--body-colour, var(--color-border-strong));
 	}
 
-	.news-list__meta {
+	.news-list--cards .news-list__title {
+		font-size: var(--font-size-xl);
+	}
+
+	.news-list__title a {
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.news-list__title a:hover {
+		text-decoration: underline;
+	}
+
+	.news-list__excerpt {
 		color: var(--color-text-secondary);
-		font-size: var(--font-size-sm);
+	}
+
+	.news-list__date {
+		margin-top: auto;
+		font-size: var(--font-size-xs);
+		color: var(--color-muted);
+	}
+
+	.news-list--list {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+
+	.news-list--list .news-list__item {
+		display: flex;
+		flex-direction: column-reverse;
+		gap: 2px;
+	}
+
+	.news-list--list .news-list__title {
+		font-size: var(--font-size-lg);
+	}
+
+	.news-list--list .news-list__title a {
+		text-decoration: underline;
+		text-decoration-color: var(--color-border-strong);
+		text-underline-offset: 0.2em;
+	}
+
+	.news-list__empty {
+		color: var(--color-text-secondary);
 	}
 </style>

@@ -4,7 +4,7 @@ import { cacheRoute, UNTAGGED } from "@adapters/site/cache";
 import NewsletterSignup from "../../components/NewsletterSignup.astro";
 import Base from "../../layouts/Base.astro";
 
-// FR-6.8. Minimal until the M4 design gate restyles it.
+// FR-6.8: every sent issue, newest first, then the signup form the subscribe route returns to.
 const issues = await archivedIssues(Astro.locals, Astro.url);
 cacheRoute(Astro.cache, [], UNTAGGED);
 const dateFormat = new Intl.DateTimeFormat("en-US", {
@@ -13,19 +13,29 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 });
 ---
 
-<Base title="Quarterly Newsletters" description="Past issues of the Findlay Masonic newsletter.">
-	<section class="band newsletters">
+<Base title="Quarterly newsletters" description="Past issues of the Findlay Masonic newsletter.">
+	<header class="band intro">
 		<div class="frame">
-			<h1>Quarterly Newsletters</h1>
+			<h1 class="intro__title">Quarterly newsletters</h1>
+			<p class="intro__lead">
+				Each season's news from every body at the Temple, as it was emailed.
+			</p>
+		</div>
+	</header>
+	<section class="band section" aria-labelledby="issues-title">
+		<div class="frame archive">
+			<h2 id="issues-title" class="section-head__title">
+				Past issues
+			</h2>
 			{issues.length === 0 ? (
-				<p data-testid="newsletter-archive-empty">
+				<p class="archive__empty" data-testid="newsletter-archive-empty">
 					No newsletters have been sent yet. Sign up below to get the first issue by email.
 				</p>
 			) : (
-				<ul data-testid="newsletter-archive">
+				<ul class="archive__list" data-testid="newsletter-archive">
 					{issues.map((issue) => (
-						<li>
-							<a href={`/newsletters/${issue.slug}`}>{issue.subject}</a>,{" "}
+						<li class="archive__issue">
+							<a href={`/newsletters/${issue.slug}`}>{issue.subject}</a>
 							<time datetime={issue.sentAt.toISOString()}>{dateFormat.format(issue.sentAt)}</time>
 						</li>
 					))}
@@ -33,11 +43,58 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 			)}
 		</div>
 	</section>
-	<NewsletterSignup />
+	<section class="band section" aria-label="Sign up">
+		<div class="frame">
+			<div class="archive__signup">
+				<NewsletterSignup />
+			</div>
+		</div>
+	</section>
 </Base>
 
 <style>
-	.newsletters {
-		padding-block: var(--spacing-8);
+	.archive {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+
+	.archive__empty {
+		color: var(--color-text-secondary);
+	}
+
+	.archive__list {
+		display: grid;
+		max-width: var(--content-width);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.archive__issue {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		justify-content: space-between;
+		gap: var(--spacing-1) var(--spacing-4);
+		padding-block: var(--spacing-4);
+		border-top: 1px solid var(--color-border);
+	}
+
+	.archive__issue:last-child {
+		border-bottom: 1px solid var(--color-border);
+	}
+
+	.archive__issue a {
+		font-size: var(--font-size-lg);
+		font-weight: 700;
+	}
+
+	.archive__issue time {
+		color: var(--color-text-secondary);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.archive__signup {
+		max-width: var(--content-width);
 	}
 </style>

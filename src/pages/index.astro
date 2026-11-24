@@ -3,26 +3,41 @@ import { systemClock } from "@adapters/clock";
 import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodies, loadCalendar, loadNewsPage } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
-import { agenda } from "@core/calendar/month";
-import { daysAhead, expand } from "@core/recurrence/expand";
+import { chosenBodies } from "@adapters/site/views";
+import {
+	formatWeek,
+	nextAfter,
+	parseWeek,
+	weekDays,
+	weekStart,
+	weekTitle,
+	weekWindow,
+} from "@core/calendar/week";
+import { expand } from "@core/recurrence/expand";
 import { meetingsByBody } from "@core/recurrence/meetings";
 import { SITE_TZ } from "@core/time";
 import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { PortableText } from "emdash/ui";
-import Agenda from "../components/Agenda.astro";
+import type { Temporal } from "temporal-polyfill";
 import BodyCards from "../components/BodyCards.astro";
+import CalendarFilter from "../components/CalendarFilter.astro";
 import NewsList from "../components/NewsList.astro";
+import NewsletterSignup from "../components/NewsletterSignup.astro";
+import WeekStrip from "../components/WeekStrip.astro";
 import Base from "../layouts/Base.astro";
 import { resolveSiteIdentity } from "../utils/site-identity";
 import "../styles/prose.css";
 
-// What is on at the Temple soon, the latest news and every body. The intro copy is the `home`
-// entry in the pages collection (FR-9.1), when an editor has written one.
-const COMING_UP_DAYS = 14;
-const LATEST_NEWS = 5;
+// Direction C: the home page opens on this week at the Temple (`?week=`, `?body=`), then each
+// body's next stated meeting, the latest notices and the signup. The `home` entry in the pages
+// collection (FR-9.1) is the introduction further down, when an editor has written one.
+const LATEST_NEWS = 3;
+// The "Thinking of joining?" card writes to this body (a default the operator can change).
+const JOINING_BODY = "blue-lodge";
 
 const now = systemClock.now();
 const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const week = parseWeek(Astro.url.searchParams.get("week"), today);
 const [bodies, settings, home] = await Promise.all([
 	loadBodies(),
 	getSiteSettingsWithCacheHint(),
@@ -41,45 +56,96 @@ cacheRoute(
 
 const { siteTitle, siteTagline } = resolveSiteIdentity(settings.data);
 const byBody = new Map(bodies.value.map((body) => [body.id, body]));
-const { series, byId } = calendar.value;
-const comingUp = agenda(
-	expand(series, daysAhead(now, COMING_UP_DAYS)),
-	today,
-	today.add({ days: COMING_UP_DAYS + 1 }),
-);
+const chosen = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
+const chosenIds = new Set(chosen.map((body) => body.id));
+const { series } = calendar.value;
+const shown = chosen.length === 0 ? series : series.filter((s) => chosenIds.has(s.body));
+
+const window = weekWindow(week);
+const days = weekDays(week, expand(shown, window), today);
+const weekHref = (start: Temporal.PlainDate) => {
+	const query = new URLSearchParams();
+	if (!start.equals(weekStart(today))) query.set("week", start.toString());
+	for (const body of chosen) query.append("body", body.slug);
+	const search = query.toString();
+	return search === "" ? paths.home : `${paths.home}?${search}`;
+};
+const following = nextAfter(shown, window.to);
+const next =
+	following === null
+		? null
+		: { occurrence: following, href: weekHref(weekStart(following.start.toPlainDate())) };
+const monthQuery = new URLSearchParams({
+	month: week.add({ days: 3 }).toPlainYearMonth().toString(),
+});
+for (const body of chosen) monthQuery.append("body", body.slug);
+const feed = new URL(paths.feed, Astro.url).href.replace(/^https?:/, "webcal:");
+
 const cards = meetingsByBody(bodies.value, series, now, 1);
+const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 ---
 
 <Base title={siteTitle} description={siteTagline}>
-	<header class="band intro">
+	<section class="band lead" aria-labelledby="week-title">
 		<div class="frame">
-			<h1 class="intro__title">{siteTitle}</h1>
-			{siteTagline && <p class="intro__subtitle">{siteTagline}</p>}
-			{home.entry?.data.content && (
-				<div class="prose intro__lead" {...home.entry.edit.content}>
-					<PortableText value={home.entry.data.content} />
+			<div class="lead__head">
+				<div>
+					<h1 id="week-title" class="lead__title">
+						{weekTitle(week, today)}
+					</h1>
+					<p class="lead__dates">{formatWeek(week)}</p>
 				</div>
-			)}
+				<nav class="btn-row" aria-label="Weeks" data-testid="week-nav">
+					<a class="btn btn--ghost" href={weekHref(week.subtract({ days: 7 }))} rel="prev">
+						<span aria-hidden="true">←</span> Previous week
+					</a>
+					{!week.equals(weekStart(today)) && (
+						<a class="btn btn--ghost" href={weekHref(weekStart(today))}>
+							This week
+						</a>
+					)}
+					<a class="btn btn--ghost" href={weekHref(week.add({ days: 7 }))} rel="next">
+						Next week <span aria-hidden="true">→</span>
+					</a>
+				</nav>
+			</div>
+			<div class="lead__filter">
+				<CalendarFilter
+					bodies={bodies.value}
+					selected={chosenIds}
+					action={paths.home}
+					keep={week.equals(weekStart(today)) ? {} : { week: week.toString() }}
+				/>
+			</div>
+			<WeekStrip
+				days={days}
+				bodies={byBody}
+				today={today}
+				filtered={chosen.length > 0}
+				next={next}
+			/>
+			<p class="btn-row lead__links">
+				<a class="btn" href={`${paths.calendar}?${monthQuery}`}>
+					Month view
+				</a>
+				<a class="btn btn--ghost" href={feed}>
+					Add the Temple calendar to my phone
+				</a>
+			</p>
 		</div>
-	</header>
+	</section>
 
-	<section class="band section" aria-labelledby="coming-up-title">
+	<section class="band section" aria-labelledby="meetings-title">
 		<div class="frame">
 			<div class="section-head">
-				<h2 id="coming-up-title" class="section-head__title">
-					Coming up
+				<h2 id="meetings-title" class="section-head__title">
+					Next stated meetings
 				</h2>
-				<a class="arrow-link" href={paths.calendar}>
-					Temple calendar
+				<a class="arrow-link" href={paths.bodies}>
+					All bodies
 				</a>
 			</div>
-			<Agenda
-				days={comingUp}
-				bodies={byBody}
-				series={byId}
-				showBody={true}
-				empty={`Nothing is on the calendar for the next ${COMING_UP_DAYS} days.`}
-			/>
+			<BodyCards cards={cards} today={today} headingLevel={3} />
 		</div>
 	</section>
 
@@ -87,7 +153,7 @@ const cards = meetingsByBody(bodies.value, series, now, 1);
 		<div class="frame">
 			<div class="section-head">
 				<h2 id="news-title" class="section-head__title">
-					Latest news
+					Notices
 				</h2>
 				<a class="arrow-link" href={paths.news}>
 					All news
@@ -97,17 +163,121 @@ const cards = meetingsByBody(bodies.value, series, now, 1);
 		</div>
 	</section>
 
-	<section class="band section" aria-labelledby="bodies-title">
-		<div class="frame">
-			<div class="section-head">
-				<h2 id="bodies-title" class="section-head__title">
-					Our bodies
-				</h2>
-				<a class="arrow-link" href={paths.bodies}>
-					All bodies
-				</a>
-			</div>
-			<BodyCards cards={cards} headingLevel={3} />
+	<section class="band section" aria-label="Newsletter and joining">
+		<div class="frame split">
+			<NewsletterSignup chooseBodies={false} />
+			{joining && (
+				<section class="card join" aria-labelledby="join-title" data-testid="joining">
+					<h2 id="join-title" class="join__title">
+						Thinking of joining?
+					</h2>
+					<p class="join__text">
+						Every Mason in this building started by asking. Write to {joining.displayName} and the
+						secretary will arrange a time to meet.
+					</p>
+					<p>
+						<a
+							class="btn btn--ghost"
+							href={
+								joining.acceptsMessages
+									? `${paths.body(joining.slug)}#contact`
+									: paths.body(joining.slug)
+							}
+						>
+							Write to {joining.label}
+						</a>
+					</p>
+				</section>
+			)}
 		</div>
 	</section>
+
+	{home.entry?.data.content && (
+		<section class="band section" aria-labelledby="about-title">
+			<div class="frame about">
+				<h2 id="about-title" class="section-head__title">
+					{siteTitle}
+				</h2>
+				<div class="prose" {...home.entry.edit.content}>
+					<PortableText value={home.entry.data.content} />
+				</div>
+			</div>
+		</section>
+	)}
 </Base>
+
+<style>
+	.lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
+	.lead__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+		margin-bottom: var(--spacing-6);
+	}
+
+	.lead__title {
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.lead__dates {
+		margin-top: var(--spacing-2);
+		font-size: var(--font-size-lg);
+		color: var(--color-text-secondary);
+	}
+
+	.lead__filter {
+		margin-bottom: var(--spacing-5);
+	}
+
+	.lead__links {
+		margin-top: var(--spacing-6);
+	}
+
+	.split {
+		display: grid;
+		grid-template-columns: repeat(2, minmax(0, 1fr));
+		gap: var(--spacing-6);
+		align-items: start;
+	}
+
+	.join {
+		display: grid;
+		gap: var(--spacing-4);
+		padding: var(--spacing-8);
+	}
+
+	.join__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.join__text {
+		color: var(--color-text-secondary);
+	}
+
+	.about {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.about .prose {
+		max-width: var(--content-width);
+	}
+
+	@media (max-width: 860px) {
+		.split {
+			grid-template-columns: minmax(0, 1fr);
+		}
+	}
+
+	@media (max-width: 640px) {
+		.join {
+			padding: var(--spacing-5);
+		}
+	}
+</style>

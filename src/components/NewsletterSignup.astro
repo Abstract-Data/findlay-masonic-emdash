@@ -3,8 +3,14 @@ import { loadBodies } from "@adapters/site/content";
 import type { SubscribeOutcome } from "@plugins/newsletter/subscribe";
 import Turnstile from "./Turnstile.astro";
 
-// FR-7.1. A plain form post: the subscribe route answers with a redirect back here, so the
-// page needs no script of its own.
+// FR-7.1. A plain form post: the subscribe route answers with a redirect to the archive's copy
+// of this form, so the page needs no script of its own. The home page's copy asks only for the
+// address; the archive's also offers each body's news.
+interface Props {
+	chooseBodies?: boolean;
+}
+
+const { chooseBodies = true } = Astro.props;
 const { value: bodies } = await loadBodies();
 
 const MESSAGES: Readonly<Record<string, string>> = {
@@ -20,57 +26,114 @@ const outcome = Astro.url.searchParams.get("subscribe");
 const message = outcome === null ? undefined : MESSAGES[outcome];
 ---
 
-<section id="signup" class="band signup" aria-labelledby="signup-title">
-	<div class="frame signup__inner">
-		<h2 id="signup-title">Get the newsletter by email</h2>
-		{message && (
-			<p role="status" data-testid="signup-message">
-				{message}
-			</p>
+<section id="signup" class="card signup" aria-labelledby="signup-title">
+	<h2 id="signup-title" class="signup__title">
+		Get the quarterly newsletter
+	</h2>
+	<p class="signup__lead">
+		One email each season with news from every body at the Temple.
+		{!chooseBodies && (
+			<>
+				{" "}
+				Past issues are <a href="/newsletters">in the archive</a>.
+			</>
 		)}
-		<form method="post" action="/_emdash/api/plugins/newsletter/subscribe" data-testid="signup">
-			<p>
-				<label for="signup-email">Email address</label>
-				<input id="signup-email" name="email" type="email" required autocomplete="email" />
-			</p>
-			{bodies.length > 0 && (
-				<fieldset>
-					<legend>Also tell me about these bodies (optional)</legend>
-					{bodies.map((body) => (
-						<label class="signup__body">
-							<input type="checkbox" name="body" value={body.id} /> {body.displayName}
-						</label>
-					))}
-				</fieldset>
-			)}
-			<Turnstile />
-			<p>
-				<button type="submit" class="btn">
-					Subscribe
-				</button>
-			</p>
-		</form>
-	</div>
+	</p>
+	{message && (
+		<p class="signup__status" role="status" data-testid="signup-message">
+			{message}
+		</p>
+	)}
+	<form
+		class="signup__form"
+		method="post"
+		action="/_emdash/api/plugins/newsletter/subscribe"
+		data-testid="signup"
+	>
+		<p class="field">
+			<label for="signup-email">Email address</label>
+			<input
+				id="signup-email"
+				class="input"
+				name="email"
+				type="email"
+				required
+				autocomplete="email"
+			/>
+		</p>
+		{chooseBodies && bodies.length > 0 && (
+			<fieldset class="field signup__bodies">
+				<legend>Also tell me about these bodies (optional)</legend>
+				{bodies.map((body) => (
+					<label class="signup__body">
+						<input type="checkbox" name="body" value={body.id} /> {body.displayName}
+					</label>
+				))}
+			</fieldset>
+		)}
+		<Turnstile />
+		<p>
+			<button type="submit" class="btn signup__submit">
+				Subscribe
+			</button>
+		</p>
+	</form>
 </section>
 
 <style>
 	.signup {
-		padding-block: var(--spacing-8);
-	}
-
-	.signup__inner {
 		display: grid;
 		gap: var(--spacing-4);
-		max-width: var(--content-width);
+		align-content: start;
+		padding: var(--spacing-8);
+	}
+
+	.signup__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.signup__lead {
+		color: var(--color-text-secondary);
+	}
+
+	.signup__status {
+		padding: var(--spacing-3) var(--spacing-4);
+		border-inline-start: 4px solid var(--color-brand);
+		border-radius: var(--radius-sm);
+		background: var(--color-fill);
+		font-weight: 700;
+	}
+
+	.signup__form {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.signup__bodies {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.signup__bodies legend {
+		margin-bottom: var(--spacing-2);
+		padding: 0;
 	}
 
 	.signup__body {
-		display: block;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		min-height: 2.75rem;
 	}
 
-	fieldset {
-		border: 0;
-		padding: 0;
-		margin: 0;
+	.signup__submit {
+		width: 100%;
+	}
+
+	@media (max-width: 640px) {
+		.signup {
+			padding: var(--spacing-5);
+		}
 	}
 </style>

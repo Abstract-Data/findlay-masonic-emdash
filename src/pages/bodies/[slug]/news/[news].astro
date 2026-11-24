@@ -53,8 +53,10 @@ const seo = pageSeo(entry, {
 	<article class="band page news-item">
 		<div class="frame page__layout">
 			<header class="page__header">
-				<p class="eyebrow">
-					<a href={paths.body(body.slug)}>{body.displayName}</a>
+				<p class="eyebrow" data-colour={body.colour ?? undefined}>
+					<a class="body-label" href={paths.body(body.slug)}>
+						{body.displayName}
+					</a>
 				</p>
 				<h1 class="page__title" {...entry.edit.title}>
 					{item.title}

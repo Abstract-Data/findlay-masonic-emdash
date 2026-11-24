@@ -131,18 +131,12 @@ export default defineConfig({
 	],
 	fonts: [
 		{
+			// Direction C: designed for low-vision readers. One variable file covers 400 to 700.
 			provider: fontProviders.google(),
-			name: "Inter",
+			name: "Atkinson Hyperlegible Next",
 			cssVariable: "--font-body",
-			weights: [400, 500, 600, 700],
+			weights: ["400 700"],
 			fallbacks: ["sans-serif"],
-		},
-		{
-			provider: fontProviders.google(),
-			name: "JetBrains Mono",
-			cssVariable: "--font-mono",
-			weights: [400, 500],
-			fallbacks: ["monospace"],
 		},
 	],
 	devToolbar: { enabled: false },

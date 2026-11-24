@@ -51,6 +51,15 @@ export function formatWeek(start: Temporal.PlainDate): string {
 	return `${first} to ${formatLongDay(end)}, ${end.year}`;
 }
 
+/** The home page's heading for the week starting `start`, named from today's week. */
+export function weekTitle(start: Temporal.PlainDate, today: Temporal.PlainDate): string {
+	const weeks = weekStart(today).until(start, { largestUnit: "days" }).days / DAYS_IN_WEEK;
+	if (weeks === 0) return "This week at the Temple";
+	if (weeks === 1) return "Next week at the Temple";
+	if (weeks === -1) return "Last week at the Temple";
+	return `The week of ${formatLongDay(start)}`;
+}
+
 /** The soonest occurrence starting at or after `after`, for a quiet week's "next" line. */
 export function nextAfter(
 	series: readonly EventSeries[],

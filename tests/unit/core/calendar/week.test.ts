@@ -5,6 +5,7 @@ import {
 	parseWeek,
 	weekDays,
 	weekStart,
+	weekTitle,
 	weekWindow,
 } from "@core/calendar/week";
 import { expand } from "@core/recurrence/expand";
@@ -119,6 +120,18 @@ describe("formatWeek", () => {
 		expect(formatWeek(date("2026-12-27"))).toBe(
 			"Sunday, December 27, 2026 to Saturday, January 2, 2027",
 		);
+	});
+});
+
+describe("weekTitle", () => {
+	it.each([
+		["2026-11-22", "This week at the Temple"],
+		["2026-11-29", "Next week at the Temple"],
+		["2026-11-15", "Last week at the Temple"],
+		["2026-12-06", "The week of Sunday, December 6"],
+		["2026-11-08", "The week of Sunday, November 8"],
+	])("names the week from %s %s", (start, title) => {
+		expect(weekTitle(date(start), today)).toBe(title);
 	});
 });
 

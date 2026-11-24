@@ -1,9 +1,10 @@
 ---
 import type { BodyView } from "@adapters/site/views";
-import { datetimeOf, timeLabel, type AgendaDay } from "@core/calendar/month";
+import type { AgendaDay } from "@core/calendar/month";
 import type { BodyId, EntryId } from "@core/ids";
 import type { EventSeries } from "@core/recurrence/series";
 import { formatLongDay } from "@core/time";
+import Entry from "./Entry.astro";
 
 // The month grid as a list, and the body page's upcoming events: the readable view on a phone
 // and for screen readers.
@@ -32,18 +33,14 @@ const Day = `h${headingLevel}` as const;
 					<time datetime={day.date.toString()}>{formatLongDay(day.date)}</time>
 				</Day>
 				<ul class="agenda__entries">
-					{day.occurrences.map((o) => {
-						const body = bodies.get(o.body);
-						const location = series.get(o.event)?.location ?? null;
-						return (
-							<li data-body={body?.slug}>
-								<time datetime={datetimeOf(o)}>{timeLabel(o)}</time>{" "}
-								{showBody && body && <span class="body-label">{body.label}</span>}{" "}
-								<span class="agenda__title">{o.title}</span>
-								{location && <span class="agenda__location">, {location}</span>}
-							</li>
-						);
-					})}
+					{day.occurrences.map((o) => (
+						<Entry
+							occurrence={o}
+							body={bodies.get(o.body)}
+							showBody={showBody}
+							location={series.get(o.event)?.location ?? null}
+						/>
+					))}
 				</ul>
 			</li>
 		))}
@@ -53,23 +50,44 @@ const Day = `h${headingLevel}` as const;
 <style>
 	.agenda,
 	.agenda__entries {
-		list-style: none;
-		padding: 0;
 		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 
 	.agenda {
 		display: grid;
-		gap: var(--spacing-5);
+		gap: var(--spacing-4);
+	}
+
+	.agenda__day {
+		display: grid;
+		grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+		gap: var(--spacing-2) var(--spacing-5);
+		align-items: start;
 	}
 
 	.agenda__date {
+		padding-top: var(--spacing-2);
 		font-size: var(--font-size-base);
-		margin-bottom: var(--spacing-2);
 	}
 
 	.agenda__entries {
 		display: grid;
 		gap: var(--spacing-2);
+	}
+
+	.agenda__empty {
+		color: var(--color-text-secondary);
+	}
+
+	@media (max-width: 640px) {
+		.agenda__day {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.agenda__date {
+			padding-top: 0;
+		}
 	}
 </style>

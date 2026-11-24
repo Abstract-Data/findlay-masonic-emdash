@@ -19,13 +19,15 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 	title={issue.subject}
 	description={`Findlay Masonic newsletter sent ${dateFormat.format(issue.sentAt)}.`}
 >
-	<article class="band newsletter">
-		<div class="frame">
+	<article class="band section">
+		<div class="frame newsletter">
 			<p>
-				<a href="/newsletters">All newsletters</a>
+				<a href="/newsletters">
+					<span aria-hidden="true">←</span> All newsletters
+				</a>
 			</p>
-			<h1>{issue.subject}</h1>
-			<p>
+			<h1 class="newsletter__title">{issue.subject}</h1>
+			<p class="newsletter__sent">
 				Sent <time datetime={issue.sentAt.toISOString()}>{dateFormat.format(issue.sentAt)}</time>
 			</p>
 			<iframe
@@ -42,7 +44,19 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 
 <style>
 	.newsletter {
-		padding-block: var(--spacing-8);
+		display: grid;
+		gap: var(--spacing-3);
+		justify-items: start;
+	}
+
+	.newsletter__title {
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.newsletter__sent {
+		margin-bottom: var(--spacing-4);
+		color: var(--color-text-secondary);
 	}
 
 	.newsletter__email {
@@ -50,8 +64,9 @@ const dateFormat = new Intl.DateTimeFormat("en-US", {
 		width: 100%;
 		max-width: 680px;
 		height: 80vh;
-		border: 1px solid var(--color-border);
+		border: 0;
 		border-radius: var(--radius-lg);
 		background: #ffffff;
+		box-shadow: var(--shadow-card);
 	}
 </style>

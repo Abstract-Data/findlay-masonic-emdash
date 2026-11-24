@@ -1,51 +1,109 @@
 ---
 import { paths } from "@adapters/site/paths";
 import type { BodyView } from "@adapters/site/views";
-import { datetimeOf } from "@core/calendar/month";
 import { formatOccurrence } from "@core/recurrence/describe";
 import type { Meetings } from "@core/recurrence/meetings";
 import { Image } from "emdash/ui";
+import type { Temporal } from "temporal-polyfill";
+import DateTile from "./DateTile.astro";
 
-// FR-1.2: a body with its emblem and next meeting, linking to its page.
+// FR-1.2: a body with its emblem, its schedule and its next meeting as a date tile in its
+// colour. The whole card is the link to its page.
 interface Props {
 	body: BodyView;
 	meetings: Meetings;
+	today: Temporal.PlainDate;
 	headingLevel?: 2 | 3;
 }
 
-const { body, meetings, headingLevel = 2 } = Astro.props;
+const { body, meetings, today, headingLevel = 2 } = Astro.props;
 const Title = `h${headingLevel}` as const;
-const next = meetings.next[0];
+const next = meetings.next[0] ?? null;
 const { schedule } = meetings;
+const line =
+	schedule.kind === "rule"
+		? schedule.text
+		: schedule.kind === "note"
+			? schedule.note
+			: next === null
+				? "Contact the secretary for meeting times."
+				: `Next meeting: ${formatOccurrence(next)}`;
 ---
 
-<article class="body-card" data-body={body.slug} data-testid="body-card">
+<article
+	class="body-card card"
+	data-body={body.slug}
+	data-colour={body.colour ?? undefined}
+	data-testid="body-card"
+>
 	{body.emblem && <Image image={body.emblem} alt="" class="body-card__emblem" />}
-	<Title class="body-card__name">
-		<a href={paths.body(body.slug)}>{body.displayName}</a>
-	</Title>
-	<p class="body-card__next">
-		{next ? (
-			<>
-				Next meeting: <time datetime={datetimeOf(next)}>{formatOccurrence(next)}</time>
-			</>
-		) : schedule.kind === "note" ? (
-			schedule.note
-		) : (
-			"Contact the secretary for meeting times."
-		)}
-	</p>
+	<div class="body-card__text">
+		<Title class="body-card__name">
+			<a href={paths.body(body.slug)}>{body.displayName}</a>
+		</Title>
+		<p class="body-card__schedule">{line}</p>
+	</div>
+	<DateTile occurrence={next} today={today} label="Next meeting:" />
 </article>
 
 <style>
 	.body-card {
-		display: grid;
-		gap: var(--spacing-2);
-		align-content: start;
+		position: relative;
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-4);
+		height: 100%;
+		padding: var(--spacing-4);
+		border-top: 4px solid var(--body-colour, var(--color-border-strong));
+		transition: box-shadow var(--transition-fast);
+	}
+
+	.body-card:hover {
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.body-card:has(a:focus-visible) {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
 	}
 
 	:global(.body-card__emblem) {
-		width: 4rem;
+		flex: none;
+		width: 3rem;
 		height: auto;
+	}
+
+	.body-card__text {
+		flex: 1;
+		min-width: 0;
+	}
+
+	.body-card__name {
+		font-size: var(--font-size-lg);
+	}
+
+	.body-card__name a {
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.body-card__name a::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+	}
+
+	.body-card__name a:focus-visible {
+		outline: none;
+	}
+
+	.body-card:hover .body-card__name a {
+		text-decoration: underline;
+	}
+
+	.body-card__schedule {
+		margin-top: var(--spacing-1);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
 	}
 </style>

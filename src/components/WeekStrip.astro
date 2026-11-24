@@ -1,0 +1,218 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import type { CalendarDay } from "@core/calendar/month";
+import type { BodyId } from "@core/ids";
+import { formatOccurrence } from "@core/recurrence/describe";
+import type { Occurrence } from "@core/recurrence/series";
+import { formatLongDay, formatWeekday } from "@core/time";
+import type { Temporal } from "temporal-polyfill";
+import DateTile from "./DateTile.astro";
+import Entry from "./Entry.astro";
+
+// The home page's seven days (direction C). A week with nothing in it is one notice that names
+// the next thing on the calendar and links to its week, not seven empty cards.
+interface Props {
+	days: readonly CalendarDay[];
+	bodies: ReadonlyMap<BodyId, BodyView>;
+	today: Temporal.PlainDate;
+	/** Whether some bodies are filtered out, which changes what "nothing" means. */
+	filtered: boolean;
+	/** The soonest occurrence after the week, and the link to its week. */
+	next: { readonly occurrence: Occurrence; readonly href: string } | null;
+}
+
+const { days, bodies, today, filtered, next } = Astro.props;
+const quiet = days.every((day) => day.occurrences.length === 0);
+const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
+---
+
+{quiet ? (
+	<div class="quiet" data-testid="quiet-week" data-colour={nextBody?.colour ?? undefined}>
+		{next && <DateTile occurrence={next.occurrence} today={today} large={true} />}
+		<div class="quiet__text">
+			<h2 class="quiet__title">
+				{filtered
+					? "Nothing this week for the bodies you chose."
+					: "Nothing at the Temple this week."}
+			</h2>
+			{next === null ? (
+				<p>Nothing else is on the calendar yet.</p>
+			) : (
+				<>
+					<p class="quiet__next">
+						Next: {next.occurrence.title}, {formatOccurrence(next.occurrence)}
+						{nextBody && (
+							<>
+								{" "}
+								<span class="body-label">{nextBody.label}</span>
+							</>
+						)}
+					</p>
+					<p>
+						<a class="btn btn--ghost" href={next.href}>
+							Show that week
+						</a>
+					</p>
+				</>
+			)}
+		</div>
+	</div>
+) : (
+	<ol class="week" data-testid="week">
+		{days.map((day) => (
+			<li class:list={["day", { "day--today": day.isToday }]} data-date={day.date.toString()}>
+				<h2 class="day__head">
+					<time datetime={day.date.toString()}>
+						<span class="day__num" aria-hidden="true">
+							{day.date.day}
+						</span>{" "}
+						<span class="day__name" aria-hidden="true">
+							{formatWeekday(day.date)}
+						</span>
+						<span class="sr-only">{formatLongDay(day.date)}</span>
+					</time>
+					{day.isToday && <span class="day__today">Today</span>}
+				</h2>
+				{day.occurrences.length === 0 ? (
+					<p class="day__none">Nothing scheduled</p>
+				) : (
+					<ul class="day__entries">
+						{day.occurrences.map((o) => (
+							<Entry occurrence={o} body={bodies.get(o.body)} showBody={true} />
+						))}
+					</ul>
+				)}
+			</li>
+		))}
+	</ol>
+)}
+
+<style>
+	.week {
+		display: grid;
+		grid-template-columns: repeat(7, minmax(0, 1fr));
+		gap: var(--spacing-2);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.day {
+		display: grid;
+		align-content: start;
+		gap: var(--spacing-3);
+		min-height: 13rem;
+		padding: var(--spacing-3);
+		border-radius: var(--radius-lg);
+		background: var(--color-surface);
+		box-shadow: var(--shadow-card);
+	}
+
+	.day--today {
+		box-shadow:
+			inset 0 0 0 2px var(--color-brand),
+			var(--shadow-card);
+	}
+
+	.day__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--spacing-1) var(--spacing-2);
+		font-size: var(--font-size-base);
+	}
+
+	.day__num {
+		font-size: var(--font-size-2xl);
+		line-height: 1;
+	}
+
+	.day__name {
+		color: var(--color-text-secondary);
+	}
+
+	.day__today {
+		margin-inline-start: auto;
+		padding: 2px 8px;
+		border-radius: var(--radius-full);
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		font-size: var(--font-size-label);
+	}
+
+	.day__none {
+		font-size: var(--font-size-sm);
+		color: var(--color-muted);
+	}
+
+	.day__entries {
+		display: grid;
+		gap: var(--spacing-2);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	.quiet {
+		display: grid;
+		grid-template-columns: auto minmax(0, 1fr);
+		gap: var(--spacing-6);
+		align-items: center;
+		padding: var(--spacing-6);
+		border: 2px dashed var(--color-border-strong);
+		border-radius: var(--radius-lg);
+	}
+
+	.quiet__text {
+		display: grid;
+		gap: var(--spacing-3);
+		justify-items: start;
+	}
+
+	.quiet__title {
+		font-size: var(--font-size-xl);
+	}
+
+	.quiet__next {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-1) var(--spacing-3);
+		font-size: var(--font-size-lg);
+	}
+
+	@media (max-width: 1000px) {
+		.week {
+			grid-template-columns: minmax(0, 1fr);
+		}
+
+		.day {
+			grid-template-columns: 4.5rem minmax(0, 1fr);
+			align-items: start;
+			min-height: 0;
+			row-gap: var(--spacing-2);
+		}
+
+		.day__head {
+			flex-direction: column;
+			align-items: flex-start;
+			gap: 0;
+			grid-row: 1 / span 2;
+		}
+
+		.day__today {
+			margin: var(--spacing-1) 0 0;
+		}
+
+		.day > :not(.day__head) {
+			grid-column: 2;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.quiet {
+			grid-template-columns: minmax(0, 1fr);
+			justify-items: start;
+		}
+	}
+</style>

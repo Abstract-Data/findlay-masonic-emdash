@@ -1,0 +1,77 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import { datetimeOf, timeLabel } from "@core/calendar/month";
+import type { Occurrence } from "@core/recurrence/series";
+
+// One occurrence on a calendar (FR-4.3, 4.4): its title, then its time and, on a calendar of
+// several bodies, the body's name beside its colour. The bar and tint come from data-colour.
+interface Props {
+	occurrence: Occurrence;
+	body: BodyView | undefined;
+	showBody: boolean;
+	location?: string | null;
+	compact?: boolean;
+}
+
+const { occurrence: o, body, showBody, location = null, compact = false } = Astro.props;
+---
+
+<li
+	class:list={["entry", { "entry--compact": compact }]}
+	data-body={body?.slug}
+	data-colour={body?.colour ?? undefined}
+>
+	<span class="entry__title">{o.title}</span>{" "}
+	<span class="entry__meta">
+		<time datetime={datetimeOf(o)}>{timeLabel(o)}</time>
+		{showBody && body && (
+			<>
+				{" "}
+				<span class="body-label">{body.label}</span>
+			</>
+		)}
+		{location && (
+			<>
+				{" "}
+				<span class="entry__where">{location}</span>
+			</>
+		)}
+	</span>
+</li>
+
+<style>
+	.entry {
+		display: grid;
+		gap: 2px;
+		padding: var(--spacing-2) var(--spacing-3);
+		border-inline-start: 4px solid var(--body-colour, var(--color-border-strong));
+		border-radius: var(--radius-sm);
+		background: color-mix(
+			in srgb,
+			var(--body-colour, var(--color-border-strong)) 12%,
+			var(--color-surface)
+		);
+		font-size: var(--font-size-sm);
+		line-height: var(--leading-snug);
+		overflow-wrap: anywhere;
+	}
+
+	.entry__title {
+		font-weight: 700;
+	}
+
+	.entry__meta {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 2px var(--spacing-3);
+		color: var(--color-text-secondary);
+		font-variant-numeric: tabular-nums;
+	}
+
+	.entry--compact {
+		padding: var(--spacing-1) 6px;
+		border-inline-start-width: 3px;
+		font-size: var(--font-size-xs);
+	}
+</style>

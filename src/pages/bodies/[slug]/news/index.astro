@@ -36,8 +36,10 @@ const title = tag === null ? `News from ${body.displayName}` : `${tag.label}: ${
 <Base title={title} description={`News from ${body.displayName}.`}>
 	<header class="band intro">
 		<div class="frame">
-			<p class="eyebrow">
-				<a href={paths.body(body.slug)}>{body.displayName}</a>
+			<p class="eyebrow" data-colour={body.colour ?? undefined}>
+				<a class="body-label" href={paths.body(body.slug)}>
+					{body.displayName}
+				</a>
 			</p>
 			<h1 class="intro__title">News</h1>
 		</div>

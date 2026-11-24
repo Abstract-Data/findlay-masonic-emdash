@@ -15,16 +15,18 @@ const { page, href } = Astro.props;
 		<ul>
 			{page.hasNewer && (
 				<li>
-					<a href={href(page.page - 1)} rel="prev">
-						Newer news
+					<a class="btn btn--ghost" href={href(page.page - 1)} rel="prev">
+						<span aria-hidden="true">←</span> Newer news
 					</a>
 				</li>
 			)}
-			<li aria-current="page">Page {page.page}</li>
+			<li class="pager__page" aria-current="page">
+				Page {page.page}
+			</li>
 			{page.hasOlder && (
 				<li>
-					<a href={href(page.page + 1)} rel="next">
-						Older news
+					<a class="btn btn--ghost" href={href(page.page + 1)} rel="next">
+						Older news <span aria-hidden="true">→</span>
 					</a>
 				</li>
 			)}
@@ -40,6 +42,10 @@ const { page, href } = Astro.props;
 		display: flex;
 		flex-wrap: wrap;
 		gap: var(--spacing-4);
-		align-items: baseline;
+		align-items: center;
+	}
+
+	.pager__page {
+		color: var(--color-text-secondary);
 	}
 </style>

@@ -29,83 +29,126 @@ const title = body === undefined ? "Write to a body" : `Write to ${body.displayN
 ---
 
 <section id="contact" class="band section contact" aria-labelledby="contact-title">
-	<div class="frame contact__inner">
-		<h2 id="contact-title">{title}</h2>
-		{message && (
-			<p role="status" data-testid="contact-message">
-				{message}
-			</p>
-		)}
-		{reachable ? (
-			<form
-				method="post"
-				action="/_emdash/api/plugins/newsletter/contact"
-				data-testid="contact-form"
-			>
-				<input type="hidden" name="from" value={Astro.url.pathname} />
-				{body ? (
-					<input type="hidden" name="body" value={body.id} />
-				) : (
-					<p>
-						<label for="contact-body">Body</label>
-						<select id="contact-body" name="body" required>
-							<option value="">Choose a body</option>
-							{bodies.map((option) => (
-								<option value={option.id}>{option.displayName}</option>
-							))}
-						</select>
+	<div class="frame">
+		<div class="card contact__card">
+			<h2 id="contact-title" class="contact__title">
+				{title}
+			</h2>
+			{message && (
+				<p class="contact__status" role="status" data-testid="contact-message">
+					{message}
+				</p>
+			)}
+			{reachable ? (
+				<form
+					class="contact__form"
+					method="post"
+					action="/_emdash/api/plugins/newsletter/contact"
+					data-testid="contact-form"
+				>
+					<p class="contact__lead">
+						{body === undefined
+							? "Your message goes to the secretary of the body you choose, who will write back to you."
+							: "Your message goes to the secretary, who will write back to you."}
 					</p>
-				)}
-				<p>
-					<label for="contact-name">Your name</label>
-					<input id="contact-name" name="name" required maxlength="100" autocomplete="name" />
+					<input type="hidden" name="from" value={Astro.url.pathname} />
+					{body ? (
+						<input type="hidden" name="body" value={body.id} />
+					) : (
+						<p class="field">
+							<label for="contact-body">Body</label>
+							<select id="contact-body" class="input" name="body" required>
+								<option value="">Choose a body</option>
+								{bodies.map((option) => (
+									<option value={option.id}>{option.displayName}</option>
+								))}
+							</select>
+						</p>
+					)}
+					<p class="field">
+						<label for="contact-name">Your name</label>
+						<input
+							id="contact-name"
+							class="input"
+							name="name"
+							required
+							maxlength="100"
+							autocomplete="name"
+						/>
+					</p>
+					<p class="field">
+						<label for="contact-email">Your email address</label>
+						<input
+							id="contact-email"
+							class="input"
+							name="email"
+							type="email"
+							required
+							maxlength="254"
+							autocomplete="email"
+						/>
+					</p>
+					<p class="field">
+						<label for="contact-message">Message</label>
+						<textarea
+							id="contact-message"
+							class="input"
+							name="message"
+							rows="6"
+							required
+							maxlength="5000"
+						></textarea>
+					</p>
+					<Turnstile />
+					<p>
+						<button type="submit" class="btn">
+							Send message
+						</button>
+					</p>
+				</form>
+			) : (
+				<p class="contact__lead" data-testid="contact-unavailable">
+					{body === undefined
+						? "No body has set up its contact form yet."
+						: `${body.displayName} has not set up its contact form yet.`}
 				</p>
-				<p>
-					<label for="contact-email">Your email address</label>
-					<input
-						id="contact-email"
-						name="email"
-						type="email"
-						required
-						maxlength="254"
-						autocomplete="email"
-					/>
-				</p>
-				<p>
-					<label for="contact-message">Message</label>
-					<textarea
-						id="contact-message"
-						name="message"
-						rows="6"
-						required
-						maxlength="5000"
-					></textarea>
-				</p>
-				<Turnstile />
-				<p>
-					<button type="submit" class="btn">
-						Send message
-					</button>
-				</p>
-			</form>
-		) : (
-			<p data-testid="contact-unavailable">
-				{body === undefined
-					? "No body has set up its contact form yet."
-					: `${body.displayName} has not set up its contact form yet.`}
-			</p>
-		)}
+			)}
+		</div>
 	</div>
 </section>
 
 <style>
-	.contact__inner {
+	.contact__card {
 		display: grid;
 		gap: var(--spacing-4);
 		max-width: var(--content-width);
+		padding: var(--spacing-8);
 	}
 
-	.contact__inner label {
-		display: block;
+	.contact__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.contact__lead {
+		color: var(--color-text-secondary);
+	}
+
+	.contact__status {
+		padding: var(--spacing-3) var(--spacing-4);
+		border-inline-start: 4px solid var(--color-brand);
+		border-radius: var(--radius-sm);
+		background: var(--color-fill);
+		font-weight: 700;
+	}
+
+	.contact__form {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+
+	@media (max-width: 640px) {
+		.contact__card {
+			padding: var(--spacing-5);
+		}
 	}
 </style>

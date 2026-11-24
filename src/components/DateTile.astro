@@ -1,0 +1,90 @@
+---
+import { datetimeOf } from "@core/calendar/month";
+import { dateTile } from "@core/calendar/tile";
+import type { Occurrence } from "@core/recurrence/series";
+import type { Temporal } from "temporal-polyfill";
+
+// A meeting's date in the body's colour (the colour comes from an ancestor's data-colour), or
+// "No set date" when there is none. Today's tile says Today or Tonight, so its page expires at
+// local midnight (clockBound).
+interface Props {
+	occurrence: Occurrence | null;
+	today: Temporal.PlainDate;
+	large?: boolean;
+	/** Read before the date by a screen reader, e.g. "Next meeting:". */
+	label?: string;
+}
+
+const { occurrence, today, large = false, label } = Astro.props;
+const tile = occurrence === null ? null : dateTile(occurrence, today);
+---
+
+{occurrence === null || tile === null ? (
+	<span class:list={["tile", "tile--none", { "tile--large": large }]}>
+		No set <br />
+		date
+	</span>
+) : (
+	<time class:list={["tile", { "tile--large": large }]} datetime={datetimeOf(occurrence)}>
+		{label && <span class="sr-only">{label} </span>}
+		<small>{tile.above}</small> <b>{tile.main}</b>
+		{large && tile.time && (
+			<>
+				{" "}
+				<small>{tile.time}</small>
+			</>
+		)}
+	</time>
+)}
+
+<style>
+	.tile {
+		display: grid;
+		place-items: center;
+		align-content: center;
+		min-width: 4.5rem;
+		padding: var(--spacing-2);
+		border-radius: var(--radius);
+		background: var(--body-colour, var(--color-brand));
+		color: var(--on-body);
+		line-height: 1.1;
+		font-weight: 700;
+		text-align: center;
+		white-space: nowrap;
+	}
+
+	.tile small {
+		font-size: var(--font-size-label);
+		font-weight: 700;
+		letter-spacing: 0.04em;
+		text-transform: uppercase;
+	}
+
+	.tile b {
+		font-size: var(--font-size-2xl);
+	}
+
+	.tile--large {
+		min-width: 7rem;
+		padding: var(--spacing-3);
+		gap: 2px;
+	}
+
+	.tile--large b {
+		font-size: var(--font-size-3xl);
+	}
+
+	.tile--none {
+		background: var(--color-fill);
+		color: var(--color-text-secondary);
+		font-size: var(--font-size-label);
+		font-weight: 700;
+		white-space: normal;
+	}
+
+	@media (forced-colors: active) {
+		.tile {
+			border: 1px solid CanvasText;
+		}
+	}
+</style>

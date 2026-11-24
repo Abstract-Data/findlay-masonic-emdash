@@ -43,26 +43,27 @@ const monthName = formatMonth(month);
 	title={`${body.displayName} calendar, ${monthName}`}
 	description={`Meetings and events of ${body.displayName}.`}
 >
-	<header class="band intro">
-		<div class="frame">
-			<p class="eyebrow">
-				<a href={paths.body(body.slug)}>{body.displayName}</a>
-			</p>
-			<h1 class="intro__title">Calendar</h1>
-		</div>
-	</header>
-	<section class="band section" aria-labelledby="month-title">
+	<section class="band calendar-lead" aria-labelledby="month-title">
 		<div class="frame calendar-month">
-			<h2 id="month-title" class="section-head__title">
-				{monthName}
-			</h2>
-			<MonthNav month={month} href={href} />
+			<div class="calendar-head">
+				<div>
+					<p class="calendar-head__body" data-colour={body.colour ?? undefined}>
+						<a class="body-label" href={paths.body(body.slug)}>
+							{body.displayName}
+						</a>
+					</p>
+					<h1 id="month-title" class="calendar-head__title">
+						{monthName}
+					</h1>
+				</div>
+				<MonthNav month={month} href={href} />
+			</div>
 			<MonthGrid grid={grid} bodies={bodies} showBody={false} />
 		</div>
 	</section>
 	<section class="band section" aria-labelledby="agenda-title">
 		<div class="frame">
-			<h2 id="agenda-title" class="section-head__title">
+			<h2 id="agenda-title" class="section-head__title calendar-section-title">
 				Events in {monthName}
 			</h2>
 			<Agenda
@@ -76,17 +77,43 @@ const monthName = formatMonth(month);
 	</section>
 	<section class="band section" aria-labelledby="feed-title">
 		<div class="frame">
-			<h2 id="feed-title" class="section-head__title">
-				Subscribe to {body.label}'s events
+			<h2 id="feed-title" class="section-head__title calendar-section-title">
+				{body.label}'s events on your phone
 			</h2>
-			<FeedLinks path={paths.bodyFeed(body.slug)} />
+			<FeedLinks path={paths.bodyFeed(body.slug)} label={`Add ${body.label} to my calendar`} />
 		</div>
 	</section>
 </Base>
 
 <style>
+	.calendar-lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
 	.calendar-month {
 		display: grid;
-		gap: var(--spacing-5);
+		gap: var(--spacing-6);
+	}
+
+	.calendar-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.calendar-head__body .body-label {
+		font-size: var(--font-size-sm);
+	}
+
+	.calendar-head__title {
+		margin-top: var(--spacing-1);
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.calendar-section-title {
+		margin-bottom: var(--spacing-6);
 	}
 </style>

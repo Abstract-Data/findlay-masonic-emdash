@@ -3,6 +3,7 @@ import { systemClock } from "@adapters/clock";
 import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodies, loadCalendar } from "@adapters/site/content";
 import { meetingsByBody } from "@core/recurrence/meetings";
+import { SITE_TZ } from "@core/time";
 import BodyCards from "../../components/BodyCards.astro";
 import Base from "../../layouts/Base.astro";
 
@@ -25,7 +26,7 @@ const cards = meetingsByBody(bodies.value, calendar.value.series, now, 1);
 	</header>
 	<section class="band section" aria-label="All bodies">
 		<div class="frame">
-			<BodyCards cards={cards} />
+			<BodyCards cards={cards} today={now.toZonedDateTimeISO(SITE_TZ).toPlainDate()} />
 		</div>
 	</section>
 </Base>

@@ -104,7 +104,6 @@ const year = new Date().getFullYear();
 		<meta charset="UTF-8" />
 		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
 		<Font cssVariable="--font-body" preload />
-		<Font cssVariable="--font-mono" />
 		<title>{fullTitle}</title>
 		<EmDashHead page={pageCtx} />
 		<script is:inline src="/scripts/theme-init.js"></script>
@@ -566,17 +565,6 @@ const year = new Date().getFullYear();
 					max-width: 22ch;
 				}
 
-				.intro__subtitle {
-					font-size: var(--font-size-display);
-					font-weight: var(--font-weight-display);
-					line-height: 1.05;
-					letter-spacing: var(--tracking-tight);
-					color: var(--color-muted);
-					max-width: 22ch;
-					text-wrap: balance;
-					overflow-wrap: break-word;
-				}
-
 				.intro__lead {
 					margin-top: var(--spacing-5);
 					font-size: var(--font-size-lg);
@@ -628,24 +616,6 @@ const year = new Date().getFullYear();
 
 				.arrow-link:hover {
 					color: var(--color-text);
-				}
-
-				.arrow-link svg {
-					width: 16px;
-					height: 16px;
-					transition: translate var(--transition-fast);
-				}
-
-				.arrow-link:hover svg {
-					translate: 2px 0;
-				}
-
-				:dir(rtl) .arrow-link svg {
-					scale: -1 1;
-				}
-
-				:dir(rtl) .arrow-link:hover svg {
-					translate: -2px 0;
 				}
 
 				/* Tag pills */
@@ -722,12 +692,6 @@ const year = new Date().getFullYear();
 					scale: 0.96;
 				}
 
-				.btn svg {
-					width: 16px;
-					height: 16px;
-					flex-shrink: 0;
-				}
-
 				.btn--ghost {
 					background: var(--color-surface);
 					color: var(--color-text);
@@ -747,13 +711,6 @@ const year = new Date().getFullYear();
 					min-height: 2rem;
 					padding: var(--spacing-1) var(--spacing-3);
 					font-size: var(--font-size-xs);
-				}
-
-				/* Responsive card grid */
-				.post-grid {
-					display: grid;
-					grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-					gap: var(--spacing-6);
 				}
 			}
 		</style>
@@ -1073,11 +1030,6 @@ const year = new Date().getFullYear();
 
 			.site-footer__links a:hover {
 				color: var(--color-text);
-			}
-
-			.site-footer__links svg {
-				width: 15px;
-				height: 15px;
 			}
 
 			.site-footer__widgets :global(.widget-area) {

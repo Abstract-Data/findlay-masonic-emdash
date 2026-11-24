@@ -55,13 +55,13 @@ const title = chosen === undefined ? "News" : `News from ${chosen.displayName}`;
 						</a>
 					</li>
 					{bodies.value.map((body) => (
-						<li>
+						<li data-colour={body.colour ?? undefined}>
 							<a
 								class="chip"
 								href={`${paths.news}?body=${encodeURIComponent(body.slug)}`}
 								aria-current={chosen?.id === body.id ? "page" : undefined}
 							>
-								{body.label}
+								<span class="body-label">{body.label}</span>
 							</a>
 						</li>
 					))}

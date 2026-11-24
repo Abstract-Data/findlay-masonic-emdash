@@ -1,23 +1,30 @@
 ---
 import type { BodyView } from "@adapters/site/views";
 import type { Meetings } from "@core/recurrence/meetings";
+import type { Temporal } from "temporal-polyfill";
 import BodyCard from "./BodyCard.astro";
 
 interface Props {
 	cards: readonly { readonly body: BodyView; readonly meetings: Meetings }[];
+	today: Temporal.PlainDate;
 	headingLevel?: 2 | 3;
 }
 
-const { cards, headingLevel } = Astro.props;
+const { cards, today, headingLevel } = Astro.props;
 ---
 
 {cards.length === 0 ? (
 	<p data-testid="bodies-empty">No bodies are published yet.</p>
 ) : (
-	<ul class="post-grid body-cards" data-testid="body-cards">
+	<ul class="body-cards" data-testid="body-cards">
 		{cards.map((card) => (
 			<li>
-				<BodyCard body={card.body} meetings={card.meetings} headingLevel={headingLevel} />
+				<BodyCard
+					body={card.body}
+					meetings={card.meetings}
+					today={today}
+					headingLevel={headingLevel}
+				/>
 			</li>
 		))}
 	</ul>
@@ -25,8 +32,11 @@ const { cards, headingLevel } = Astro.props;
 
 <style>
 	.body-cards {
-		list-style: none;
-		padding: 0;
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+		gap: var(--spacing-4);
 		margin: 0;
+		padding: 0;
+		list-style: none;
 	}
 </style>
