@@ -16,10 +16,30 @@ const stored = (maxAge) => (h) =>
 const notStored = (h) => h.get(CDN) === "no-store";
 const privateToo = (h) => notStored(h) && h.get("cache-control") === "private, no-store";
 
+/** Seconds to the next midnight on Findlay's wall clock. */
+function untilMidnight() {
+	const parts = new Intl.DateTimeFormat("en-US", {
+		timeZone: "America/New_York",
+		hourCycle: "h23",
+		hour: "numeric",
+		minute: "numeric",
+		second: "numeric",
+	}).formatToParts(new Date());
+	const part = (type) => Number(parts.find((p) => p.type === type)?.value ?? 0);
+	return 24 * 60 * 60 - (part("hour") * 3600 + part("minute") * 60 + part("second"));
+}
+
+// Fifteen minutes, or less in the quarter hour before midnight in Findlay (src/lib/adapters/site/cache.ts).
+const clockBound = (h) => {
+	const maxAge = Number(/^public, max-age=(\d+)$/.exec(h.get(CDN) ?? "")?.[1] ?? Number.NaN);
+	const expected = Math.min(900, untilMidnight());
+	return Math.abs(maxAge - expected) <= 2 && (h.get("cache-tag") ?? "") !== "";
+};
+
 const SESSION = { cookie: "astro-session=any" };
 const CHECKS = [
-	{ kind: "clock-bound page", method: "GET", path: "/", expected: stored(900) },
-	{ kind: "clock-bound page", method: "GET", path: "/calendar", expected: stored(900) },
+	{ kind: "clock-bound page", method: "GET", path: "/", expected: clockBound },
+	{ kind: "clock-bound page", method: "GET", path: "/calendar", expected: clockBound },
 	{ kind: "content page", method: "GET", path: "/news", expected: stored(3600) },
 	{ kind: "ICS feed", method: "GET", path: "/calendar.ics", expected: stored(3600) },
 	{ kind: "newsletter archive", method: "GET", path: "/newsletters", expected: stored(300) },

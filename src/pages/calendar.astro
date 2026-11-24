@@ -1,6 +1,6 @@
 ---
 import { systemClock } from "@adapters/clock";
-import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodies, loadCalendar } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
 import { chosenBodies } from "@adapters/site/views";
@@ -16,12 +16,13 @@ import MonthNav from "../components/MonthNav.astro";
 import Base from "../layouts/Base.astro";
 
 // FR-4.4: every body's occurrences for a month, labelled by body, narrowed by `?body=` slugs.
-const today = systemClock.now().toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
 const month = parseMonth(Astro.url.searchParams.get("month"), today);
 const bodies = await loadBodies();
 const chosen = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
 const calendar = await loadCalendar(chosen.length === 0 ? bodies.value : chosen);
-cacheRoute(Astro.cache, [bodies.hint, calendar.hint], CLOCK_BOUND);
+cacheRoute(Astro.cache, [bodies.hint, calendar.hint], clockBound(now));
 
 const { series, byId } = calendar.value;
 const occurrences = expand(series, monthWindow(month));

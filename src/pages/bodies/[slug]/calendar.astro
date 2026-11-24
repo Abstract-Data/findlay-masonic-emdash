@@ -1,6 +1,6 @@
 ---
 import { systemClock } from "@adapters/clock";
-import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBody, loadCalendar } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
 import { agenda, monthGrid, parseMonth } from "@core/calendar/month";
@@ -19,10 +19,11 @@ const slug = decodeSlug(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 const { value: body, hint } = await loadBody(slug);
 if (body === null) return Astro.rewrite("/404");
-const today = systemClock.now().toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
 const month = parseMonth(Astro.url.searchParams.get("month"), today);
 const calendar = await loadCalendar([body]);
-cacheRoute(Astro.cache, [hint, calendar.hint], CLOCK_BOUND);
+cacheRoute(Astro.cache, [hint, calendar.hint], clockBound(now));
 
 const { series, byId } = calendar.value;
 const occurrences = expand(series, monthWindow(month));

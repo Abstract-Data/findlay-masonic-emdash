@@ -1,6 +1,6 @@
 ---
 import { systemClock } from "@adapters/clock";
-import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodies, loadCalendar } from "@adapters/site/content";
 import { meetingsByBody } from "@core/recurrence/meetings";
 import BodyCards from "../../components/BodyCards.astro";
@@ -10,7 +10,7 @@ import Base from "../../layouts/Base.astro";
 const now = systemClock.now();
 const bodies = await loadBodies();
 const calendar = await loadCalendar(bodies.value);
-cacheRoute(Astro.cache, [bodies.hint, calendar.hint], CLOCK_BOUND);
+cacheRoute(Astro.cache, [bodies.hint, calendar.hint], clockBound(now));
 const cards = meetingsByBody(bodies.value, calendar.value.series, now, 1);
 ---
 

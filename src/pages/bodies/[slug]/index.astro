@@ -1,6 +1,6 @@
 ---
 import { systemClock } from "@adapters/clock";
-import { cacheRoute, CLOCK_BOUND } from "@adapters/site/cache";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodyNews, loadCalendar, loadOfficers } from "@adapters/site/content";
 import { paths } from "@adapters/site/paths";
 import { pageSeo } from "@adapters/site/seo";
@@ -45,7 +45,7 @@ const [calendar, officers, news, settings] = await Promise.all([
 cacheRoute(
 	Astro.cache,
 	[cacheHint, calendar.hint, officers.hint, news.hint, settings.cacheHint],
-	CLOCK_BOUND,
+	clockBound(now),
 );
 
 const { series, byId } = calendar.value;
