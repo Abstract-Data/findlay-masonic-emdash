@@ -79,7 +79,7 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 <style>
 	.next {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-columns: auto 1fr;
 		gap: var(--spacing-6);
 		align-items: center;
 		padding: var(--spacing-6);
@@ -92,7 +92,7 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 
 	.next__text {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: var(--spacing-2);
 		justify-items: start;
 	}
@@ -113,12 +113,6 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 
 	.next__note {
 		color: var(--color-text-secondary);
-	}
-
-	.next__rule,
-	.next__note {
-		max-width: 100%;
-		overflow-wrap: anywhere;
 	}
 
 	.next__dates {
@@ -155,7 +149,7 @@ const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : n
 
 	@media (max-width: 640px) {
 		.next {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 			justify-items: start;
 		}
 

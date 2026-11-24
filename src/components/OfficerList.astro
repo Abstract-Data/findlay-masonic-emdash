@@ -32,7 +32,7 @@ const { roster } = Astro.props;
 <style>
 	.officers {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-4) var(--spacing-5);
 		margin: 0;
 	}
@@ -50,11 +50,6 @@ const { roster } = Astro.props;
 		font-weight: 700;
 	}
 
-	.officers__name {
-		min-width: 0;
-		overflow-wrap: anywhere;
-	}
-
 	:global(.officers__photo) {
 		flex: none;
 		width: 3rem;
@@ -69,7 +64,7 @@ const { roster } = Astro.props;
 
 	@media (max-width: 400px) {
 		.officers {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 	}
 </style>

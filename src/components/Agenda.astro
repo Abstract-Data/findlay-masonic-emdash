@@ -62,7 +62,7 @@ const Day = `h${headingLevel}` as const;
 
 	.agenda__day {
 		display: grid;
-		grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+		grid-template-columns: minmax(0, 13rem) 1fr;
 		gap: var(--spacing-2) var(--spacing-5);
 		align-items: start;
 	}
@@ -83,7 +83,7 @@ const Day = `h${headingLevel}` as const;
 
 	@media (max-width: 640px) {
 		.agenda__day {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 
 		.agenda__date {

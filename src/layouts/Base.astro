@@ -300,6 +300,38 @@ const year = new Date().getFullYear();
 					box-sizing: border-box;
 				}
 
+				/*
+				 * Reflow at 320 CSS px (WCAG 1.4.10) whatever an editor types: a word or link
+				 * too long for its line breaks anywhere instead of widening its box, a grid or
+				 * flex item can shrink below its content, and preformatted text scrolls inside
+				 * itself. Images and form controls keep their size: a checkbox that shrank
+				 * beside a long label would be hard to hit. tests/e2e/visual fills every text
+				 * field to check every page.
+				 */
+				*:where(
+					:not([class*="emdash"], [class*="ec-"]):not(
+						img,
+						svg,
+						video,
+						canvas,
+						iframe,
+						input,
+						select,
+						textarea
+					)
+				) {
+					min-width: 0;
+				}
+
+				body {
+					overflow-wrap: anywhere;
+				}
+
+				pre {
+					max-width: 100%;
+					overflow-x: auto;
+				}
+
 				body,
 				h1,
 				h2,
@@ -433,7 +465,6 @@ const year = new Date().getFullYear();
 					font-weight: var(--font-weight-heading);
 					letter-spacing: var(--tracking-snug);
 					text-wrap: balance;
-					overflow-wrap: anywhere;
 				}
 
 				h1 {
@@ -571,7 +602,6 @@ const year = new Date().getFullYear();
 					line-height: var(--leading-normal);
 					color: var(--color-text-secondary);
 					max-width: 60ch;
-					overflow-wrap: anywhere;
 				}
 
 				.eyebrow + .intro__title {
@@ -627,15 +657,8 @@ const year = new Date().getFullYear();
 					padding: 0;
 				}
 
-				.chips > li {
-					min-width: 0;
-					max-width: 100%;
-				}
-
 				.chip {
 					display: inline-block;
-					max-width: 100%;
-					overflow: hidden;
 					padding: var(--tag-padding-y) 10px;
 					border-radius: var(--radius-full);
 					background: var(--color-surface);
@@ -645,8 +668,6 @@ const year = new Date().getFullYear();
 					line-height: 1.375rem;
 					color: var(--color-text-secondary);
 					text-decoration: none;
-					text-overflow: ellipsis;
-					white-space: nowrap;
 					vertical-align: middle;
 					transition:
 						color var(--transition-fast),
@@ -762,7 +783,6 @@ const year = new Date().getFullYear();
 				display: inline-flex;
 				align-items: center;
 				gap: 10px;
-				min-width: 0;
 				font-size: var(--font-size-base);
 				font-weight: 600;
 				letter-spacing: -0.01em;
@@ -796,10 +816,6 @@ const year = new Date().getFullYear();
 				width: auto;
 				max-width: 180px;
 				object-fit: contain;
-			}
-
-			.site-nav {
-				min-width: 0;
 			}
 
 			/* Long menus wrap rather than push the page wider than the viewport */
@@ -994,7 +1010,7 @@ const year = new Date().getFullYear();
 			/* Footer */
 			.site-footer__grid {
 				display: grid;
-				grid-template-columns: minmax(0, 2fr) repeat(3, minmax(0, 1fr));
+				grid-template-columns: 2fr repeat(3, 1fr);
 				gap: var(--spacing-10);
 				padding-block: var(--spacing-16) var(--spacing-12);
 			}
@@ -1125,7 +1141,7 @@ const year = new Date().getFullYear();
 
 			@media (max-width: 900px) {
 				.site-footer__grid {
-					grid-template-columns: repeat(2, minmax(0, 1fr));
+					grid-template-columns: repeat(2, 1fr);
 					gap: var(--spacing-8);
 					padding-block: var(--spacing-12) var(--spacing-10);
 				}
@@ -1164,7 +1180,7 @@ const year = new Date().getFullYear();
 
 			@media (max-width: 560px) {
 				.site-footer__grid {
-					grid-template-columns: minmax(0, 1fr);
+					grid-template-columns: 1fr;
 				}
 
 				.brand__name {

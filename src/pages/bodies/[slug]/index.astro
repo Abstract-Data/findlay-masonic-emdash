@@ -183,7 +183,7 @@ const seo = pageSeo(entry, {
 <style>
 	.body-head {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-columns: auto 1fr;
 		gap: var(--spacing-6);
 		align-items: center;
 		padding-block: var(--spacing-10);
@@ -208,7 +208,7 @@ const seo = pageSeo(entry, {
 
 	.body-layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr);
+		grid-template-columns: 1.7fr 1fr;
 		gap: var(--spacing-10);
 		align-items: start;
 	}
@@ -216,7 +216,7 @@ const seo = pageSeo(entry, {
 	.body-main,
 	.body-side {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: var(--spacing-12);
 	}
 
@@ -243,13 +243,13 @@ const seo = pageSeo(entry, {
 
 	@media (max-width: 1000px) {
 		.body-layout {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 	}
 
 	@media (max-width: 640px) {
 		.body-head {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 			gap: var(--spacing-4);
 			padding-block: var(--spacing-8);
 		}

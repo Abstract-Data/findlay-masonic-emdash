@@ -90,7 +90,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 <style>
 	.week {
 		display: grid;
-		grid-template-columns: repeat(7, minmax(0, 1fr));
+		grid-template-columns: repeat(7, 1fr);
 		gap: var(--spacing-2);
 		margin: 0;
 		padding: 0;
@@ -100,7 +100,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 	/* The card's width, not its longest word, sets each entry's width. */
 	.day {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		align-content: start;
 		gap: var(--spacing-3);
 		min-height: 13rem;
@@ -149,7 +149,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 
 	.day__entries {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: var(--spacing-2);
 		margin: 0;
 		padding: 0;
@@ -158,7 +158,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 
 	.quiet {
 		display: grid;
-		grid-template-columns: auto minmax(0, 1fr);
+		grid-template-columns: auto 1fr;
 		gap: var(--spacing-6);
 		align-items: center;
 		padding: var(--spacing-6);
@@ -182,16 +182,15 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 		align-items: center;
 		gap: var(--spacing-1) var(--spacing-3);
 		font-size: var(--font-size-lg);
-		overflow-wrap: anywhere;
 	}
 
 	@media (max-width: 1000px) {
 		.week {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 
 		.day {
-			grid-template-columns: 4.5rem minmax(0, 1fr);
+			grid-template-columns: 4.5rem 1fr;
 			align-items: start;
 			min-height: 0;
 			row-gap: var(--spacing-2);
@@ -219,7 +218,7 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 
 	@media (max-width: 640px) {
 		.quiet {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 			justify-items: start;
 		}
 	}

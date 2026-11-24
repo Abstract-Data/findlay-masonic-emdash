@@ -110,6 +110,7 @@ const WEEKDAYS = [
 
 	.month-grid__head {
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		justify-content: space-between;
 		gap: var(--spacing-1);
@@ -131,7 +132,7 @@ const WEEKDAYS = [
 
 	.month-grid__entries {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: var(--spacing-1);
 		margin: 0;
 		padding: 0;

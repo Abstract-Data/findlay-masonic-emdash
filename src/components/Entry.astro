@@ -42,7 +42,7 @@ const { occurrence: o, body, showBody, location = null, compact = false } = Astr
 <style>
 	.entry {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: 2px;
 		padding: var(--spacing-2);
 		border-inline-start: 4px solid var(--body-colour, var(--color-border-strong));
@@ -54,7 +54,6 @@ const { occurrence: o, body, showBody, location = null, compact = false } = Astr
 		);
 		font-size: var(--font-size-sm);
 		line-height: var(--leading-snug);
-		overflow-wrap: anywhere;
 		hyphens: auto;
 	}
 

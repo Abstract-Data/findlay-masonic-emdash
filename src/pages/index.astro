@@ -241,7 +241,7 @@ const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 
 	.split {
 		display: grid;
-		grid-template-columns: repeat(2, minmax(0, 1fr));
+		grid-template-columns: repeat(2, 1fr);
 		gap: var(--spacing-6);
 		align-items: start;
 	}
@@ -271,7 +271,7 @@ const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 
 	@media (max-width: 860px) {
 		.split {
-			grid-template-columns: minmax(0, 1fr);
+			grid-template-columns: 1fr;
 		}
 	}
 
