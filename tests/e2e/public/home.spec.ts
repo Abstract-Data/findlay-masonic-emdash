@@ -55,6 +55,9 @@ test("the body filter is a plain form, and the week links keep it", async ({ pag
 	await filter.getByRole("button", { name: "Update" }).click();
 	await expect(page).toHaveURL(/\/\?body=council$/);
 	await expect(page.getByTestId("week").getByText(`${RUN} Inspection`)).toHaveCount(0);
+	await expect(
+		page.getByTestId("calendar-filter").getByRole("link", { name: "Show all bodies" }),
+	).toHaveAttribute("href", "/");
 
 	await page.getByTestId("week-nav").getByRole("link", { name: "Next week" }).click();
 	await expect(page).toHaveURL(new RegExp(`week=${addDays(sunday, 7)}&body=council$`));

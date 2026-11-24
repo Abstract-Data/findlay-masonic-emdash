@@ -12,7 +12,8 @@ interface Props {
 }
 
 const { bodies, selected, action, keep } = Astro.props;
-const showAll = `${action}?${new URLSearchParams(keep)}`;
+const kept = new URLSearchParams(keep).toString();
+const showAll = kept === "" ? action : `${action}?${kept}`;
 ---
 
 <form method="get" action={action} class="calendar-filter" data-testid="calendar-filter">
