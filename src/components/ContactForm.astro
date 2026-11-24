@@ -1,5 +1,6 @@
 ---
 import type { BodyView } from "@adapters/site/views";
+import { ownEntry } from "@core/lookup";
 import type { ContactOutcome } from "@plugins/newsletter/contact";
 import Turnstile from "./Turnstile.astro";
 
@@ -22,8 +23,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
 		"Too many messages have come in for this body in the last hour. Please try again later.",
 	unavailable: "Messages are not working right now. Please try again later.",
 } satisfies Record<ContactOutcome, string>;
-const outcome = Astro.url.searchParams.get("contact");
-const message = outcome === null ? undefined : MESSAGES[outcome];
+const message = ownEntry(MESSAGES, Astro.url.searchParams.get("contact"));
 const reachable = body === undefined ? bodies.length > 0 : body.acceptsMessages;
 const title = body === undefined ? "Write to a body" : `Write to ${body.displayName}`;
 ---

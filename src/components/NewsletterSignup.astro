@@ -1,5 +1,6 @@
 ---
 import { loadBodies } from "@adapters/site/content";
+import { ownEntry } from "@core/lookup";
 import type { SubscribeOutcome } from "@plugins/newsletter/subscribe";
 import Turnstile from "./Turnstile.astro";
 
@@ -24,8 +25,7 @@ const MESSAGES: Readonly<Record<string, string>> = {
 		"This is a test copy of the Temple's website, so it cannot sign you up. Please sign up on the Temple's own website.",
 	unavailable: "Signups are not working right now. Please try again later.",
 } satisfies Record<SubscribeOutcome, string>;
-const outcome = Astro.url.searchParams.get("subscribe");
-const message = outcome === null ? undefined : MESSAGES[outcome];
+const message = ownEntry(MESSAGES, Astro.url.searchParams.get("subscribe"));
 ---
 
 <section id="signup" class="card signup" aria-labelledby="signup-title">
