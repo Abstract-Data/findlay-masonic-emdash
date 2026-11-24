@@ -48,6 +48,8 @@ const line =
 
 <style>
 	.body-card {
+		--emblem-width: 4rem;
+
 		position: relative;
 		display: flex;
 		align-items: center;
@@ -67,10 +69,17 @@ const line =
 		outline-offset: 2px;
 	}
 
+	/* One slot for any emblem's shape, so a wide or a tall one keeps a legible size. */
 	:global(.body-card__emblem) {
 		flex: none;
-		width: 3rem;
-		height: auto;
+		width: var(--emblem-width);
+		height: 3rem;
+		object-fit: contain;
+	}
+
+	/* Once any card has an emblem, a card without one keeps its name in line with theirs. */
+	:global(.body-cards:has(.body-card__emblem)) .body-card:not(:has(:global(.body-card__emblem))) {
+		padding-inline-start: calc(var(--spacing-4) * 2 + var(--emblem-width));
 	}
 
 	.body-card__text {
@@ -105,5 +114,11 @@ const line =
 		margin-top: var(--spacing-1);
 		font-size: var(--font-size-sm);
 		color: var(--color-text-secondary);
+	}
+
+	@media (max-width: 400px) {
+		.body-card {
+			--emblem-width: 3rem;
+		}
 	}
 </style>
