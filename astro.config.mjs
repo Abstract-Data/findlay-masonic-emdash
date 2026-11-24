@@ -131,12 +131,23 @@ export default defineConfig({
 	],
 	fonts: [
 		{
-			// Direction C: designed for low-vision readers. One variable file covers 400 to 700.
-			provider: fontProviders.google(),
+			// Direction C: designed for low-vision readers. The variable latin file from Google Fonts
+			// (SIL OFL 1.1, licence beside it) is committed, so a build needs no font service.
+			provider: fontProviders.local(),
 			name: "Atkinson Hyperlegible Next",
 			cssVariable: "--font-body",
-			weights: ["400 700"],
 			fallbacks: ["sans-serif"],
+			options: {
+				variants: [
+					{
+						src: [
+							"./src/assets/fonts/atkinson-hyperlegible-next/atkinson-hyperlegible-next-latin.woff2",
+						],
+						weight: "400 700",
+						style: "normal",
+					},
+				],
+			},
 		},
 	],
 	devToolbar: { enabled: false },
