@@ -52,6 +52,7 @@ const line =
 
 		position: relative;
 		display: flex;
+		flex-wrap: wrap;
 		align-items: center;
 		gap: var(--spacing-4);
 		height: 100%;
@@ -87,8 +88,16 @@ const line =
 		}
 	}
 
+	/*
+	  Below the room for a body's name and schedule in whole words (about a 360px phone), the
+	  date tile moves to a row of its own instead of squeezing the text.
+	*/
 	.body-card__text {
-		flex: 1;
+		flex: 1 1 9rem;
+	}
+
+	.body-card > :global(.tile) {
+		margin-inline-start: auto;
 	}
 
 	.body-card__name {
