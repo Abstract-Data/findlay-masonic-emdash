@@ -599,6 +599,8 @@ An independent adversarial review of f0fc275 failed M7 on two blocking items (B1
 - [x] **TR.13 [AGENT] S2: a deploy never serves pages naming removed assets.** Cloudflare keys a Worker's cache by version unless `cache.cross_version_cache` is on, so each deploy starts from a cold cache (developers.cloudflare.com/workers/cache/cache-keys), and the built `wrangler.json` has `cache: { enabled: true }` alone. deploy.md's claim stood; it now cites this, and its "purge by hand" step was wrong: zone purges do not reach a Worker's cache, so it says to redeploy. `check-cache-headers.mjs` fails a build that turns `cross_version_cache` on.
   Verify: `node tests/build/check-cache-headers.mjs`.
   Evidence: with `cross_version_cache: true` written into the built config the check fails at once; with the build as made it passes.
+- [x] **TR.14 [AGENT] S3: the Checkly commands are the CLI's.** monitoring-setup.md § 2 set `ENVIRONMENT_URL` in the local shell for a run that happens in Checkly's cloud; it now passes it with `checkly test -e ENVIRONMENT_URL=…` (`-e, --env`, "Env vars to be passed to the test run", `checkly test --help` on 10.2.0). `checkly.config.ts` pointed at a missing `docs/runbooks/checkly.md`; it points at monitoring-setup.md § 2.
+  Verify: `pnpm exec checkly test --help`.
 
 ---
 

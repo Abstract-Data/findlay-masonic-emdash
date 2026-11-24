@@ -1,9 +1,10 @@
 import { defineConfig } from "checkly";
 import { Frequency } from "checkly/constructs";
 
-// Synthetic monitoring as code (M7). `pnpm exec checkly test` runs these against the site in
-// ENVIRONMENT_URL; `pnpm exec checkly deploy` creates them in the Checkly account. Both need a
-// Checkly API key and account id, which a human sets up (docs/runbooks/checkly.md).
+// Synthetic monitoring as code (M7). `pnpm exec checkly test -e ENVIRONMENT_URL=<site>` runs
+// these in Checkly's cloud against that site; `pnpm exec checkly deploy` creates them in the
+// Checkly account. Both need a Checkly API key and account id, which a human sets up
+// (docs/runbooks/monitoring-setup.md § 2).
 export default defineConfig({
 	projectName: "Findlay Masonic Temple",
 	logicalId: "findlay-masonic",

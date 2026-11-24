@@ -32,10 +32,10 @@ Everything the services run is already in the repository: the log events and que
    ```bash
    pnpm install --frozen-lockfile
    export CHECKLY_API_KEY=<from 1Password> CHECKLY_ACCOUNT_ID=<from 1Password>
-   ENVIRONMENT_URL=https://<staging address> pnpm exec checkly test --record
+   pnpm exec checkly test -e ENVIRONMENT_URL=https://<staging address>
    ```
 
-   `checkly test` runs the five `@monitor` checks in Checkly's cloud against staging. All five must pass.
+   `checkly test` runs the five `@monitor` checks in Checkly's cloud against staging, and records the session in Checkly (`--record` is the default). The run happens in Checkly's cloud, so the address goes in with `-e` (`--env`, "Env vars to be passed to the test run" in `checkly test --help`, checkly 10.2.0); without it the checks visit the production address, `checkly/playwright.config.ts`'s default. All five must pass.
 4. Deploy the checks: `pnpm exec checkly deploy`. This creates the Playwright Check Suite "Public site: home, a body, calendar, ICS feed, signup" and the heartbeat "Scheduled publishing (Worker cron)".
 5. In Checkly, set the check suite's environment variable `ENVIRONMENT_URL` to the staging address for the 48-hour soak, and to `https://findlaymason.org` after launch (M8). Add an alert channel (email to the Temple administrators).
 6. Open the heartbeat, copy its ping URL, and store it as a Worker secret in each environment that should report: `pnpm wrangler secret put CHECKLY_HEARTBEAT_URL --env staging` (then `production` at launch). The URL is a credential: anyone holding it can keep the monitor green.
