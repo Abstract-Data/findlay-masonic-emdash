@@ -138,6 +138,7 @@ describe("contact (spec Q12)", () => {
 	it("counts nothing for a body that is not published or takes no messages", async () => {
 		let writes = 0;
 		const store: CounterStore = {
+			...memoryCounter(),
 			async getVersioned() {
 				return null;
 			},

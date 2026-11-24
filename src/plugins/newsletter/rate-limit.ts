@@ -1,3 +1,5 @@
+import { log, messageOf } from "@adapters/log";
+
 /** The slice of a plugin's KV store the limiter uses. */
 export interface CounterStore {
 	getVersioned(key: string): Promise<{ value: unknown; revision: string } | null>;
@@ -6,6 +8,8 @@ export interface CounterStore {
 		expectedRevision: string | null,
 		value: unknown,
 	): Promise<{ applied: boolean }>;
+	compareAndDelete(key: string, expectedRevision: string): Promise<{ applied: boolean }>;
+	list(prefix: string): Promise<{ key: string; value: unknown }[]>;
 }
 
 /** Requests one sender may make to one target, and all senders together, per window. */
@@ -32,6 +36,11 @@ interface Window {
 }
 
 const ATTEMPTS = 3;
+/**
+ * Stale counters one sweep deletes, two queries each: few enough to fit beside the request's
+ * own queries in a Worker's per-invocation D1 query limit. A backlog drains over later windows.
+ */
+const SWEEP_BATCH = 20;
 
 /**
  * A fixed-window count per sender and target, then per target across every sender, in plugin
@@ -39,38 +48,61 @@ const ATTEMPTS = 3;
  * IPv4 address), and keys are a SHA-256 of it, never the address. The sender's count goes first,
  * so one flooding network is refused before it eats into the target's shared allowance. Writes
  * are compare-and-set; a key that stays contended counts as over the limit.
+ *
+ * The store has no expiry, so the first request in a target's new window deletes every counter
+ * of this form from an earlier window (a few reads an hour per target); without it each network
+ * that ever posted would keep a row.
  */
 export function kvRateLimiter(
 	store: CounterStore,
 	now: () => number,
 	limit: FormLimit,
 ): RateLimiter {
-	const count = async (key: string, max: number): Promise<boolean> => {
-		const id = `${limit.namespace}:${await sha256(key)}`;
-		const start = Math.floor(now() / 1000 / limit.windowSeconds) * limit.windowSeconds;
+	const prefix = `${limit.namespace}:`;
+	/** Counts one request; `fresh` when it began the key's count for this window. */
+	const count = async (key: string, max: number, start: number) => {
+		const id = `${prefix}${await sha256(key)}`;
 		for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
 			// oxlint-disable-next-line no-await-in-loop -- each retry follows a lost compare-and-set.
 			const current = await store.getVersioned(id);
 			const counted = (current === null ? null : countIn(current.value, start)) ?? 0;
-			if (counted >= max) return false;
+			if (counted >= max) return { allowed: false, fresh: false };
 			// oxlint-disable-next-line no-await-in-loop -- see above.
 			const written = await store.compareAndSet(id, current?.revision ?? null, {
 				start,
 				count: counted + 1,
 			} satisfies Window);
-			if (written.applied) return true;
+			if (written.applied) return { allowed: true, fresh: counted === 0 };
 		}
-		return false;
+		return { allowed: false, fresh: false };
+	};
+	const sweep = async (start: number) => {
+		const listed = await store.list(prefix);
+		const stale = listed.filter(({ value }) => countIn(value, start) === null);
+		await Promise.all(
+			stale.slice(0, SWEEP_BATCH).map(async ({ key }) => {
+				const row = await store.getVersioned(key);
+				if (row !== null && countIn(row.value, start) === null) {
+					await store.compareAndDelete(key, row.revision);
+				}
+			}),
+		);
 	};
 	return {
 		async allow(ip, target) {
-			if (!(await count(JSON.stringify(["sender", clientNetwork(ip), target]), limit.perSender))) {
+			const start = Math.floor(now() / 1000 / limit.windowSeconds) * limit.windowSeconds;
+			const sender = JSON.stringify(["sender", clientNetwork(ip), target]);
+			if (!(await count(sender, limit.perSender, start)).allowed) {
 				return { ok: false, limit: "sender" };
 			}
-			if (!(await count(JSON.stringify(["target", target]), limit.perTarget))) {
-				return { ok: false, limit: "target" };
+			const counted = await count(JSON.stringify(["target", target]), limit.perTarget, start);
+			if (counted.fresh) {
+				// A sweep that fails leaves its rows to the next one; the request it rode on stands.
+				await sweep(start).catch((error: unknown) =>
+					log({ event: "form.sweep_failed", namespace: limit.namespace, error: messageOf(error) }),
+				);
 			}
-			return { ok: true };
+			return counted.allowed ? { ok: true } : { ok: false, limit: "target" };
 		},
 	};
 }

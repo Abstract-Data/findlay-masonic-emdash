@@ -16,6 +16,7 @@ Besides Cloudflare's own invocation logs, the site writes one JSON object per li
 | `newsletter.refused` | warn, error when `code` is `unavailable` or `not-configured` | `action` (`test-send`, `approve`), `issue`, `code` | A test send or approval was refused |
 | `form.submitted` | info for `sent`/`ok`, error for `unavailable`, warn otherwise | `form` (`contact`, `subscribe`), `outcome` | Every contact message and signup |
 | `form.rate_limited` | warn | `form`, `limit` (`sender` or `target`) | A rate limit refused a form post |
+| `form.sweep_failed` | warn | `namespace` (`contact-rate`, `subscribe-rate`), `error` | Deleting a form's past-window rate-limit counters failed; the next window tries again |
 | `email.blocked` | warn | `siteEnv`, `action` (`email`, `signup`, `broadcast`), `recipients`, `blocked` (counts) | A non-production Worker refused an email, a signup or a Broadcast that would reach an address off the allowlist |
 | `email.failed` | error | `kind` (`rejected`, `unavailable`, `blocked`), `status`, `error` | Resend did not accept an email (invites, contact messages), or the gate refused it |
 | `heartbeat.failed` | warn | `status`, `error` | The scheduler ran but its Checkly heartbeat ping did not land |

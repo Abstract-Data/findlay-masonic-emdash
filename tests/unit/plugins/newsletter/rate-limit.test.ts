@@ -5,7 +5,7 @@ import {
 	type CounterStore,
 	type FormLimit,
 } from "@plugins/newsletter/rate-limit";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { memoryCounter } from "./memory-counter";
 
 const ONE_A_MINUTE: FormLimit = { namespace: "t", perSender: 1, perTarget: 10, windowSeconds: 60 };
@@ -74,6 +74,58 @@ describe("form rate limits (M4 verification N2)", () => {
 		expect(await run(limiter, [["a", "lodge"]])).toEqual(["ok"]);
 	});
 
+	it("deletes a past window's counters when a target's next window starts (M7 review L5)", async () => {
+		let now = 0;
+		const counter = memoryCounter();
+		const limiter = kvRateLimiter(counter, () => now, ONE_A_MINUTE);
+		const other = kvRateLimiter(counter, () => now, { ...ONE_A_MINUTE, namespace: "other" });
+		await run(limiter, [
+			["198.51.100.1", "lodge"],
+			["198.51.100.2", "lodge"],
+			["198.51.100.3", "chapter"],
+		]);
+		await run(other, [["198.51.100.4", "lodge"]]);
+		expect(counter.rows.size).toBe(7);
+		now = 60_000;
+		expect(await run(limiter, [["203.0.113.9", "lodge"]])).toEqual(["ok"]);
+		const keys = [...counter.rows.keys()];
+		expect(keys.filter((key) => key.startsWith("t:"))).toHaveLength(2);
+		expect(keys.filter((key) => key.startsWith("other:"))).toHaveLength(2);
+		expect(await run(limiter, [["203.0.113.9", "lodge"]])).toEqual(["sender"]);
+	});
+
+	it("deletes at most twenty stale counters a sweep, leaving the rest to later windows", async () => {
+		let now = 0;
+		const counter = memoryCounter();
+		const limiter = kvRateLimiter(counter, () => now, { ...ONE_A_MINUTE, perTarget: 100 });
+		await run(
+			limiter,
+			Array.from({ length: 30 }, (_, i) => [`198.51.100.${i}`, "lodge"] as const),
+		);
+		expect(counter.rows.size).toBe(31);
+		now = 60_000;
+		await run(limiter, [["203.0.113.9", "lodge"]]);
+		expect(counter.rows.size).toBe(31 - 20 + 1);
+	});
+
+	it("still answers a request whose sweep fails, and logs it", async () => {
+		const warned: string[] = [];
+		vi.spyOn(console, "warn").mockImplementation((line: string) => warned.push(line));
+		const store: CounterStore = {
+			...memoryCounter(),
+			list: async () => {
+				throw new Error("D1 busy");
+			},
+		};
+		expect(await kvRateLimiter(store, () => 0, ONE_A_MINUTE).allow("a", "lodge")).toEqual({
+			ok: true,
+		});
+		expect(warned.map((line) => JSON.parse(line))).toEqual([
+			{ level: "warn", event: "form.sweep_failed", namespace: "t", error: "Error: D1 busy" },
+		]);
+		vi.restoreAllMocks();
+	});
+
 	it("shares one sender among requests without a trusted IP", async () => {
 		const limiter = kvRateLimiter(memoryCounter(), () => 0, ONE_A_MINUTE);
 		expect(
@@ -93,6 +145,7 @@ describe("form rate limits (M4 verification N2)", () => {
 
 	it("counts a key that stays contended as over the limit", async () => {
 		const store: CounterStore = {
+			...memoryCounter(),
 			getVersioned: async () => null,
 			compareAndSet: async () => ({ applied: false }),
 		};
@@ -104,6 +157,7 @@ describe("form rate limits (M4 verification N2)", () => {
 
 	it("treats a stored value it cannot read as no count", async () => {
 		const store: CounterStore = {
+			...memoryCounter(),
 			getVersioned: async () => ({ value: "garbage", revision: "1" }),
 			compareAndSet: async () => ({ applied: true }),
 		};

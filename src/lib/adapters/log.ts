@@ -60,6 +60,12 @@ export type LogEvent =
 			readonly limit: "sender" | "target";
 	  }
 	| {
+			/** Deleting a form's past-window rate-limit counters failed; the next window retries. */
+			readonly event: "form.sweep_failed";
+			readonly namespace: string;
+			readonly error: string;
+	  }
+	| {
 			/** A non-production Worker refused an email, signup or Broadcast off the allowlist. */
 			readonly event: "email.blocked";
 			readonly siteEnv: string;
@@ -103,6 +109,7 @@ function levelOf(entry: LogEvent): Level {
 			return "error";
 		case "body_access.refused":
 		case "form.rate_limited":
+		case "form.sweep_failed":
 		case "email.blocked":
 		case "heartbeat.failed":
 		case "cache.purge_failed":
