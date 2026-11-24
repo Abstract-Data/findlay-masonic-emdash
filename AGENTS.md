@@ -29,6 +29,8 @@ pnpm format:check                # the same, check only
 pnpm test                        # vitest run (tests/unit); add --coverage for a report in coverage/
 pnpm e2e                         # Playwright; starts pnpm dev itself. CI: pnpm e2e --trace off
 pnpm astro build                 # production build into dist/
+node tests/build/check-cache-headers.mjs   # after a build: cache headers per route class, under wrangler dev
+pnpm e2e --grep @monitor         # the synthetic monitors Checkly runs (checkly.config.ts)
 pnpm wrangler d1 execute DB --local --command "select 1"   # local D1 only
 pnpm wrangler types              # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 ```
@@ -80,12 +82,13 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 - Public pages read content only through EmDash's query functions (`getEmDashCollection`, `getEmDashEntry`), via the loaders in `src/lib/adapters/site/content.ts`. Never read `Astro.locals.emdash.db` on a public page: EmDash gives anonymous visitors a reduced `locals.emdash` with no `db`, so the page is empty for them while it works for a signed-in Admin.
 - Loaders parse entries into views (`src/lib/adapters/site/views.ts`); schedules, officer terms, month grids and paging are pure functions in `src/lib/core`. Links come from `paths` in `src/lib/adapters/site/paths.ts`.
 - `bodies.contact_recipients` never reaches a page: views carry only `acceptsMessages`. The contact form posts to the newsletter plugin's `contact` route, which sends through EmDash's email pipeline (`email:deliver`).
-- Each route registers its content hints with `cacheRoute`; pages that show what comes next (meetings, upcoming events, today) also pass `CLOCK_BOUND`.
+- Each route registers its content hints with `cacheRoute`, which also sets how long the edge may keep the page: an hour by default, `CLOCK_BOUND` for pages that show what comes next (meetings, upcoming events, today), `UNTAGGED` for pages whose data carries no cache tags. A route that calls nothing is never cached. `src/middleware.ts` takes any response for a signed-in user, or that sets a cookie, back out of the cache; never cache per-visitor output another way.
+- Log through `log()` in `src/lib/adapters/log.ts`, adding an event type for a new event; never `console.log` a request body, an email address or a secret.
 
 ### Tests
 
 - Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
-- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) and axe in `tests/e2e/a11y/`. Tag smoke tests `@smoke`.
+- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) axe in `tests/e2e/a11y/` and the read-only synthetic monitors in `tests/e2e/monitor/` (tag `@monitor`; Checkly runs them against production). Tag smoke tests `@smoke`.
 - Assert what a user or caller can observe, not internals.
 
 ## Key files

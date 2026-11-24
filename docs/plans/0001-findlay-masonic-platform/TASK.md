@@ -1,7 +1,7 @@
-# TASK — 0001-findlay-masonic-platform (M0 to M5)
+# TASK — 0001-findlay-masonic-platform (M0 to M5, M7)
 **SDD phase:** 3 (TASKS)
 **Plan:** [PLAN.md](PLAN.md) (approved 2026-11-23) · **Status:** [STATUS.md](STATUS.md)
-**Scope:** M0 to M5. M5 ran ahead of M4's design gate, and M4's functional half runs ahead of it too. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
+**Scope:** M0 to M5, the M4 verification fixes and M7. M5 ran ahead of M4's design gate, and M4's functional half runs ahead of it too. Later milestones are tasked when their predecessor's exit check passes (PLAN §8).
 
 ## Conventions
 - One checkbox = one reviewable commit (or a small, coherent group of commits). Tick it only when its **Verify** line passes.
@@ -464,10 +464,92 @@ An independent verifier failed 6d49955 on one blocking item (B1) and five findin
   Deps: T0.16. Verify: the runbook's "Before the first send" table is complete on staging.
 - [ ] **T5.17 [HUMAN] Staging send test (PLAN M5 exit check).** A test send reaches the allowlisted inbox; an approved Broadcast to the staging-only Segment is received with a working unsubscribe link; an EmDash invite arrives by email (FR-8.1); a signup appears in Resend with its Topics. Note whether Resend honoured `Idempotency-Key` on the Broadcast and how it answered adding an existing contact to the Segment.
   Deps: T5.16. Verify: the runbook passes end to end on staging.
-- [ ] **T5.18 [HUMAN] Checkly HeartbeatMonitor for scheduled sends.**
+- [ ] **T5.18 [HUMAN] Checkly HeartbeatMonitor for scheduled sends.** Now T7.7: the monitor is code (`checkly/scheduler.check.ts`) and the Worker pings it; the human creates the account and sets the secret.
   Deps: T5.17. Verify: the heartbeat goes green after a scheduled staging send.
 - [ ] **T5.19 [AGENT] Close M5.** Exit check: CI green on both legs; task-critic PASS; update STATUS.md.
   Deps: all of M5. Verify: critic returns PASS.
+
+---
+
+## M4 verification fixes
+An independent verifier of the M4 functional half reported one blocking item (B1) and six findings (N1 to N6). Each fix has a test that failed before it, or a mutation that makes the test fail, recorded below. Evidence was run on a clean copy of the committed tree (`git archive` into `/tmp/m7run`, `pnpm install --frozen-lockfile`, its own portless name, a fresh database) on 2026-11-24. Pushed at fcebf83.
+
+- [x] **TV.1 [AGENT] B1: every entry page has a title and a meta description.** Body pages rendered "— Findlay Masonic Temple" with no description, because `getSeoMeta` reads `data.title` and `data.excerpt` and a body has `name` and `description`; news items and pages had no description either. `pageSeo` (`src/lib/adapters/site/seo.ts`) passes each page's own title and an excerpt of its text as the defaults; the SEO panel still wins.
+  Verify: `tests/e2e/public/seo.spec.ts` visits home, the bodies list, all six body pages, a body's news, a news item, the news list, both calendars, About, Scholarships, Contact, the newsletter archive and an archived issue as a visitor; `tests/unit/adapters/site/seo.test.ts`.
+  Evidence: with the fix reverted in the run copy, the e2e failed with 21 problems (six body titles "— Findlay Masonic Temple" shared by all six, no description on the bodies, the three pages and the news item). With it, green.
+- [x] **TV.2 [AGENT] N1: outside production, email reaches only the allowlist.** `gateOutbound` (`src/lib/adapters/send-gate.ts`) wraps the real Resend mailer's `sendEmail`, which every single email goes through: EmDash's `email:deliver` (invites, sign-in links, contact messages) and newsletter test sends. Unless `SITE_ENV` is exactly `production`, an email with any to or cc address outside `NEWSLETTER_TEST_ALLOWLIST` and `@resend.dev` is refused whole. `SITE_ENV` is a runtime `astro:env` field (PATH_ASK) set in each environment's `vars`; unset fails closed.
+  Verify: `tests/unit/plugins/newsletter/send-gate.test.ts` through the plugin's real runtime and transport with Resend's HTTP API stubbed; `wrangler-envs.test.ts`; `check-runtime-env.mjs` lists `SITE_ENV`.
+  Evidence: 10 tests green. With the gate made a pass-through, 6 fail (unset, `staging`, `prod`, `Production`, a cc off the list, the staging test send).
+- [x] **TV.3 [AGENT] N2: a body-wide contact cap, and IPv6 counted by /64.** `kvRateLimiter` (`src/plugins/newsletter/rate-limit.ts`) counts five an hour per network and body, then thirty an hour per body from everyone; the network is an IPv6 /64, an IPv4 address, or the IPv4 inside a mapped address. The sender's count goes first, so one flooding network does not use up the body's allowance.
+  Verify: `tests/unit/plugins/newsletter/rate-limit.test.ts`.
+  Evidence: 23 tests green. With the body cap skipped and IPv6 counted per address, 11 fail.
+- [x] **TV.4 [AGENT] N3, N4: the news sitemap lists canonical pages, and none of an unpublished body.** EmDash injects its sitemap routes only when the site defines none, so `src/pages/sitemap-[collection].xml.ts` answers with EmDash's own handler and, for news, moves each URL from the `/news/<slug>` redirect to `/bodies/<body>/news/<slug>`, dropping items whose body is not published. The search API has no hook or filter: news of an unpublished body still appears in `/_emdash/api/search` (ADR-002 residual risk 10).
+  Verify: `tests/unit/adapters/site/sitemap.test.ts`; `seo.spec.ts` "the sitemap lists news at its body's page" (creates an unpublished body with a published news item, then trashes both).
+  Evidence: without the route file, the e2e failed: every `<loc>` was `/news/<slug>`, the hidden body's item included. With it, green, and `robots.txt` names the sitemap.
+- [x] **TV.5 [AGENT] N5: the sender's name cannot pose as an address or reorder the email.** `<`, `>`, format characters (bidi controls among them) are stripped and line and paragraph separators become spaces; the name left the subject and is quoted in the body.
+  Verify: `tests/unit/plugins/newsletter/contact-name.test.ts` (loads against the old module too).
+  Evidence: against the old contact module, 7 of 7 fail (U+202E and U+2028 passed, the name was in the subject); green after.
+- [x] **TV.6 [AGENT] N6: the contact e2e no longer skips its assertions.** A dev-only Admin route, `dev/rate-limits`, clears the form counters (classified in `PLUGIN_ROUTES`; `check-dist.mjs` fails a build that contains it); `contact.spec.ts` starts each test from empty counters, and the flood test expects exactly five sends and a refusal.
+  Verify: `CI=true pnpm e2e --project public -g Q12 --repeat-each 3 --workers 1` on a database earlier runs used.
+  Evidence: before, 7 skipped; after, 18 passed and only the setup project's pre-existing stub skipped.
+
+## M7 — Observability and hardening
+Design: logs as typed events (`src/lib/adapters/log.ts`), checks as code (`checkly.config.ts`), caching opt-in per route with a central opt-out for anything personal. Evidence was run as above on 2026-11-24. Human steps: [monitoring-setup.md](../../runbooks/monitoring-setup.md) and [deploy.md](../../runbooks/deploy.md).
+
+### Observability
+- [x] **T7.1 [AGENT] JSON-line logger.** One object per line at the event's level; fields named by the event type and primitives only; every string scrubbed of email addresses and token-shaped runs. Logged: `body_access.refused` (`BODY_ACCESS_DENIED`, `INVALID_SLUG`, `SAVE_REJECTED`), `body_access.lookup_failed`, `newsletter.test_sent`, `.approved`, `.refused`, `form.submitted`, `form.rate_limited`, `email.blocked`, `email.failed`, `heartbeat.failed`. `guardRequest` returns a `Refusal` the middleware logs and answers.
+  Verify: `tests/unit/adapters/log.test.ts` drives the transport and the send gate with recipient addresses, a message body and Resend-, Turnstile- and token-shaped values (assembled at run time).
+  Evidence: 5 tests green; with `scrub` made a no-op, 2 fail.
+- [x] **T7.2 [AGENT] Axiom queries.** `docs/observability/axiom.md`: the event table, errors, denials and rejections, `SAVE_REJECTED` with reasons, failed lookups, forms and email, newsletter sends, P95 server time from trace root spans, D1 time.
+  Verify: the document. Field names are checked against the first day of data (runbook step 1.5).
+- [ ] **T7.3 [HUMAN] Axiom datasets, token, Cloudflare OTLP destinations, dashboard and alerts.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 1.
+  Deps: T0.12, T8.0. Verify: the "Site events, parsed" query returns rows on staging.
+
+### Synthetic monitoring
+- [x] **T7.4 [AGENT] `@monitor` checks.** `tests/e2e/monitor/monitor.spec.ts`: home, a body's page, the Temple calendar, the ICS feed, the signup form; read-only. Project `monitor` in `playwright.config.ts`.
+  Verify: `CI=true pnpm e2e --grep @monitor` on a fresh database.
+  Evidence: 7 passed (the five checks and the two setup sign-ins they depend on).
+- [x] **T7.5 [AGENT] Checkly constructs.** `checkly.config.ts` (a Playwright Check Suite on `@monitor`, every ten minutes, two US locations), `checkly/playwright.config.ts` (no dev server, `ENVIRONMENT_URL`), `checkly/scheduler.check.ts` (`HeartbeatMonitor`, hourly, ten minutes' grace). `checkly@10.2.0` pinned: the receipt's 10.3.0 was inside pnpm's one-day release age; receipt amended.
+  Verify: `astro check` and lint cover `checkly/`; `pnpm exec checkly --version` reports 10.2.0.
+- [x] **T7.6 [AGENT] Scheduler heartbeat.** `src/worker.ts` pings the Worker secret `CHECKLY_HEARTBEAT_URL` after a scheduled run that succeeded at the top of the hour (`src/lib/adapters/heartbeat.ts`).
+  Verify: `tests/unit/adapters/heartbeat.test.ts`.
+  Evidence: 7 tests green: one ping an hour, none for a missing or non-HTTPS URL, a failed ping logged without the URL.
+- [ ] **T7.7 [HUMAN] Checkly account, API key, `checkly test` and `checkly deploy`, the heartbeat secret, alert channel.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 2. Replaces T5.18.
+  Deps: T0.16. Verify: both checks green in Checkly against staging.
+- [ ] **T7.8 [HUMAN] 48-hour soak on staging (M7 exit check).** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 3.
+  Deps: T7.3, T7.7. Verify: Checkly green for 48 hours; result link in STATUS.md.
+
+### Caching and performance
+- [ ] **T7.9 [PATH_ASK] Route caching.** `astro.config.mjs` `cache: { provider: cacheCloudflare() }`; `cacheRoute` always sets an expiry (content an hour, clock-bound fifteen minutes, the newsletter archive five); `src/middleware.ts` opts out, after the page ran, every response for a signed-in user, a session cookie, a cookie being set or a non-GET, and marks it `private, no-store`.
+  Verify: `node tests/build/check-cache-headers.mjs` (in CI after the build); the e2e.
+  Agent part done, awaiting approval: 13 of 13 checks pass on the build. Against the build before the change all 13 fail; with the middleware's opt-out removed, the two signed-in checks fail (`public, max-age=900` on `/` for a request with a session).
+- [x] **T7.10 [AGENT] P95 before and after, under `wrangler dev`.** `tests/perf/p95.mjs`, 50 requests per route, five alternating runs per side, on copies of the e2e database (STATUS.md § Local P95 server time (M7)).
+  Evidence: server P95 3 to 19 ms per route before, 6 to 22 ms after (medians of five runs); the same build with the Workers cache on and off differs by no more than run-to-run noise. Bound by 7 to 10 D1 queries per page; production adds D1's network round trips (estimated, not measured).
+- [x] **T7.11 [AGENT] Lighthouse baseline (T4.13).** `tests/perf/lighthouse.mjs` (Lighthouse 13.6.0 through `pnpm dlx`) on `/`, `/bodies/blue-lodge`, `/calendar`, `/news`, three runs each, production build under `wrangler dev`.
+  Evidence: Performance 100, Accessibility 100, Best Practices 96, SEO 100 on all four (median and minimum). The only deduction is `/favicon.ico` 404, a design asset. The restyle (T4.12) must re-run it, on staging too (T4.13's original verify).
+
+### Hardening (parked items)
+- [x] **T7.12 [AGENT] a: a failed guard lookup says so.** It and a request that names no entry no longer read "Only a Temple administrator can".
+  Verify: `request-guard.test.ts`.
+  Evidence: the new assertions fail against the old guard (3 tests), pass after.
+- [x] **T7.13 [AGENT] b: a missing draft says to discard it.** Middleware and save hook say "Choose Discard changes on the entry", for an Admin too.
+  Verify: `hooks.test.ts`, `request-guard.test.ts`.
+  Evidence: 2 hook tests and 1 guard test fail against the old code.
+- [x] **T7.14 [AGENT] c: signup rate limit.** Same limiter: five an hour per network, sixty in total; `dev/rate-limits` clears both forms.
+  Verify: `subscribe.test.ts`; `subscribe.spec.ts`.
+  Evidence: 2 tests fail against the old route (no limit), green after.
+- [x] **T7.15 [AGENT] d: id-shaped slugs staged by a co-editing room.** The brief's premise did not hold: a room checkpoint saves through `saveContent`, and EmDash runs `content:beforeSave` on the data alone, staging the slug as `_slug` after the hooks (`emdash-runtime.ts` `handleContentUpdate`). The ban sits where the staged slug goes live: `beforePublish` and `beforeSchedule` refuse an editor's draft whose staged slug looks like an entry id.
+  Verify: `hooks.test.ts` "a staged slug shaped like an entry id".
+  Evidence: 2 tests fail against the old hooks; an Admin's publish and an unpublish still pass.
+- [x] **T7.16 [AGENT] e: other parked items.** None found in STATUS.md or TASK.md beyond a to d; the contact form's limit text no longer blames the visitor, and both forms' messages are checked against their outcome types (`satisfies`).
+
+### Runbooks and close-out
+- [x] **T7.17 [AGENT] Runbooks.** New: `grant-changes.md`, `incident.md` (logs, `wrangler tail`, `wrangler rollback`, stopping newsletter sends, contacts), `deploy.md` (gates, staging and production), `monitoring-setup.md`. Updated: `newsletter-send.md` (`SITE_ENV`, signup limit), `onboard-body-editor.md` (staging invites, new messages).
+  Verify: every command named was checked against the installed tool (`wrangler rollback --help`, `wrangler tail --help`).
+- [ ] **T7.18 [AGENT] Adversarial review of body-access and the newsletter routes (PLAN M7).** Not run in this pass.
+  Verify: the code-devil review has no open Critical or High finding.
+- [ ] **T7.19 [AGENT] Close M7.** Exit check: T7.8 green, T7.18 clean; task-critic PASS; update STATUS.md.
+  Deps: all of M7.
 
 ---
 

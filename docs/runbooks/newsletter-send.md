@@ -19,13 +19,14 @@ A human sets these up in Resend, Cloudflare and the Worker's settings. Nothing i
 | `NEWSLETTER_TEST_ALLOWLIST` | The inboxes test sends go to, comma-separated. Never a subscriber list | `vars` of the environment in `wrangler.jsonc` |
 | `TURNSTILE_SECRET` | The secret of the Turnstile widget on the signup and contact forms | Worker secret, as for `RESEND_API_KEY` |
 | `TURNSTILE_SITE_KEY` | The public site key of that widget | `vars` of the environment in `wrangler.jsonc` |
+| `SITE_ENV` | `production` or `staging`, already set. Anything but `production` limits every email to `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes | `vars` of the environment in `wrangler.jsonc` |
 | Body Topics | One Resend Topic per body, default "opt out", its id saved in that body's **Resend topic id** field | Resend dashboard, then the body's entry in the admin |
 
 The Worker reads the five `vars` and both secrets at runtime, not at build time. The `vars` are identifiers, not secrets, so they are committed in `wrangler.jsonc` under `env.staging.vars` and `env.production.vars`. Each deploy replaces the Worker's variables with these, so a value typed into the Cloudflare dashboard is lost on the next deploy; change the file instead. An empty value means "not set", and the builder names it.
 
 `TURNSTILE_SITE_KEY` is public, but it too is read at runtime: only the server renders the forms, so the key is never built into the page and one build serves every environment. Without it the forms render with no Turnstile widget, and every signup and contact message is refused as unverified. Check the deployed `/newsletters` page and a body page show the widget.
 
-Staging uses its own Segment (a staging-only test Segment holding only allowlisted addresses) and its own Topics, so a staging approval never reaches a real subscriber.
+Staging uses its own Segment (a staging-only test Segment holding only allowlisted addresses) and its own Topics, so a staging approval never reaches a real subscriber. Single emails on staging (test sends, invites, sign-in links, contact messages) go only to the allowlist because `SITE_ENV` is `staging`: the Resend client refuses any other recipient and logs `email.blocked`. A body's contact form on staging therefore works only when its **Contact form recipients** are allowlisted addresses.
 
 The newsletter plugin is also the site's email provider once `RESEND_API_KEY` and `RESEND_FROM` are set: invites and sign-in links then go through Resend. Check **Settings → Email** shows the newsletter plugin as the provider. Before that, EmDash shows each invite link for you to share.
 
@@ -70,6 +71,7 @@ Before editing an issue whose approval failed with "could not be reached", check
 - The issue appears at `/newsletters` for every visitor, signed in or not, newest first, and opens in a frame that shows the email as sent, with a signup link in place of the unsubscribe link. The archive shows only each sent issue's subject, date and email.
 - A scheduled issue joins the archive once its time passes.
 - Subscribers manage their body preferences from the link in each email. Signups from the site's form land in the `subscribers` Segment with the newsletter Topic and the Topics of the bodies they ticked.
+- The signup form takes five signups an hour from one network and sixty an hour in total; past that, visitors are asked to try later (`form.rate_limited` in Axiom).
 - An address that unsubscribed from all Temple email is never added back by the form. The visitor is told the address unsubscribed before and to use the preferences link in a past newsletter, or to contact the Temple. To re-add someone who asks, change the contact in the Resend dashboard.
 
 ## Development and tests

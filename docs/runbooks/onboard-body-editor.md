@@ -14,7 +14,9 @@
 
 1. In the admin, open **Users** and choose **Invite user**.
 2. Enter the email address and choose the role **Editor**. Never give a body editor **Admin**: an Admin can write every body's content, manage users and change the site's settings (constitution § Per-body access control).
-3. Send the invite. With `RESEND_API_KEY` and `RESEND_FROM` set, the newsletter plugin's Resend transport emails it (FR-8.1; see [newsletter-send.md](newsletter-send.md)). Without them, EmDash shows the invite link instead. Copy the link and send it to the editor yourself, privately: anyone holding it can accept the invitation.
+3. Send the invite. With `RESEND_API_KEY` and `RESEND_FROM` set, the newsletter plugin's Resend transport emails it (FR-8.1; see [newsletter-send.md](newsletter-send.md)). Without them, EmDash shows the invite link instead. Copy the link and send it to the editor yourself, privately: anyone holding it can accept the invitation. On staging, and on any Worker whose `SITE_ENV` is not `production`, email reaches only the addresses in `NEWSLETTER_TEST_ALLOWLIST`: an invite to anyone else fails, so invite an allowlisted address there ([deploy.md](deploy.md)).
+
+To change an editor's bodies later, see [grant-changes.md](grant-changes.md).
 
 ## 2. Accept
 
@@ -63,7 +65,9 @@ Two gaps are accepted on purpose and need the lodge's sign-off before launch (PL
 | "These tags are not in the … tag list"                     | Add the tag to the body's tag list first (the body's page, **Tag vocabulary**). |
 | "cannot trash, unpublish or schedule a body's page"        | Only an Admin takes a body's page offline. Ask a Temple administrator.          |
 | "did not upload this file", for a file they uploaded       | The library already held an identical file, so it kept the first uploader's copy. They can still use it; an Admin can change its alt text. |
-| "looks like an entry id"                                   | The slug is 26 capital letters and digits. Use words, such as `spring-banquet`. |
+| "looks like an entry id"                                   | The slug is 26 capital letters and digits. Use words, such as `spring-banquet`. Publishing refuses such a slug too, when it was set in a co-editing session. |
+| "The entry's pending draft is missing"                     | On the entry, choose **Discard changes**, then edit again.                      |
+| "could not be checked against your body grants"            | A database read failed. Try again; see [incident.md](incident.md) if it keeps happening. |
 | "A translation belongs to the body of the entry it translates" | Choose the body the original entry belongs to.                             |
 | Google sign-in returns to the login page                   | The Google account's address is not the invited one, or it is not verified.    |
 | Microsoft sign-in is missing or fails                      | `MICROSOFT_TENANT_ID` is not set, or their account is a guest in that directory. |
