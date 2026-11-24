@@ -8,7 +8,7 @@ Everything the services run is already in the repository: the log events and que
 
 ## 1. Axiom (once per environment)
 
-1. In Axiom, create two datasets per environment: `findlay-masonic-staging-logs` and `findlay-masonic-staging-traces`, then the same with `production`.
+1. In Axiom, create two datasets per environment: `findlay-masonic-staging-logs` and `findlay-masonic-staging-traces`, then the same with `production`. Set each dataset's retention to 30 days ([axiom.md](../observability/axiom.md), "What reaches Axiom").
 2. Create an Axiom API token that can only ingest into those datasets. Keep it in 1Password; it never goes into the repository.
 3. In the Cloudflare dashboard, **Workers & Pages → Observability → Destinations**, add four OTLP destinations, named exactly as `wrangler.jsonc` expects:
 
@@ -20,7 +20,7 @@ Everything the services run is already in the repository: the log events and que
    | `axiom-production-traces` | `https://api.axiom.co/v1/traces` | the token, `X-Axiom-Dataset: findlay-masonic-production-traces` |
 
 4. Deploy the environment ([deploy.md](deploy.md)). Open the site, submit nothing, and after a few minutes check that the logs dataset has Cloudflare's invocation records.
-5. In Axiom, run the "Site events, parsed" query from `axiom.md`. If it returns nothing after a contact form test on staging, open one record in Axiom's schema view and adjust the field name the queries parse (`body`).
+5. In Axiom, run the "Site events, parsed" query from `axiom.md`. If it returns nothing after a contact form test on staging, open one record in Axiom's schema view and adjust the field name the queries parse (`body`). In the same view, open one invocation log and one trace of a request with a query string (a page with `?month=`): the URL should end at the path. Search both datasets for `@` followed by your test inbox's domain; nothing should match except `[email]`.
 6. Create the dashboard and the four alerts listed in `axiom.md` (errors, form outages and failed email, refusal bursts, P95 over 300 ms). Send alerts to the Temple administrators' inbox.
 
 ## 2. Checkly (once, then per environment)

@@ -60,6 +60,9 @@
 			},
 			"observability": {
 				"enabled": true,
+				// Invocation logs and traces record each request's URL, and EmDash carries preview,
+				// magic-link, invite and sign-up tokens in the query string (M7 review S4).
+				"redact_query_string": true,
 				"logs": {
 					"enabled": true,
 					"invocation_logs": true,
@@ -103,6 +106,9 @@
 			},
 			"observability": {
 				"enabled": true,
+				// Invocation logs and traces record each request's URL, and EmDash carries preview,
+				// magic-link, invite and sign-up tokens in the query string (M7 review S4).
+				"redact_query_string": true,
 				"logs": {
 					"enabled": true,
 					"invocation_logs": true,

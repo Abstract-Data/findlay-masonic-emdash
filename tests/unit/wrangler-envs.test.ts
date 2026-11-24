@@ -82,6 +82,17 @@ describe("wrangler.jsonc environments (constitution amendment 1)", () => {
 		},
 	);
 
+	// Invocation logs and traces carry each request's URL, and EmDash puts preview, magic-link,
+	// invite and sign-up tokens in the query string; both go to Axiom (M7 review S4).
+	it.each(["staging", "production"])(
+		"%s keeps query strings out of the logs and traces it exports",
+		(env) => {
+			const environment: unknown = Reflect.get(Object(Reflect.get(Object(config), "env")), env);
+			const observability: unknown = Reflect.get(Object(environment), "observability");
+			expect(Reflect.get(Object(observability), "redact_query_string")).toBe(true);
+		},
+	);
+
 	// Only production may email anyone; the top level (local dev) sets nothing, so it fails closed.
 	it("names each environment in SITE_ENV, and local dev not at all", () => {
 		const vars = (env: string): unknown =>

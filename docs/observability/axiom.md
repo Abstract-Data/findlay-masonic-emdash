@@ -3,6 +3,15 @@
 **Who uses it:** whoever is on call for the site (see [incident.md](../runbooks/incident.md)).
 **Where the data comes from:** each Worker environment exports its logs and traces over OTLP to Axiom (`observability` in `wrangler.jsonc`: destinations `axiom-<env>-logs` and `axiom-<env>-traces`). A human creates the Axiom datasets and the two Cloudflare destinations per environment (T0.12, T8.0); no SDK or key lives in the code.
 
+## What reaches Axiom, and what is kept out
+
+Three things leave the Worker: Cloudflare's invocation log for each request (method, URL, status, timing), the trace of each request (spans for the handler, `fetch`, D1, KV, R2; Cloudflare records URLs and query strings in spans but no header values), and every line written to the console, the site's and EmDash's.
+
+- **Query strings.** EmDash carries preview tokens (`?_preview=`), magic-link, invite and sign-up tokens (`?token=`) in the query string. `observability.redact_query_string` is `true` in both environments (`wrangler.jsonc`, PATH_ASK; checked by `tests/unit/wrangler-envs.test.ts`), so invocation logs and traces keep each URL's path only. Invocation logs stay on: they are how requests, status codes and wall time reach the queries below.
+- **Email addresses in console lines.** The site's own events never carry one (below). EmDash's lines can: a failed delivery names its recipient (`[email:deliver] Provider "newsletter" failed to send email to "…"`, which for the contact form is a body's private recipient), and sign-ins name the user (`[external-auth] Provisioned user: …`). `src/worker.ts` wraps the console at start-up (`redactConsoleEmails`), so every string and error argument reaches Workers Logs with each address replaced by `[email]` (`tests/unit/worker-console.test.ts`; checked under `wrangler dev`, where an invite refused on a non-production Worker logged `failed to send email to "[email]"`).
+- **What still can.** An address inside an object passed to the console whole (EmDash's `console.log(label, object)` lines pass objects as they are; none seen to hold an address), and an address in a URL path (no EmDash route puts one there). Span attributes beyond URLs were not inspected on real data; check one day of staging traces in Axiom's schema view (monitoring-setup § 1.5).
+- **Retention.** Workers Logs keeps logs for up to 7 days. In Axiom, keep the logs and traces datasets for 30 days: long enough to investigate an incident reported a few weeks late, short enough that a residual address does not sit for months. Set it on each dataset when it is created (monitoring-setup § 1).
+
 ## What the Worker logs
 
 Besides Cloudflare's own invocation logs, the site writes one JSON object per line for the events below (`src/lib/adapters/log.ts`). Every line has `level` and `event`. Fields are primitives only, and every string is scrubbed: an email address becomes `[email]` and a run of 32 or more letters, digits, `_`, `+`, `/` or `=` becomes `[redacted]`. No line carries a message body, a recipient address or a secret (`tests/unit/adapters/log.test.ts`).
