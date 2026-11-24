@@ -37,6 +37,35 @@ export function clockBound(now: Temporal.Instant): Expiry {
  */
 export const UNTAGGED: Expiry = { maxAge: 5 * 60 };
 
+function mark(headers: Headers) {
+	headers.set("Cloudflare-CDN-Cache-Control", "no-store");
+	headers.set("Cache-Control", "private, no-store");
+}
+
+/** `response`, marked as one visitor's: no shared cache stores it and no browser keeps it. */
+export function privateResponse(response: Response): Response {
+	try {
+		mark(response.headers);
+		return response;
+	} catch {
+		const copy = new Response(response.body, response);
+		mark(copy.headers);
+		return copy;
+	}
+}
+
+/**
+ * The Worker's last word before Cloudflare's cache sees a response. One that sets a cookie, or
+ * answers a request that carried credentials, belongs to one visitor whatever the route asked
+ * for. src/middleware.ts decides the same earlier, but EmDash's own middleware runs around it
+ * and can add a cookie (its D1 session bookmark) after it has returned.
+ */
+export function forSharedCache(request: Request, response: Response): Response {
+	if (response.status === 101) return response;
+	const personal = response.headers.has("set-cookie") || request.headers.has("authorization");
+	return personal ? privateResponse(response) : response;
+}
+
 /**
  * Register the content a route read, so publishing invalidates its cached copy, and how long a
  * copy may live. A no-op under `astro dev` and without a cache provider. Responses for a

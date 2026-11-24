@@ -575,6 +575,9 @@ An independent adversarial review of f0fc275 failed M7 on two blocking items (B1
 - [x] **TR.5 [AGENT] L4: each recipient is exactly one address.** The gate's Resend-test check matched the end of a string, so `"victim@example.com,delivered@resend.dev"` passed, and `parseRecipients` only trimmed. `parseAddress` (`src/lib/core/address.ts`) accepts one bare address and nothing that separates, quotes or names another; the gate counts anything else as off the list, `parseRecipients` drops the row, and `parseAllowlist` uses the same rule.
   Verify: `send-gate.test.ts` (L4 cases), `views.test.ts` "keeps only rows that hold exactly one address".
   Evidence: 3 failed against the old code (the smuggled pair was sent on staging); 2890 unit tests green after.
+- [x] **TR.6 [AGENT] L1: a request with credentials, or a response that sets a cookie, is never shared.** A bearer request got `public, max-age=900` and a `Set-Cookie` (EmDash's D1 session bookmark, added by EmDash's middleware after ours returned). Cloudflare's Workers cache bypasses a response with `Set-Cookie`, but it stores the answer to a request with `Authorization` when the response says `public` (developers.cloudflare.com/workers/cache/configuration, "Automatic bypass conditions"). The middleware now treats `authorization` as personal, and `src/worker.ts` checks the finished response (`forSharedCache`): one that sets a cookie or answers a request with credentials leaves the Worker as `no-store` and `private, no-store`, whatever the route asked for.
+  Verify: `node tests/build/check-cache-headers.mjs` (two bearer checks, and every response that sets a cookie must be private); `tests/unit/worker.test.ts` "what Cloudflare's cache may store".
+  Evidence: against the old build the two bearer checks failed (`public, max-age=900` and `3600` with `set-cookie`); 15 of 15 pass after. The worker tests failed 2 of 3 against the old Worker.
 
 ---
 

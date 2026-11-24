@@ -1,6 +1,7 @@
 import { actorStore, type RequestActor } from "@adapters/emdash/actor-context";
 import { emdashReads, guardRequest, refusalResponse } from "@adapters/emdash/request-guard";
 import { log } from "@adapters/log";
+import { privateResponse } from "@adapters/site/cache";
 import { defineMiddleware } from "astro:middleware";
 
 /** The Astro session cookie EmDash signs users in with (its `sessionCookieName` default). */
@@ -43,25 +44,17 @@ export const onRequest = defineMiddleware(async (context, next) => {
 	}
 	const response = await actorStore.run(actor, next);
 	// The edge cache serves a stored page without running the Worker, so a page rendered for a
-	// signed-in user, or one that sets a cookie, must never be stored: a visitor would get it.
-	// Opting out after the page ran overrides whatever the page asked for.
+	// signed-in user, for a request with credentials (Cloudflare stores the answer to one that
+	// carries Authorization when it says `public`), or one that sets a cookie, must never be
+	// stored: a visitor would get it. Opting out after the page ran overrides whatever the page
+	// asked for; src/worker.ts checks the finished response again.
 	const personal =
 		actor !== null ||
 		context.cookies.has(SESSION_COOKIE) ||
+		context.request.headers.has("authorization") ||
 		!context.cookies.headers().next().done ||
 		(method !== "GET" && method !== "HEAD");
 	if (!personal) return response;
 	if (context.cache.enabled) context.cache.set(false);
 	return privateResponse(response);
 });
-
-function privateResponse(response: Response): Response {
-	try {
-		response.headers.set("Cache-Control", "private, no-store");
-		return response;
-	} catch {
-		const copy = new Response(response.body, response);
-		copy.headers.set("Cache-Control", "private, no-store");
-		return copy;
-	}
-}

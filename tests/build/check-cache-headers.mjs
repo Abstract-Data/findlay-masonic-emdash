@@ -1,7 +1,8 @@
 // Serves the production build under `wrangler dev` on an empty database and checks, route class
 // by route class, what the Worker tells Cloudflare's cache: public pages and feeds are stored
-// for their expiry and tagged for purging; the admin, the API, previews, form posts, errors and
-// any request carrying a session are never stored. Run from the repository root after
+// for their expiry and tagged for purging; the admin, the API, previews, form posts, errors, any
+// request carrying a session or a bearer token, and any response that sets a cookie are never
+// stored. Run from the repository root after
 // `pnpm astro build`:
 //   node tests/build/check-cache-headers.mjs
 import { spawn } from "node:child_process";
@@ -37,6 +38,8 @@ const clockBound = (h) => {
 };
 
 const SESSION = { cookie: "astro-session=any" };
+// Cloudflare's cache stores a response to a request with Authorization when it says `public`.
+const BEARER = { authorization: "Bearer not-a-real-token" };
 const CHECKS = [
 	{ kind: "clock-bound page", method: "GET", path: "/", expected: clockBound },
 	{ kind: "clock-bound page", method: "GET", path: "/calendar", expected: clockBound },
@@ -48,6 +51,8 @@ const CHECKS = [
 	{ kind: "API", method: "GET", path: "/_emdash/api/search?q=lodge", expected: notStored },
 	{ kind: "preview", method: "GET", path: "/?_preview=not-a-token", expected: notStored },
 	{ kind: "signed-in visitor", method: "GET", path: "/", headers: SESSION, expected: privateToo },
+	{ kind: "bearer token", method: "GET", path: "/", headers: BEARER, expected: privateToo },
+	{ kind: "bearer token", method: "GET", path: "/news", headers: BEARER, expected: privateToo },
 	{
 		kind: "signed-in visitor",
 		method: "GET",
@@ -114,8 +119,10 @@ try {
 		const response = await fetch(new URL(path, base), { method, headers, redirect: "manual" });
 		// oxlint-disable-next-line no-await-in-loop -- see above.
 		await response.arrayBuffer();
-		const ok = expected(response.headers);
-		const seen = `${response.status} ${CDN}: ${response.headers.get(CDN)}; cache-control: ${response.headers.get("cache-control")}`;
+		// Whatever the route, a response that sets a cookie belongs to one visitor.
+		const setsCookie = response.headers.has("set-cookie");
+		const ok = expected(response.headers) && (!setsCookie || privateToo(response.headers));
+		const seen = `${response.status} ${CDN}: ${response.headers.get(CDN)}; cache-control: ${response.headers.get("cache-control")}${setsCookie ? "; set-cookie" : ""}`;
 		console.log(`${ok ? "ok  " : "FAIL"} ${kind.padEnd(18)} ${method} ${path.padEnd(42)} ${seen}`);
 		if (!ok) failures.push(`${method} ${path}`);
 	}

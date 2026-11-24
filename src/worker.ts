@@ -1,6 +1,7 @@
 import handler, { EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";
 import { pingHeartbeat } from "@adapters/heartbeat";
 import { log, messageOf } from "@adapters/log";
+import { forSharedCache } from "@adapters/site/cache";
 import { purgeTags } from "@adapters/site/purge";
 import { cache } from "cloudflare:workers";
 import { runScheduledTasks } from "emdash/middleware";
@@ -19,6 +20,9 @@ const purge = async (tags: readonly string[]) =>
 
 export default {
 	...handler,
+	async fetch(request, env, ctx) {
+		return forSharedCache(request, await handler.fetch(request, env, ctx));
+	},
 	/**
 	 * EmDash's createScheduledHandler queues the run in waitUntil and swallows its failure, so a
 	 * ping after it proved nothing. Here the run is awaited, and the heartbeat goes only after

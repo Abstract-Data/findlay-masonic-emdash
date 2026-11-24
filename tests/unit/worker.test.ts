@@ -8,11 +8,13 @@ const emdash = vi.hoisted(() => ({
 	runScheduledTasks: vi.fn<(options?: unknown) => Promise<{ published: unknown[] }>>(),
 	purge:
 		vi.fn<(options: { tags?: string[] }) => Promise<{ success: boolean; errors: unknown[] }>>(),
+	/** What EmDash's Astro handler answers a request with. */
+	page: vi.fn<(request: Request) => Response>(),
 }));
 vi.mock("emdash/middleware", () => ({ runScheduledTasks: emdash.runScheduledTasks }));
 vi.mock("cloudflare:workers", () => ({ cache: { purge: emdash.purge } }));
 vi.mock("@emdash-cms/cloudflare/worker", () => ({
-	default: { fetch: async () => new Response("page") },
+	default: { fetch: async (request: Request) => emdash.page(request) },
 	EmDashRoom: {},
 	EmDashRoomSite: {},
 	PluginBridge: {},
@@ -115,5 +117,46 @@ describe("the Worker's cron run and its heartbeat (M7 review B2)", () => {
 		emdash.runScheduledTasks.mockResolvedValue({ published: [] });
 		expect(await cron()).toBe("resolved");
 		expect(emdash.runScheduledTasks).toHaveBeenCalledTimes(1);
+	});
+});
+
+const PUBLIC = { "Cloudflare-CDN-Cache-Control": "public, max-age=900", "Cache-Tag": "news" };
+
+/** The cache headers the Worker hands Cloudflare for a request EmDash answered with `answer`. */
+async function served(answer: Response, headers: HeadersInit = {}) {
+	emdash.page.mockReturnValue(answer);
+	const request = new Request("https://findlaymason.org/news", { headers });
+	const ctx = { waitUntil() {}, passThroughOnException() {}, props: {} };
+	const response: unknown = await Reflect.apply(Reflect.get(worker, "fetch"), worker, [
+		request,
+		{},
+		ctx,
+	]);
+	if (!(response instanceof Response)) throw new Error("the Worker answered with no Response");
+	return [
+		response.headers.get("cloudflare-cdn-cache-control"),
+		response.headers.get("cache-control"),
+	];
+}
+
+describe("what Cloudflare's cache may store (M7 review L1)", () => {
+	it("never shares a response that sets a cookie, whatever the route asked for", async () => {
+		const answer = new Response("page", { headers: { ...PUBLIC, "Set-Cookie": "bookmark=1" } });
+		expect(await served(answer)).toEqual(["no-store", "private, no-store"]);
+	});
+
+	it("never shares the answer to a request that carried credentials", async () => {
+		const answer = new Response("page", { headers: PUBLIC });
+		expect(await served(answer, { Authorization: "Bearer token" })).toEqual([
+			"no-store",
+			"private, no-store",
+		]);
+	});
+
+	it("leaves a visitor's public page cacheable", async () => {
+		expect(await served(new Response("page", { headers: PUBLIC }))).toEqual([
+			"public, max-age=900",
+			null,
+		]);
 	});
 });

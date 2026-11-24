@@ -39,7 +39,7 @@ Note the version id Wrangler prints; [incident.md](incident.md) rolls back to an
 
 1. The home page, a body page, `/calendar`, `/calendar.ics` and `/newsletters` load. Checkly does this every ten minutes once it is set up; to run the same checks by hand: `ENVIRONMENT_URL=https://<address> pnpm exec playwright test -c checkly/playwright.config.ts`.
 2. `/_emdash/admin` loads and an Admin can sign in.
-3. A response for a visitor carries `Cloudflare-CDN-Cache-Control: public, max-age=...`; with `curl -sI https://<address>/` the header is there. A signed-in Admin's responses carry `Cache-Control: private, no-store`.
+3. A response for a visitor carries `Cloudflare-CDN-Cache-Control: public, max-age=...`; with `curl -sI https://<address>/` the header is there. A signed-in Admin's responses carry `Cache-Control: private, no-store`, and so does the answer to `curl -sI -H "Authorization: Bearer x" https://<address>/`: Cloudflare would store a `public` answer to a request with credentials, so the Worker marks it private, and any response that sets a cookie too (`src/worker.ts`).
 4. In Axiom, the environment's logs dataset received records in the last five minutes.
 
 ## After a schema change (PATH_ASK)
