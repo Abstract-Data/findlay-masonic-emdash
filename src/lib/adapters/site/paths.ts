@@ -1,6 +1,15 @@
 /** Every public route the pages, feeds and newsletter link to, so a link cannot drift from its page. */
 const segment = (slug: string) => encodeURIComponent(slug);
 
+/**
+ * A route's slug parameter, the way `paths` encoded it. Astro decodes the path before it
+ * matches a route, so decoding the parameter again (EmDash's `decodeSlug`) breaks any slug
+ * holding a `%`: `pct%zz` throws and the page answers 404 (M7 review L8).
+ */
+export function slugParam(param: string | undefined): string | undefined {
+	return param === "" ? undefined : param;
+}
+
 export const paths = {
 	home: "/",
 	bodies: "/bodies",

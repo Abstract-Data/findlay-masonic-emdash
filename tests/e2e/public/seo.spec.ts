@@ -137,3 +137,39 @@ test("the sitemap lists news at its body's page, and none of an unpublished body
 		await data(admin.delete(`${CONTENT}/bodies/${retired.item.id}`));
 	}
 });
+
+test("a news slug with a percent sign is reachable from the sitemap and its list (M7 review L8)", async ({
+	admin,
+	ids,
+	page,
+	request,
+}) => {
+	const title = "E2E-percent Ten percent off";
+	const item = await publish(
+		admin,
+		"news",
+		{
+			body: ids.council,
+			title,
+			content: paragraph("Dues are ten percent off."),
+			publish_date: new Date().toISOString(),
+		},
+		`${unique("e2e-pct")}%zz`,
+	);
+	try {
+		expect(item.slug).toContain("%zz");
+		const xml = await (await request.get("/sitemap-news.xml")).text();
+		const loc = [...xml.matchAll(/<loc>([^<]*)<\/loc>/g)]
+			.map(([, url]) => url ?? "")
+			.find((url) => url.includes(encodeURIComponent(item.slug)));
+		expect(loc).toBeDefined();
+		const fromSitemap = await request.get(new URL(loc ?? "").pathname);
+		expect(fromSitemap.status()).toBe(200);
+		expect(await fromSitemap.text()).toContain(title);
+		await page.goto("/bodies/council/news");
+		await page.getByRole("link", { name: title }).first().click();
+		await expect(page.getByRole("heading", { level: 1 })).toHaveText(title);
+	} finally {
+		await data(admin.delete(`${CONTENT}/news/${item.id}`));
+	}
+});

@@ -1,16 +1,15 @@
 ---
 import { cacheRoute } from "@adapters/site/cache";
 import { loadBody, loadBodyNews } from "@adapters/site/content";
-import { paths } from "@adapters/site/paths";
+import { paths, slugParam } from "@adapters/site/paths";
 import { chosenTag } from "@adapters/site/views";
 import { pageOf, parsePage } from "@core/news/paging";
-import { decodeSlug } from "emdash";
 import NewsList from "../../../../components/NewsList.astro";
 import Pager from "../../../../components/Pager.astro";
 import Base from "../../../../layouts/Base.astro";
 
 // FR-3.3: one body's news, newest first, ten to a page, filtered by one of its tags.
-const slug = decodeSlug(Astro.params.slug);
+const slug = slugParam(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 const { value: body, hint } = await loadBody(slug);
 if (body === null) return Astro.rewrite("/404");

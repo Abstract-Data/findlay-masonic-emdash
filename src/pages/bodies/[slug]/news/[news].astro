@@ -1,19 +1,19 @@
 ---
 import { cacheRoute } from "@adapters/site/cache";
 import { loadBody } from "@adapters/site/content";
-import { paths } from "@adapters/site/paths";
+import { paths, slugParam } from "@adapters/site/paths";
 import { pageSeo } from "@adapters/site/seo";
 import { parseNewsView } from "@adapters/site/views";
 import { formatDate, SITE_TZ } from "@core/time";
-import { decodeSlug, getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Base from "../../../../layouts/Base.astro";
 import { resolveSiteIdentity } from "../../../../utils/site-identity";
 import "../../../../styles/prose.css";
 
 // R8: one news item, the page newsletter article cards link to.
-const bodySlug = decodeSlug(Astro.params.slug);
-const newsSlug = decodeSlug(Astro.params.news);
+const bodySlug = slugParam(Astro.params.slug);
+const newsSlug = slugParam(Astro.params.news);
 if (!bodySlug || !newsSlug) return Astro.rewrite("/404");
 const [{ value: body, hint }, { entry, cacheHint, error }, settings] = await Promise.all([
 	loadBody(bodySlug),

@@ -1,8 +1,9 @@
 ---
 import { cacheRoute } from "@adapters/site/cache";
 import { loadBodies } from "@adapters/site/content";
+import { slugParam } from "@adapters/site/paths";
 import { pageSeo } from "@adapters/site/seo";
-import { decodeSlug, getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { PortableText } from "emdash/ui";
 import ContactForm from "../../components/ContactForm.astro";
 import Base from "../../layouts/Base.astro";
@@ -13,7 +14,7 @@ import "../../styles/prose.css";
 // also carries the form that writes to any body (spec Q12).
 const CONTACT_PAGE = "contact";
 
-const slug = decodeSlug(Astro.params.slug);
+const slug = slugParam(Astro.params.slug);
 
 if (!slug) {
 	return Astro.rewrite("/404");

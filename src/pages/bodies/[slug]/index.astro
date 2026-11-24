@@ -2,7 +2,7 @@
 import { systemClock } from "@adapters/clock";
 import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBodyNews, loadCalendar, loadOfficers } from "@adapters/site/content";
-import { paths } from "@adapters/site/paths";
+import { paths, slugParam } from "@adapters/site/paths";
 import { pageSeo } from "@adapters/site/seo";
 import { parseBodyView } from "@adapters/site/views";
 import { currentRoster } from "@core/bodies/officers";
@@ -10,7 +10,7 @@ import { agenda } from "@core/calendar/month";
 import { daysAhead, expand } from "@core/recurrence/expand";
 import { meetings } from "@core/recurrence/meetings";
 import { SITE_TZ } from "@core/time";
-import { decodeSlug, getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
 import { Image, PortableText } from "emdash/ui";
 import Agenda from "../../../components/Agenda.astro";
 import ContactForm from "../../../components/ContactForm.astro";
@@ -27,7 +27,7 @@ const NEXT_MEETINGS = 3;
 const LATEST_NEWS = 5;
 const UPCOMING_DAYS = 60;
 
-const slug = decodeSlug(Astro.params.slug);
+const slug = slugParam(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 const { entry, cacheHint, error } = await getEmDashEntry("bodies", slug);
 if (error !== undefined) throw error;

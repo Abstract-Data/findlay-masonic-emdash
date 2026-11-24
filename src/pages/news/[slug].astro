@@ -1,11 +1,10 @@
 ---
 import { loadBodies, loadNewsItem } from "@adapters/site/content";
-import { paths } from "@adapters/site/paths";
-import { decodeSlug } from "emdash";
+import { paths, slugParam } from "@adapters/site/paths";
 
 // The news collection's urlPattern is /news/{slug} (the admin's "view" link and previews); the
 // page lives under its body, which the pattern cannot name. The query keeps a preview token.
-const slug = decodeSlug(Astro.params.slug);
+const slug = slugParam(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 const [{ value: item }, { value: bodies }] = await Promise.all([loadNewsItem(slug), loadBodies()]);
 const body = item === null ? undefined : bodies.find((candidate) => candidate.id === item.body);

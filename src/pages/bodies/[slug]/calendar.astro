@@ -2,11 +2,10 @@
 import { systemClock } from "@adapters/clock";
 import { cacheRoute, clockBound } from "@adapters/site/cache";
 import { loadBody, loadCalendar } from "@adapters/site/content";
-import { paths } from "@adapters/site/paths";
+import { paths, slugParam } from "@adapters/site/paths";
 import { agenda, monthGrid, parseMonth } from "@core/calendar/month";
 import { expand, monthWindow } from "@core/recurrence/expand";
 import { formatMonth, SITE_TZ } from "@core/time";
-import { decodeSlug } from "emdash";
 import type { Temporal } from "temporal-polyfill";
 import Agenda from "../../../components/Agenda.astro";
 import FeedLinks from "../../../components/FeedLinks.astro";
@@ -15,7 +14,7 @@ import MonthNav from "../../../components/MonthNav.astro";
 import Base from "../../../layouts/Base.astro";
 
 // FR-4.3: one body's occurrences for a month, recurring events expanded and EXDATEs left out.
-const slug = decodeSlug(Astro.params.slug);
+const slug = slugParam(Astro.params.slug);
 if (!slug) return Astro.rewrite("/404");
 const { value: body, hint } = await loadBody(slug);
 if (body === null) return Astro.rewrite("/404");
