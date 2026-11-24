@@ -17,12 +17,12 @@ const next = month.add({ months: 1 });
 	<ul>
 		<li>
 			<a class="btn btn--ghost" href={href(previous)} rel="prev">
-				<span aria-hidden="true">←</span> Previous: {formatMonth(previous)}
+				<span class="arrow arrow--back" aria-hidden="true"></span> Previous: {formatMonth(previous)}
 			</a>
 		</li>
 		<li>
 			<a class="btn btn--ghost" href={href(next)} rel="next">
-				Next: {formatMonth(next)} <span aria-hidden="true">→</span>
+				Next: {formatMonth(next)} <span class="arrow" aria-hidden="true"></span>
 			</a>
 		</li>
 	</ul>

@@ -16,7 +16,7 @@ const { page, href } = Astro.props;
 			{page.hasNewer && (
 				<li>
 					<a class="btn btn--ghost" href={href(page.page - 1)} rel="prev">
-						<span aria-hidden="true">←</span> Newer news
+						<span class="arrow arrow--back" aria-hidden="true"></span> Newer news
 					</a>
 				</li>
 			)}
@@ -26,7 +26,7 @@ const { page, href } = Astro.props;
 			{page.hasOlder && (
 				<li>
 					<a class="btn btn--ghost" href={href(page.page + 1)} rel="next">
-						Older news <span aria-hidden="true">→</span>
+						Older news <span class="arrow" aria-hidden="true"></span>
 					</a>
 				</li>
 			)}

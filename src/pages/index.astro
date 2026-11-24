@@ -97,7 +97,7 @@ const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 				</div>
 				<nav class="btn-row" aria-label="Weeks" data-testid="week-nav">
 					<a class="btn btn--ghost" href={weekHref(week.subtract({ days: 7 }))} rel="prev">
-						<span aria-hidden="true">←</span> Previous week
+						<span class="arrow arrow--back" aria-hidden="true"></span> Previous week
 					</a>
 					{!week.equals(weekStart(today)) && (
 						<a class="btn btn--ghost" href={weekHref(weekStart(today))}>
@@ -105,7 +105,7 @@ const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 						</a>
 					)}
 					<a class="btn btn--ghost" href={weekHref(week.add({ days: 7 }))} rel="next">
-						Next week <span aria-hidden="true">→</span>
+						Next week <span class="arrow" aria-hidden="true"></span>
 					</a>
 				</nav>
 			</div>
