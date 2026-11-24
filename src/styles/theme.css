@@ -113,11 +113,6 @@ header.site-header .site-search .emdash-live-search-result-collection {
 	font-size: var(--font-size-xs);
 }
 
-/* The site name in full, which the larger face pushed past the layout's 9rem phone limit. */
-a.brand .brand__name {
-	max-width: none;
-}
-
 .btn {
 	min-height: 2.75rem;
 }
