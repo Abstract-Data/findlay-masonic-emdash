@@ -184,7 +184,11 @@ const nextBody = next === null ? undefined : bodies.get(next.occurrence.body);
 		font-size: var(--font-size-lg);
 	}
 
-	@media (max-width: 1000px) {
+	/*
+	  Seven columns only where each is wide enough for a title's words whole (measured with the
+	  crowded test week); below, one row per day. MonthGrid steps aside at the same width.
+	*/
+	@media (max-width: 1240px) {
 		.week {
 			grid-template-columns: 1fr;
 		}

@@ -5,8 +5,8 @@ import type { BodyId } from "@core/ids";
 import { formatMonth } from "@core/time";
 import Entry from "./Entry.astro";
 
-// FR-4.3, 4.4: a server-rendered month. On a phone the agenda beside it carries the same
-// entries, so the grid steps aside below 760px.
+// FR-4.3, 4.4: a server-rendered month. The agenda beside it carries the same entries, so the
+// grid steps aside wherever its days are too narrow for a title's words whole: 1240px and below.
 interface Props {
 	grid: MonthGrid;
 	bodies: ReadonlyMap<BodyId, BodyView>;
@@ -139,7 +139,7 @@ const WEEKDAYS = [
 		list-style: none;
 	}
 
-	@media (max-width: 760px) {
+	@media (max-width: 1240px) {
 		.month-grid {
 			display: none;
 		}
