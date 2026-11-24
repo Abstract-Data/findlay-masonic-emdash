@@ -37,12 +37,21 @@ describe("the scheduler heartbeat (Checkly HeartbeatMonitor)", () => {
 		},
 	);
 
-	it("withholds the ping when the run left something undone, and asks only when a ping is due", async () => {
+	it("withholds the ping when the run left something undone, and asks only at the top of the hour", async () => {
 		const send = vi.fn<(url: string) => Promise<Response>>(async () => new Response(null));
 		const healthy = vi.fn<() => Promise<boolean>>(async () => false);
 		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR, send, healthy)).toBe("withheld");
 		expect(await pingHeartbeat(URL_SECRET, TOP_OF_HOUR + 60_000, send, healthy)).toBe("skipped");
-		expect(await pingHeartbeat(undefined, TOP_OF_HOUR, send, healthy)).toBe("skipped");
+		expect(send).not.toHaveBeenCalled();
+		expect(healthy).toHaveBeenCalledTimes(1);
+	});
+
+	it("still asks once an hour with no URL, so an overdue entry is logged without Checkly", async () => {
+		const send = vi.fn<(url: string) => Promise<Response>>(async () => new Response(null));
+		const healthy = vi.fn<() => Promise<boolean>>(async () => false);
+		expect(await pingHeartbeat(undefined, TOP_OF_HOUR, send, healthy)).toBe("withheld");
+		expect(await pingHeartbeat(undefined, TOP_OF_HOUR + 60_000, send, healthy)).toBe("skipped");
+		expect(await pingHeartbeat(undefined, TOP_OF_HOUR, send, ok)).toBe("skipped");
 		expect(send).not.toHaveBeenCalled();
 		expect(healthy).toHaveBeenCalledTimes(1);
 	});

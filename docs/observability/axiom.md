@@ -30,7 +30,7 @@ Besides Cloudflare's own invocation logs, the site writes one JSON object per li
 | `email.failed` | error | `kind` (`rejected`, `unavailable`, `blocked`), `status`, `error` | Resend did not accept an email (invites, contact messages), or the gate refused it |
 | `heartbeat.failed` | warn | `status`, `error` | The scheduler ran but its Checkly heartbeat ping did not land |
 | `scheduler.failed` | error | `error` | EmDash's scheduled run threw, so that cron run sent no heartbeat |
-| `scheduler.overdue` | error | `entries`, `collections` (counts, up to 100 a collection) | At the top of the hour, entries the run had to publish are still waiting, so no heartbeat went |
+| `scheduler.overdue` | error | `entries`, `collections` (counts, up to 100 a collection) | At the top of the hour, entries the run had to publish are still waiting, so no heartbeat went. Logged with or without `CHECKLY_HEARTBEAT_URL` |
 | `scheduler.check_failed` | error | `error` | The overdue check could not read the database, so no heartbeat went |
 | `cache.purge_failed` | warn | `tags` (a count), `error` | A scheduled publish could not purge its pages' edge copies; they expire on their own within the hour |
 

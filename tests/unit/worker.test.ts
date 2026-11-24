@@ -73,11 +73,13 @@ function heartbeat() {
 }
 
 /** One cron run of the Worker, settled with everything it handed to waitUntil. */
-async function cron(scheduledTime = TOP_OF_HOUR): Promise<"resolved" | "rejected"> {
+async function cron(
+	scheduledTime = TOP_OF_HOUR,
+	env: Record<string, string> = { CHECKLY_HEARTBEAT_URL: PING },
+): Promise<"resolved" | "rejected"> {
 	const pending: Promise<unknown>[] = [];
 	const ctx = { waitUntil: (promise: Promise<unknown>) => pending.push(promise), props: {} };
 	const controller = { cron: "* * * * *", scheduledTime, noRetry() {} };
-	const env = { CHECKLY_HEARTBEAT_URL: PING };
 	const run = Reflect.apply(Reflect.get(worker, "scheduled"), worker, [controller, env, ctx]);
 	const outcome = await Promise.resolve(run).then(
 		() => "resolved" as const,
@@ -223,6 +225,17 @@ describe("the heartbeat means nothing is overdue (M7 review round 2, B2)", () =>
 		expect(events).toEqual([]);
 		expect(logged("error")).toEqual([
 			{ level: "error", event: "scheduler.check_failed", error: "Error: EmDash is not configured" },
+		]);
+	});
+
+	it("still logs what is overdue, once an hour, when no heartbeat URL is set", async () => {
+		const events = heartbeat();
+		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Late", scheduledAt: ago(5 * 60_000) }]);
+		await cron(TOP_OF_HOUR, {});
+		await cron(TOP_OF_HOUR + 60_000, {});
+		expect(events).toEqual([]);
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.overdue", entries: 1, collections: 1 },
 		]);
 	});
 
