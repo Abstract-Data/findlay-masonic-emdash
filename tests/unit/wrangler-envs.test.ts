@@ -76,8 +76,18 @@ describe("wrangler.jsonc environments (constitution amendment 1)", () => {
 				"RESEND_FROM",
 				"RESEND_NEWSLETTER_TOPIC_ID",
 				"RESEND_SEGMENT_ID",
+				"SITE_ENV",
 				"TURNSTILE_SITE_KEY",
 			]);
 		},
 	);
+
+	// Only production may email anyone; the top level (local dev) sets nothing, so it fails closed.
+	it("names each environment in SITE_ENV, and local dev not at all", () => {
+		const vars = (env: string): unknown =>
+			Reflect.get(Object(Reflect.get(Object(Reflect.get(Object(config), "env")), env)), "vars");
+		expect(Reflect.get(Object(vars("staging")), "SITE_ENV")).toBe("staging");
+		expect(Reflect.get(Object(vars("production")), "SITE_ENV")).toBe("production");
+		expect(Reflect.get(Object(config), "vars")).toBeUndefined();
+	});
 });

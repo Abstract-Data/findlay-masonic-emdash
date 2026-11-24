@@ -67,6 +67,9 @@ export default defineConfig({
 			// The Turnstile widget's public site key, a Worker variable like the settings above: only
 			// server-rendered forms read it, so it need not be built into the client.
 			TURNSTILE_SITE_KEY: envField.string({ context: "server", access: "secret", optional: true }),
+			// Which Worker this is: "production" or "staging" (wrangler.jsonc vars). Anything else,
+			// unset included, is treated as non-production, where email reaches only the allowlist.
+			SITE_ENV: envField.string({ context: "server", access: "secret", optional: true }),
 		},
 	},
 	image: {

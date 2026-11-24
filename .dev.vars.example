@@ -15,6 +15,9 @@ RESEND_NEWSLETTER_TOPIC_ID=
 NEWSLETTER_TEST_ALLOWLIST=
 RESEND_FROM=
 TURNSTILE_SITE_KEY=
+# "production" or "staging". Unset (local dev) counts as non-production: real email goes only to
+# NEWSLETTER_TEST_ALLOWLIST and Resend test addresses.
+SITE_ENV=
 
 # Server values (context: server, access: public)
 GOOGLE_CLIENT_ID=

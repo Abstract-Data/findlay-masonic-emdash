@@ -48,8 +48,10 @@
 			},
 			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
 			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
-			// Staging's Segment holds allowlisted test addresses only.
+			// Staging's Segment holds allowlisted test addresses only, and SITE_ENV keeps every
+			// other email inside NEWSLETTER_TEST_ALLOWLIST (src/lib/adapters/send-gate.ts).
 			"vars": {
+				"SITE_ENV": "staging",
 				"RESEND_FROM": "",
 				"RESEND_SEGMENT_ID": "",
 				"RESEND_NEWSLETTER_TOPIC_ID": "",
@@ -90,7 +92,9 @@
 			},
 			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
 			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
+			// SITE_ENV "production" is the only value that lets email reach any address.
 			"vars": {
+				"SITE_ENV": "production",
 				"RESEND_FROM": "",
 				"RESEND_SEGMENT_ID": "",
 				"RESEND_NEWSLETTER_TOPIC_ID": "",

@@ -51,9 +51,15 @@ export default defineConfig({
 	},
 	overrides: [
 		{
-			// The newsletter plugin's server modules (routes, transport, service) send email;
-			// its .tsx admin modules run in the browser and stay under the default ban.
-			files: ["src/plugins/newsletter/*.ts", "src/lib/adapters/dev-fakes.ts", "tests/**"],
+			// The newsletter plugin's server modules (routes, transport, service) send email, and
+			// send-gate wraps the mailer they use; the plugin's .tsx admin modules run in the
+			// browser and stay under the default ban.
+			files: [
+				"src/plugins/newsletter/*.ts",
+				"src/lib/adapters/dev-fakes.ts",
+				"src/lib/adapters/send-gate.ts",
+				"tests/**",
+			],
 			rules: { "no-restricted-imports": ["error", { patterns: [RESEND_SDK] }] },
 		},
 		{
