@@ -74,6 +74,14 @@ export default defineConfig({
 			dependencies: ["setup", "newsletter"],
 		},
 		{
+			// Checkly's synthetic monitors (@monitor), as a visitor. Setup applies the seed, so the
+			// bodies every deployment has exist on a fresh local database too.
+			name: "monitor",
+			testDir: "tests/e2e/monitor",
+			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },
+			dependencies: ["setup"],
+		},
+		{
 			// axe on every public route once the public suite has given its lists content.
 			name: "a11y",
 			testDir: "tests/e2e/a11y",
