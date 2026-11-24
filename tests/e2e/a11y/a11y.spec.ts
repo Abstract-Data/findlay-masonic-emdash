@@ -1,38 +1,12 @@
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
 import { storageStatePath } from "../roles";
-import { addDays, addMonths, findlayToday } from "../public/site";
+import { PUBLIC_ROUTES } from "../public/routes";
 
 // NFR accessibility (constitution amendment 1): WCAG 2.1 AA, zero axe violations, on every public
 // route and the two plugin admin pages. Runs after the public suites, so lists hold content.
 const TAGS = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"];
 const SCHEMES = ["light", "dark"] as const;
-const today = findlayToday();
-const month = addMonths(today, 2);
-// Two weeks on, the Temple Board has nothing: the home page's quiet-week notice.
-const quietWeek = addDays(today, 14 - new Date(`${today}T12:00:00Z`).getUTCDay());
-
-const PUBLIC_ROUTES = [
-	"/",
-	"/?body=council",
-	`/?week=${quietWeek}&body=temple-board`,
-	"/bodies",
-	"/bodies/commandery",
-	"/bodies/temple-board",
-	"/bodies/council?contact=sent",
-	"/bodies/eastern-star/news",
-	"/bodies/eastern-star/news?tag=e2e-ritual",
-	"/news",
-	"/news?body=temple-board",
-	`/calendar?month=${month}`,
-	`/calendar?month=${month}&body=commandery`,
-	`/bodies/eastern-star/calendar?month=${month}`,
-	"/pages/about",
-	"/pages/scholarships",
-	"/pages/contact",
-	"/newsletters",
-	"/no-such-page",
-];
 
 async function violations(page: Page, scope?: string, exclude?: string) {
 	const builder = new AxeBuilder({ page }).withTags(TAGS);

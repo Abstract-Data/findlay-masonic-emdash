@@ -61,21 +61,22 @@ export function idLikeSlug(): string {
 	return randomUUID().replaceAll("-", "").toUpperCase().slice(0, 26);
 }
 
-// A 1x1 transparent PNG; uniquePng adds a text chunk so EmDash's upload dedup never matches it.
+// A 1x1 transparent PNG; uniquePng adds a text chunk to it, or to another PNG, so EmDash's upload
+// dedup never matches it.
 const PNG = Buffer.from(
 	"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
 	"base64",
 );
 const IEND_CHUNK = 12;
 
-export function uniquePng(): Buffer {
+export function uniquePng(png: Buffer = PNG): Buffer {
 	const body = Buffer.concat([Buffer.from("tEXt"), Buffer.from(`run\0${randomUUID()}`)]);
 	const length = Buffer.alloc(4);
 	length.writeUInt32BE(body.length - 4);
 	const crc = Buffer.alloc(4);
 	crc.writeUInt32BE(crc32(body));
-	const end = PNG.length - IEND_CHUNK;
-	return Buffer.concat([PNG.subarray(0, end), length, body, crc, PNG.subarray(end)]);
+	const end = png.length - IEND_CHUNK;
+	return Buffer.concat([png.subarray(0, end), length, body, crc, png.subarray(end)]);
 }
 
 export function newsData(body: string | undefined, extra: Record<string, unknown> = {}) {

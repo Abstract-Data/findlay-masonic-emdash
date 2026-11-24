@@ -89,8 +89,9 @@ export default defineConfig({
 			dependencies: ["public"],
 		},
 		{
-			// Direction C screenshots and a busy week's axe scan. It seeds a week of sample content,
-			// so it runs after every other project.
+			// Screenshots, a busy week's axe scan, and sideways scrolling and spilled calendar entries
+			// on every public page at five widths. It seeds sample content, so it runs after every
+			// other project.
 			name: "visual",
 			testDir: "tests/e2e/visual",
 			use: { ...devices["Desktop Chrome"], storageState: storageStatePath("anon") },

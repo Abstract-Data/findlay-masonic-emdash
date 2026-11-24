@@ -117,12 +117,12 @@ export async function clearRun(
 	} while (cursor !== undefined);
 }
 
-/** Uploads a PNG to the media library and returns an image field value for it. */
-export async function image(admin: APIRequestContext, alt: string) {
+/** Uploads a PNG (by default a 1x1 one) to the media library; returns an image field value. */
+export async function image(admin: APIRequestContext, alt: string, png?: Buffer) {
 	const uploaded = await data<{ item: { id: string } }>(
 		admin.post("/_emdash/api/media", {
 			multipart: {
-				file: { name: `${unique("emblem")}.png`, mimeType: "image/png", buffer: uniquePng() },
+				file: { name: `${unique("emblem")}.png`, mimeType: "image/png", buffer: uniquePng(png) },
 			},
 		}),
 	);
