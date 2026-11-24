@@ -46,15 +46,13 @@ const monthName = formatMonth(month);
 	title={`Temple calendar, ${monthName}`}
 	description="Meetings and events at the Findlay Masonic Temple."
 >
-	<section class="band calendar-lead" aria-labelledby="month-title">
+	<section class="band calendar-lead" aria-labelledby="calendar-title">
 		<div class="frame calendar-month">
+			<h1 id="calendar-title" class="calendar-lead__title">
+				Temple calendar
+			</h1>
 			<div class="calendar-head">
-				<div>
-					<p class="eyebrow">Temple calendar</p>
-					<h1 id="month-title" class="calendar-head__title">
-						{monthName}
-					</h1>
-				</div>
+				<h2 class="calendar-head__title">{monthName}</h2>
 				<MonthNav month={month} href={href} />
 			</div>
 			<CalendarFilter
@@ -108,10 +106,13 @@ const monthName = formatMonth(month);
 		gap: var(--spacing-4);
 	}
 
-	.calendar-head__title {
-		margin-top: var(--spacing-1);
+	.calendar-lead__title {
 		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
 		line-height: 1.1;
+	}
+
+	.calendar-head__title {
+		font-size: var(--font-size-3xl);
 	}
 
 	.calendar-section-title {
