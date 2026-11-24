@@ -1,6 +1,5 @@
 import { fileURLToPath } from "node:url";
 import cloudflare from "@astrojs/cloudflare";
-import { cacheCloudflare } from "@astrojs/cloudflare/cache";
 import react from "@astrojs/react";
 import { d1, r2 } from "@emdash-cms/cloudflare";
 import { defineConfig, envField, fontProviders } from "astro/config";
@@ -26,8 +25,21 @@ export default defineConfig({
 	// Route caching on Cloudflare's Worker cache (M7). Only a response a route marks cacheable
 	// (src/lib/adapters/site/cache.ts) is stored; the adapter sends every other one with
 	// Cloudflare-CDN-Cache-Control: no-store, and src/middleware.ts opts out any response for a
-	// signed-in user or one that sets a cookie. Publishing purges the pages' cache tags.
-	...(isVitest ? {} : { cache: { provider: cacheCloudflare() } }),
+	// signed-in user or one that sets a cookie. Publishing purges the pages' cache tags, through
+	// Astro's Cloudflare provider wrapped so that a purge Cloudflare refuses is logged. The name
+	// "cloudflare" is what turns on the Worker cache in the built wrangler.json.
+	...(isVitest
+		? {}
+		: {
+				cache: {
+					provider: {
+						name: "cloudflare",
+						entrypoint: fileURLToPath(
+							new URL("./src/lib/adapters/site/cache-provider.ts", import.meta.url),
+						),
+					},
+				},
+			}),
 	env: {
 		// Every field stays optional until the milestone that uses it.
 		schema: {
