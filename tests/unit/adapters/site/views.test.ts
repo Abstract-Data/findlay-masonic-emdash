@@ -103,13 +103,32 @@ describe("parseRecipients (spec Q12)", () => {
 			"secretary@example.test",
 			"victim@example.com,delivered@resend.dev",
 			"one@example.test; two@example.test",
-			"Grand Master <gm@example.test>",
 			"no-at-sign.example.test",
 			"two@@example.test",
 			"spaced out@example.test",
 			"trailing@example",
 		].map((email) => ({ email }));
 		expect(parseRecipients(rows)).toEqual(["secretary@example.test"]);
+	});
+
+	it("keeps the address of a named recipient, and nothing smuggled beside it (M7 review round 2)", () => {
+		const rows = [
+			"Grand Master <gm@example.test>",
+			' "Secretary, Lodge 227" <secretary@example.test> ',
+			"<bare@example.test>",
+			"Victim <victim@example.com> delivered@resend.dev",
+			"Victim <victim@example.com>, delivered@resend.dev",
+			"A <a@example.test> <b@example.test>",
+			"<a@example.test,b@example.test>",
+			"a@example.test <b@example.test>",
+			'"x@example.test" <y@example.test>',
+			"Name <not an address>",
+		].map((email) => ({ email }));
+		expect(parseRecipients(rows)).toEqual([
+			"gm@example.test",
+			"secretary@example.test",
+			"bare@example.test",
+		]);
 	});
 });
 

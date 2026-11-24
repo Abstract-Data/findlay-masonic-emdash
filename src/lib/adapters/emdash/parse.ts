@@ -1,5 +1,5 @@
 import { TITLES_BY_BODY_TYPE, type BodyType } from "@core/acl/officer-titles";
-import { parseAddress } from "@core/address";
+import { parseMailbox } from "@core/address";
 import { bodyColour, type BodyColour } from "@core/bodies/colour";
 import { displayName } from "@core/bodies/label";
 import type { Editor } from "@core/acl/policy";
@@ -94,10 +94,24 @@ export function parseTagVocabulary(rows: unknown): Result<ReadonlySet<TagSlug>, 
 
 /**
  * `bodies.contact_recipients` is a repeater of `{ email }` rows: the addresses a body's contact
- * form sends to (spec Q12), never rendered publicly. Blank or malformed rows are dropped.
+ * form sends to (spec Q12), never rendered publicly. Each row is one address, bare or as
+ * `Name <address>`; blank or malformed rows are dropped, and the save hook refuses a malformed
+ * one (`unreadableRecipientRows`) so an editor never loses one unseen.
  */
 export function parseRecipients(rows: unknown): string[] {
-	return (rowValues(rows, "email") ?? []).flatMap((value) => parseAddress(value) ?? []);
+	return (rowValues(rows, "email") ?? []).flatMap((value) => parseMailbox(value) ?? []);
+}
+
+/** The 1-based numbers of the recipient rows that are neither blank nor one address. */
+export function unreadableRecipientRows(rows: unknown): number[] {
+	if (rows === null || rows === undefined) return [];
+	if (!Array.isArray(rows)) return [1];
+	return rows.flatMap((row: unknown, index) => {
+		const value: unknown =
+			typeof row === "object" && row !== null ? Reflect.get(row, "email") : null;
+		if (value === undefined || (typeof value === "string" && value.trim() === "")) return [];
+		return typeof value === "string" && parseMailbox(value) !== null ? [] : [index + 1];
+	});
 }
 
 /** EmDash stores datetimes as UTC instants; core works in SITE_TZ wall time. */

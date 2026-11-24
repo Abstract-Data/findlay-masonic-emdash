@@ -110,6 +110,32 @@ describe("beforeSave: pending drafts (red team 7)", () => {
 	});
 });
 
+const recipientsSave = (...emails: string[]): ContentHookEvent => ({
+	collection: "bodies",
+	id: LODGE,
+	isNew: false,
+	content: { contact_recipients: emails.map((email) => ({ email })) },
+	actor: { id: "admin", role: 50 },
+});
+
+describe("beforeSave: a contact recipient the form would drop (M7 review round 2)", () => {
+	it("refuses the save and names the row, so the editor sees it", async () => {
+		const save = beforeSave(
+			recipientsSave("secretary@example.test", "", "one@example.test, two@example.test"),
+			context([]),
+		);
+		await expect(save).rejects.toThrow(/row 3 .*one email address/);
+	});
+
+	it("saves bare and named addresses and blank rows", async () => {
+		const save = beforeSave(
+			recipientsSave("secretary@example.test", "Grand Master <gm@example.test>", " "),
+			context([]),
+		);
+		await expect(save).resolves.toBeUndefined();
+	});
+});
+
 // A co-editing room's checkpoint stages its slug on the draft as `_slug`, past the middleware,
 // and content:beforeSave is never handed it; publishing is when it would go live.
 const staged = (slug: string) => ({

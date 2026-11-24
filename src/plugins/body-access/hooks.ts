@@ -21,6 +21,7 @@ import {
 	parseErrorText,
 	parseEventSchedule,
 	parseTags,
+	unreadableRecipientRows,
 	toStoredInstant,
 	type BodyRecord,
 } from "@adapters/emdash/parse";
@@ -157,12 +158,22 @@ export async function beforeSave(
 	if (decision?.outcome === "deny") {
 		throw new ContentSaveRejectedError(await denial(ctx, decision.reason));
 	}
+	if (event.collection === "bodies") {
+		const rows = unreadableRecipientRows(saved.contact_recipients);
+		if (rows.length > 0) throw new ContentSaveRejectedError(recipientRowsText(rows));
+	}
 	const body = decision?.outcome === "assign" ? decision.body : parseBodyId(saved.body);
 	await guardTranslationSource(event, principal, scope === "body-field" ? body : null, ctx);
 	if (scope !== "body-field") return;
 
 	if (body !== null) await checkContentRules(event.collection, saved, body, ctx);
 	return decision?.outcome === "assign" ? { ...event.content, body } : undefined;
+}
+
+/** Why a body's contact recipients were refused: the contact form would drop these rows. */
+function recipientRowsText(rows: readonly number[]): string {
+	const which = rows.length === 1 ? `row ${rows[0]} is` : `rows ${rows.join(", ")} are`;
+	return `Contact form recipients: ${which} not one email address, so the contact form would not send to it. Write one address per row, such as secretary@example.org or Secretary <secretary@example.org>, or leave the row empty.`;
 }
 
 /**
