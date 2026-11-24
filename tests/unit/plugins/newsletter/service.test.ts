@@ -326,6 +326,30 @@ describe("approve is idempotent (FR-6.7, R3)", () => {
 		expect(outbox.broadcasts).toHaveLength(1);
 	});
 
+	it("a Broadcast the staging send gate refuses says why and leaves a tested draft", async () => {
+		const { deps, outbox, mailer: real } = world();
+		let open = false;
+		const gated: Mailer = {
+			...real,
+			async createBroadcast(draft) {
+				if (!open) {
+					return err({ kind: "blocked", status: null, message: "This is not the production site" });
+				}
+				return real.createBroadcast(draft);
+			},
+		};
+		const gatedDeps = { ...deps, mailer: gated };
+		const issue = await tested(gatedDeps);
+		const input = { id: issue.id, revision: issue.revision, sendAt: null };
+		expect(await approve(gatedDeps, input)).toEqual({
+			ok: false,
+			error: { code: "mail-blocked", message: "This is not the production site" },
+		});
+		open = true;
+		expect(value(await approve(gatedDeps, input)).status).toBe("sent");
+		expect(outbox.broadcasts).toHaveLength(1);
+	});
+
 	it("a broadcast left as a Resend draft is sent, not created again", async () => {
 		const { deps, outbox, mailer } = world();
 		const issue = await tested(deps);

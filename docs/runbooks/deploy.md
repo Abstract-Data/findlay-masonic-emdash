@@ -20,7 +20,7 @@
 3. Variables are filled in the environment's `vars` in `wrangler.jsonc` and committed: `SITE_ENV` (already `staging` or `production`), `RESEND_FROM`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `NEWSLETTER_TEST_ALLOWLIST`, `TURNSTILE_SITE_KEY`. A deploy replaces dashboard values with these.
 4. The Axiom destinations exist ([monitoring-setup.md](monitoring-setup.md)).
 
-`SITE_ENV` matters: only `production` lets the site email anyone. On staging, and anywhere it is missing or misspelt, invites, sign-in links, contact messages and test sends reach only `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes; anything else is refused and logged as `email.blocked`.
+`SITE_ENV` matters: only `production` lets the site email anyone. On staging, and anywhere it is missing or misspelt, invites, sign-in links, contact messages and test sends reach only `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes, the signup form adds only those addresses to Resend, and a Broadcast is created or sent only when every contact in its Segment is one of them. Anything else is refused and logged as `email.blocked`.
 
 ## Deploy
 

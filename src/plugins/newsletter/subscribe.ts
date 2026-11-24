@@ -17,12 +17,14 @@ export const SUBSCRIBE_LIMIT: FormLimit = {
 /** The one target every signup counts against. */
 export const SIGNUP_TARGET = "newsletter";
 
+/** `test-site`: a non-production Worker takes signups only from its allowlisted inboxes. */
 export type SubscribeOutcome =
 	| "ok"
 	| "previously-unsubscribed"
 	| "invalid"
 	| "verification-failed"
 	| "rate-limited"
+	| "test-site"
 	| "unavailable";
 
 export interface SubscribeRequest {
@@ -101,6 +103,6 @@ export async function subscribe(
 		topicIds: [...new Set([newsletterTopicId, ...bodyTopics])],
 	};
 	const saved = await mailer.upsertContact(contact);
-	if (!saved.ok) return "unavailable";
+	if (!saved.ok) return saved.error.kind === "blocked" ? "test-site" : "unavailable";
 	return saved.value === "subscribed" ? "ok" : "previously-unsubscribed";
 }

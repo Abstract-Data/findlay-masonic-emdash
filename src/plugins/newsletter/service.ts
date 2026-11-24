@@ -61,6 +61,7 @@ export type NewsletterErrorCode =
 	| "not-configured"
 	| "invalid-send-at"
 	| "mail-rejected"
+	| "mail-blocked"
 	| "mail-unavailable";
 
 export interface NewsletterError {
@@ -80,6 +81,7 @@ export const ERROR_STATUS: Readonly<Record<NewsletterErrorCode, number>> = {
 	"not-configured": 503,
 	"invalid-send-at": 400,
 	"mail-rejected": 502,
+	"mail-blocked": 403,
 	"mail-unavailable": 503,
 };
 
@@ -113,12 +115,14 @@ function stepped(
 }
 
 function fromMailer(error: MailerError): Result<never, NewsletterError> {
-	return error.kind === "rejected"
-		? fail("mail-rejected", `Resend refused the request: ${error.message}`)
-		: fail(
-				"mail-unavailable",
-				`Resend could not be reached or did not confirm (${error.message}). Try again; a retry will not send twice.`,
-			);
+	if (error.kind === "rejected") {
+		return fail("mail-rejected", `Resend refused the request: ${error.message}`);
+	}
+	if (error.kind === "blocked") return fail("mail-blocked", error.message);
+	return fail(
+		"mail-unavailable",
+		`Resend could not be reached or did not confirm (${error.message}). Try again; a retry will not send twice.`,
+	);
 }
 
 export interface IssueView {

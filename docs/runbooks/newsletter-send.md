@@ -19,14 +19,20 @@ A human sets these up in Resend, Cloudflare and the Worker's settings. Nothing i
 | `NEWSLETTER_TEST_ALLOWLIST` | The inboxes test sends go to, comma-separated. Never a subscriber list | `vars` of the environment in `wrangler.jsonc` |
 | `TURNSTILE_SECRET` | The secret of the Turnstile widget on the signup and contact forms | Worker secret, as for `RESEND_API_KEY` |
 | `TURNSTILE_SITE_KEY` | The public site key of that widget | `vars` of the environment in `wrangler.jsonc` |
-| `SITE_ENV` | `production` or `staging`, already set. Anything but `production` limits every email to `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes | `vars` of the environment in `wrangler.jsonc` |
+| `SITE_ENV` | `production` or `staging`, already set. Anything but `production` limits every email, signup and Broadcast to `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes | `vars` of the environment in `wrangler.jsonc` |
 | Body Topics | One Resend Topic per body, default "opt out", its id saved in that body's **Resend topic id** field | Resend dashboard, then the body's entry in the admin |
 
 The Worker reads the five `vars` and both secrets at runtime, not at build time. The `vars` are identifiers, not secrets, so they are committed in `wrangler.jsonc` under `env.staging.vars` and `env.production.vars`. Each deploy replaces the Worker's variables with these, so a value typed into the Cloudflare dashboard is lost on the next deploy; change the file instead. An empty value means "not set", and the builder names it.
 
 `TURNSTILE_SITE_KEY` is public, but it too is read at runtime: only the server renders the forms, so the key is never built into the page and one build serves every environment. Without it the forms render with no Turnstile widget, and every signup and contact message is refused as unverified. Check the deployed `/newsletters` page and a body page show the widget.
 
-Staging uses its own Segment (a staging-only test Segment holding only allowlisted addresses) and its own Topics, so a staging approval never reaches a real subscriber. Single emails on staging (test sends, invites, sign-in links, contact messages) go only to the allowlist because `SITE_ENV` is `staging`: the Resend client refuses any other recipient and logs `email.blocked`. A body's contact form on staging therefore works only when its **Contact form recipients** are allowlisted addresses.
+Staging uses its own Segment (a staging-only test Segment) and its own Topics. Because `SITE_ENV` is `staging`, the Worker's Resend client refuses anything that would reach an address other than `NEWSLETTER_TEST_ALLOWLIST` and Resend's `@resend.dev` test inboxes, and logs `email.blocked` with `action` set to what it refused (`src/lib/adapters/send-gate.ts`):
+
+- **Single emails** (test sends, invites, sign-in links, contact messages) with any recipient off the list. Nothing is sent.
+- **Signups** from the public form for an address off the list. The address never reaches Resend, and the visitor reads that this is a test copy of the site.
+- **Broadcasts** whose Segment holds any contact off the list. At approval the Worker reads every contact in the Segment from Resend before it creates or sends the Broadcast; if one is off the list, or the Segment cannot be read, nothing is created and the admin page says "This is not the production site, so a Broadcast goes only to a Segment of …". The issue stays a tested draft.
+
+So keep the staging Segment to allowlisted and `@resend.dev` addresses, and a body's contact form on staging works only when its **Contact form recipients** are allowlisted. The Segment is checked when the Broadcast is created; a contact someone adds in the Resend dashboard before a scheduled Broadcast goes out is not checked again.
 
 The newsletter plugin is also the site's email provider once `RESEND_API_KEY` and `RESEND_FROM` are set: invites and sign-in links then go through Resend. Check **Settings → Email** shows the newsletter plugin as the provider. Before that, EmDash shows each invite link for you to share.
 
@@ -62,6 +68,7 @@ The newsletter plugin is also the site's email provider once `RESEND_API_KEY` an
 | "This issue is being sent right now." | Another approval is talking to Resend, or one crashed in the last two minutes. | Wait a minute and reload. If it still shows **Sending**, approve again: it finds the Broadcast if Resend made one. |
 | "Resend could not be reached or did not confirm…" | The outcome is unknown. | Approve again. It looks the Broadcast up first, so it will not send twice. |
 | "Resend refused the request: …" | Resend rejected it (often the sender domain). The issue is back to a tested draft. | Fix the cause in Resend, then approve again. |
+| "This is not the production site, so a Broadcast goes only to …" | Staging (or a Worker without `SITE_ENV=production`) found a contact off the allowlist in the Segment, or could not read the Segment. Nothing was sent. | Remove the contact from the staging Segment in Resend, or check `RESEND_SEGMENT_ID`, then approve again. |
 | "Email sending is not configured. Set …" | A setting from the table above is missing. | Set it, then retry. |
 
 Before editing an issue whose approval failed with "could not be reached", check **Broadcasts** in the Resend dashboard for one named `fm-issue:<issue id>:rev:<version>`. If it exists and sent, do not edit and resend; the issue will show **Sent** on the next approve.

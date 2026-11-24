@@ -92,6 +92,16 @@ export function fakeMailer(outbox: Outbox = devOutbox()): Mailer {
 			outbox.contacts.set(signup.email, contact);
 			return ok("subscribed");
 		},
+		async segmentContacts(segmentId) {
+			return ok(
+				[...outbox.contacts]
+					.filter(([, contact]) => contact.segments.has(segmentId))
+					.map(([email]) => email),
+			);
+		},
+		async broadcastSegment(id) {
+			return ok(outbox.broadcasts.find((broadcast) => broadcast.id === id)?.segmentId ?? null);
+		},
 	};
 }
 

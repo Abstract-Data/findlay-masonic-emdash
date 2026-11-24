@@ -20,6 +20,8 @@ const MESSAGES: Readonly<Record<string, string>> = {
 	invalid: "Enter a valid email address and choose only the bodies listed.",
 	"verification-failed": "We could not confirm you are a person. Please try again.",
 	"rate-limited": "Too many signups have come in the last hour. Please try again later.",
+	"test-site":
+		"This is a test copy of the Temple's website, so it cannot sign you up. Please sign up on the Temple's own website.",
 	unavailable: "Signups are not working right now. Please try again later.",
 } satisfies Record<SubscribeOutcome, string>;
 const outcome = Astro.url.searchParams.get("subscribe");

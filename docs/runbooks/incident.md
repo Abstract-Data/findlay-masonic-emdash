@@ -38,7 +38,7 @@ Sends need an Admin's approval, so nothing new goes out unless someone approves.
 
 1. **A scheduled Broadcast that has not gone yet:** in the Resend dashboard, **Broadcasts**, open the one named `fm-issue:<issue id>:rev:<version>` and cancel it. The site's issue keeps showing **Scheduled**; discard or re-approve it later.
 2. **Block all email from the site:** in the Resend dashboard, revoke the API key the Worker uses (**API Keys**). Every send fails at once, and the admin page says Resend refused it. Invites then show their links instead of emailing them only after the next deploy without `RESEND_API_KEY`; until then they fail. To restore, create a new key and `pnpm wrangler secret put RESEND_API_KEY --env production`.
-3. **Block only non-allowlisted email:** set `SITE_ENV` to `staging` in `env.production.vars` in `wrangler.jsonc` and deploy. Every email then goes only to `NEWSLETTER_TEST_ALLOWLIST`; Broadcasts to the Segment are not affected, so also do step 1 or 2 for those.
+3. **Block only non-allowlisted email:** set `SITE_ENV` to `staging` in `env.production.vars` in `wrangler.jsonc` and deploy. Every email then goes only to `NEWSLETTER_TEST_ALLOWLIST`, the signup form takes no new subscribers, and the site refuses to create or send a Broadcast to a Segment that holds anyone off the list. A Broadcast Resend already holds as scheduled is not the site's to stop, so also do step 1 for those.
 
 If a newsletter reached subscribers by mistake, do not send a correction straight away. Tell the Temple administrators, agree the wording, then send it as a normal issue.
 

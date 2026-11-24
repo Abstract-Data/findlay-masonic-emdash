@@ -60,15 +60,16 @@ export type LogEvent =
 			readonly limit: "sender" | "target";
 	  }
 	| {
-			/** A non-production Worker refused to email an address off the allowlist. */
+			/** A non-production Worker refused an email, signup or Broadcast off the allowlist. */
 			readonly event: "email.blocked";
 			readonly siteEnv: string;
+			readonly action: "email" | "signup" | "broadcast";
 			readonly recipients: number;
 			readonly blocked: number;
 	  }
 	| {
 			readonly event: "email.failed";
-			readonly kind: "rejected" | "unavailable";
+			readonly kind: "rejected" | "unavailable" | "blocked";
 			readonly status: number | null;
 			readonly error: string;
 	  }

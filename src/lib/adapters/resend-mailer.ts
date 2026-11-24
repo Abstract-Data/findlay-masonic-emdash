@@ -4,9 +4,10 @@ import { Resend, type ErrorResponse } from "resend";
 /**
  * `rejected`: Resend refused the request and a retry would be refused again. `unavailable`:
  * the outcome is unknown (network, rate limit, 5xx), so the request may have taken effect.
+ * `blocked`: a non-production Worker refused it before Resend saw it (send-gate.ts).
  */
 export interface MailerError {
-	readonly kind: "rejected" | "unavailable";
+	readonly kind: "rejected" | "unavailable" | "blocked";
 	readonly status: number | null;
 	readonly message: string;
 }
@@ -63,6 +64,10 @@ export interface Mailer {
 		scheduledAt: string | null,
 	): Promise<Result<{ id: string }, MailerError>>;
 	upsertContact(signup: ContactSignup): Promise<Result<ContactUpsert, MailerError>>;
+	/** The address of every contact in a Segment, every page of it. */
+	segmentContacts(segmentId: string): Promise<Result<readonly string[], MailerError>>;
+	/** The Segment a Broadcast goes to; null when it names none. */
+	broadcastSegment(id: string): Promise<Result<string | null, MailerError>>;
 }
 
 type SdkResponse<T> =
@@ -82,6 +87,8 @@ function settle<T>(response: SdkResponse<T>): Result<T, MailerError> {
 const LIST_PAGE = 100;
 /** Broadcasts are listed newest first; a retry looks for a key minted moments before. */
 const LIST_PAGES = 5;
+/** Only a non-production Worker lists a Segment, and its test Segment holds a few inboxes. */
+const SEGMENT_PAGES = 20;
 
 export function resendMailer(apiKey: string): Mailer {
 	const resend = new Resend(apiKey);
@@ -102,6 +109,33 @@ export function resendMailer(apiKey: string): Mailer {
 		const last = listed.value.data.at(-1);
 		if (!listed.value.has_more || last === undefined || page >= LIST_PAGES) return ok(null);
 		return findBroadcast(name, last.id, page + 1);
+	}
+
+	async function segmentContacts(
+		segmentId: string,
+		after?: string,
+		page = 1,
+	): Promise<Result<readonly string[], MailerError>> {
+		const listed = settle(
+			await resend.contacts.list(
+				after === undefined
+					? { segmentId, limit: LIST_PAGE }
+					: { segmentId, limit: LIST_PAGE, after },
+			),
+		);
+		if (!listed.ok) return listed;
+		const emails = listed.value.data.map((contact) => contact.email);
+		const last = listed.value.data.at(-1);
+		if (!listed.value.has_more || last === undefined) return ok(emails);
+		if (page >= SEGMENT_PAGES) {
+			return err({
+				kind: "rejected",
+				status: null,
+				message: `The Segment has more than ${SEGMENT_PAGES * LIST_PAGE} contacts, too many to check.`,
+			});
+		}
+		const rest = await segmentContacts(segmentId, last.id, page + 1);
+		return rest.ok ? ok([...emails, ...rest.value]) : rest;
 	}
 
 	return {
@@ -168,6 +202,13 @@ export function resendMailer(apiKey: string): Mailer {
 			if (!added.ok) return added;
 			const updated = settle(await resend.contacts.topics.update({ email: signup.email, topics }));
 			return updated.ok ? ok("subscribed") : updated;
+		},
+
+		segmentContacts: async (segmentId) => segmentContacts(segmentId),
+
+		async broadcastSegment(id) {
+			const found = settle(await resend.broadcasts.get(id));
+			return found.ok ? ok(found.value.segment_id) : found;
 		},
 	};
 }

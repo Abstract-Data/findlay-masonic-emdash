@@ -1,8 +1,18 @@
+import { dummyVerifier } from "@adapters/dev-fakes";
 import { offAllowlist, parseSiteEnv } from "@adapters/send-gate";
+import { DUMMY_TURNSTILE_TOKEN, TURNSTILE_FIELD } from "@adapters/turnstile";
+import { kvRateLimiter } from "@plugins/newsletter/rate-limit";
 import { realRuntime, type Settings } from "@plugins/newsletter/runtime";
+import {
+	subscribe,
+	SUBSCRIBE_LIMIT,
+	type SubscribeDeps,
+	type SubscribeRequest,
+} from "@plugins/newsletter/subscribe";
 import { transport } from "@plugins/newsletter/transport";
 import type { EmailDeliverEvent } from "emdash";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { memoryCounter } from "./memory-counter";
 
 /** Every request the Resend SDK makes, answered as a successful send. */
 function resendApi(): string[] {
@@ -105,5 +115,180 @@ describe("parseSiteEnv and offAllowlist", () => {
 			text: "t",
 		};
 		expect(offAllowlist(email, ["B@example.test"])).toEqual(["a@example.test", "c@example.test"]);
+	});
+});
+
+interface ApiCall {
+	readonly method: string;
+	readonly path: string;
+}
+
+/** Resend's HTTP API, answering each request from `answer`; records every request made. */
+function resendRoutes(answer: (call: ApiCall) => { status: number; body: unknown }): ApiCall[] {
+	const calls: ApiCall[] = [];
+	vi.stubGlobal("fetch", async (input: string, init: RequestInit = {}) => {
+		const url = new URL(input);
+		const call = { method: init.method ?? "GET", path: url.pathname + url.search };
+		calls.push(call);
+		const { status, body } = answer(call);
+		return Response.json(body, { status });
+	});
+	return calls;
+}
+
+const NOT_FOUND = {
+	status: 404,
+	body: { name: "not_found", message: "Contact not found", statusCode: 404 },
+};
+const CREATED = { status: 200, body: { object: "contact", id: "c" } };
+
+/** The Worker's mailer for a site whose SITE_ENV is `siteEnv`. */
+function workerMailer(siteEnv: string | undefined) {
+	const { mailer } = realRuntime({ ...SETTINGS, siteEnv });
+	if (mailer === null) throw new Error("Resend is configured, so there is a mailer");
+	return mailer;
+}
+
+function signupDeps(siteEnv: string | undefined): SubscribeDeps {
+	return {
+		mailer: workerMailer(siteEnv),
+		verifier: dummyVerifier,
+		segmentId: "seg",
+		newsletterTopicId: "topic",
+		bodyTopics: new Map(),
+		limiter: kvRateLimiter(memoryCounter(), () => 0, SUBSCRIBE_LIMIT),
+	};
+}
+
+const signup = (email: string): SubscribeRequest => ({
+	origin: "https://findlaymason.org",
+	csrfHeader: null,
+	siteOrigins: ["https://findlaymason.org"],
+	remoteIp: "203.0.113.9",
+	fields: [
+		{ name: "email", value: email },
+		{ name: TURNSTILE_FIELD, value: DUMMY_TURNSTILE_TOKEN },
+	],
+});
+
+const writes = (calls: readonly ApiCall[]) => calls.filter((call) => call.method !== "GET");
+
+describe("non-production signups reach only the allowlist (M7 review B1)", () => {
+	it("refuses a stranger's signup on staging before Resend hears of it, and says why", async () => {
+		const calls = resendRoutes(() => NOT_FOUND);
+		expect(await subscribe(signupDeps("staging"), signup("stranger@example.test"))).toBe(
+			"test-site",
+		);
+		expect(await subscribe(signupDeps(undefined), signup("stranger@example.test"))).toBe(
+			"test-site",
+		);
+		expect(calls).toEqual([]);
+	});
+
+	it("signs up allowlisted inboxes and Resend test addresses on staging", async () => {
+		const calls = resendRoutes((call) => (call.method === "GET" ? NOT_FOUND : CREATED));
+		expect(await subscribe(signupDeps("staging"), signup("Admin@Example.test"))).toBe("ok");
+		expect(await subscribe(signupDeps("staging"), signup("delivered@resend.dev"))).toBe("ok");
+		expect(writes(calls).map((call) => call.path)).toEqual(["/contacts", "/contacts"]);
+	});
+
+	it("signs anyone up in production", async () => {
+		const calls = resendRoutes((call) => (call.method === "GET" ? NOT_FOUND : CREATED));
+		expect(await subscribe(signupDeps("production"), signup("stranger@example.test"))).toBe("ok");
+		expect(writes(calls).map((call) => call.path)).toEqual(["/contacts"]);
+	});
+});
+
+const BROADCAST = {
+	name: "fm-issue:00000000-0000-4000-8000-000000000001:rev:2",
+	segmentId: "seg",
+	topicId: "topic",
+	from: "Findlay Masonic Temple <web@example.test>",
+	subject: "Spring",
+	previewText: "",
+	html: "<p>Hi</p>",
+	text: "Hi",
+	scheduledAt: null,
+};
+
+/** Resend holding Segment "seg", listed a page per argument, and draft Broadcast "b-1" to it. */
+function segmentOf(...pages: (readonly string[])[]) {
+	return resendRoutes((call) => {
+		if (call.method === "GET" && call.path.startsWith("/segments/seg/contacts")) {
+			const after = /after=last-(\d+)/.exec(call.path)?.[1];
+			const index = after === undefined ? 0 : Number(after) + 1;
+			const page = pages[index] ?? [];
+			const data = page.map((email, n) => ({
+				id: n === page.length - 1 ? `last-${index}` : `c-${index}-${n}`,
+				email,
+			}));
+			return {
+				status: 200,
+				body: { object: "list", has_more: index < pages.length - 1, data },
+			};
+		}
+		if (call.method === "GET" && call.path === "/broadcasts/b-1") {
+			return { status: 200, body: { object: "broadcast", id: "b-1", segment_id: "seg" } };
+		}
+		return { status: 200, body: { id: "b-1" } };
+	});
+}
+
+describe("non-production Broadcasts go only to a Segment of allowlisted inboxes (M7 review B1)", () => {
+	it("refuses to create a Broadcast when any page of the Segment holds an address off the list", async () => {
+		const calls = segmentOf(["admin@example.test"], ["stranger@example.test"]);
+		const created = await workerMailer("staging").createBroadcast(BROADCAST);
+		expect(created).toMatchObject({ ok: false, error: { kind: "blocked" } });
+		expect(writes(calls)).toEqual([]);
+	});
+
+	it("creates the Broadcast when every contact in the Segment is allowlisted", async () => {
+		const calls = segmentOf(
+			["admin@example.test", "bounced+x@resend.dev"],
+			["EDITOR@example.test"],
+		);
+		expect(await workerMailer("staging").createBroadcast(BROADCAST)).toEqual({
+			ok: true,
+			value: { id: "b-1" },
+		});
+		expect(writes(calls).map((call) => call.path)).toEqual(["/broadcasts"]);
+	});
+
+	it("refuses when the Segment or the Broadcast cannot be read", async () => {
+		const calls = resendRoutes((call) =>
+			call.method === "GET"
+				? {
+						status: 500,
+						body: { name: "internal_server_error", message: "Oops", statusCode: 500 },
+					}
+				: { status: 200, body: { id: "b-1" } },
+		);
+		expect((await workerMailer("staging").createBroadcast(BROADCAST)).ok).toBe(false);
+		expect((await workerMailer("staging").sendBroadcast("b-1", null)).ok).toBe(false);
+		expect(writes(calls)).toEqual([]);
+	});
+
+	it("refuses to send a Resend draft Broadcast whose Segment holds an address off the list", async () => {
+		const calls = segmentOf(["stranger@example.test"]);
+		const sent = await workerMailer("staging").sendBroadcast("b-1", null);
+		expect(sent).toMatchObject({ ok: false, error: { kind: "blocked" } });
+		expect(writes(calls)).toEqual([]);
+	});
+
+	it("sends a Resend draft Broadcast whose Segment is all allowlisted", async () => {
+		const calls = segmentOf(["admin@example.test"]);
+		expect((await workerMailer("staging").sendBroadcast("b-1", null)).ok).toBe(true);
+		expect(writes(calls).map((call) => call.path)).toEqual(["/broadcasts/b-1/send"]);
+	});
+
+	it("creates and sends in production without listing the Segment", async () => {
+		const calls = segmentOf(["stranger@example.test"]);
+		const mailer = workerMailer("production");
+		expect((await mailer.createBroadcast(BROADCAST)).ok).toBe(true);
+		expect((await mailer.sendBroadcast("b-1", null)).ok).toBe(true);
+		expect(calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+			"POST /broadcasts",
+			"POST /broadcasts/b-1/send",
+		]);
 	});
 });

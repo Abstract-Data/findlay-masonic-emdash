@@ -90,6 +90,8 @@ describe("structured logs never carry secrets, email bodies or recipient address
 			createBroadcast: async () => err({ kind: "unavailable", status: null, message: "" }),
 			sendBroadcast: async () => err({ kind: "unavailable", status: null, message: "" }),
 			upsertContact: async () => err({ kind: "unavailable", status: null, message: "" }),
+			segmentContacts: async () => err({ kind: "unavailable", status: null, message: "" }),
+			broadcastSegment: async () => err({ kind: "unavailable", status: null, message: "" }),
 		};
 		const deliver = transport(async () => ({ mailer: failing, from: "web@example.test" }));
 		const written = await lines(async () =>
@@ -130,7 +132,41 @@ describe("structured logs never carry secrets, email bodies or recipient address
 			}),
 		);
 		expect(written.map((line) => JSON.parse(line))).toEqual([
-			{ level: "warn", event: "email.blocked", siteEnv: "staging", recipients: 2, blocked: 2 },
+			{
+				level: "warn",
+				event: "email.blocked",
+				siteEnv: "staging",
+				action: "email",
+				recipients: 2,
+				blocked: 2,
+			},
+		]);
+		expect(leaks(written)).toEqual([]);
+	});
+
+	it("logs a blocked non-production signup without the address", async () => {
+		vi.stubGlobal("fetch", async () => Response.json({ id: "never" }));
+		const { mailer } = realRuntime({
+			resendApiKey: KEY,
+			resendFrom: "web@example.test",
+			segmentId: "seg",
+			topicId: "topic",
+			testAllowlist: "admin@example.test",
+			turnstileSecret: TURNSTILE,
+			siteEnv: "staging",
+		});
+		const written = await lines(async () =>
+			mailer?.upsertContact({ email: ADDRESSES[0] ?? "", segmentId: "seg", topicIds: ["topic"] }),
+		);
+		expect(written.map((line) => JSON.parse(line))).toEqual([
+			{
+				level: "warn",
+				event: "email.blocked",
+				siteEnv: "staging",
+				action: "signup",
+				recipients: 1,
+				blocked: 1,
+			},
 		]);
 		expect(leaks(written)).toEqual([]);
 	});
