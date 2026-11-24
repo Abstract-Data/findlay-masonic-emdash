@@ -30,7 +30,7 @@ pnpm wrangler deployments list --env production   # find the last good version i
 pnpm wrangler rollback <version-id> --env production --message "incident: <short reason>"
 ```
 
-Rollback changes the code only. D1 data, R2 media, KV sessions and secrets stay as they are, and a migration the bad version applied is not undone. Then check the site as in [deploy.md](deploy.md) § Check. Fix forward on a branch; the next deploy replaces the rolled-back version.
+Rollback changes the code only. D1 data, R2 media, KV sessions and secrets stay as they are, and a migration the bad version applied is not undone. The Worker's cache is kept per version, so the earlier version may serve pages it cached while it was live, an hour old at most; the dashboard's cache purge does not reach a Worker's cache ([deploy.md](deploy.md) § Cache). Then check the site as in [deploy.md](deploy.md) § Check. Fix forward on a branch; the next deploy replaces the rolled-back version.
 
 ## 4. Stop newsletter sends
 

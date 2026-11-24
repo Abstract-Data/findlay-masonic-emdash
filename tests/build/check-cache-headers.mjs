@@ -6,7 +6,7 @@
 // `pnpm astro build`:
 //   node tests/build/check-cache-headers.mjs
 import { spawn } from "node:child_process";
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -78,6 +78,19 @@ async function freePort() {
 		});
 	});
 }
+
+// Cloudflare keys a Worker's cache by version unless cross_version_cache is on; with it on, a
+// page cached before a deploy could name /_astro files the deploy removed (docs/runbooks/deploy.md).
+const built = JSON.parse(readFileSync("dist/server/wrangler.json", "utf8"));
+if (built.cache?.enabled !== true || built.cache?.cross_version_cache === true) {
+	console.error(
+		`FAIL the built Worker's cache must be on and per version: ${JSON.stringify(built.cache)}`,
+	);
+	process.exit(1);
+}
+console.log(
+	`ok   the built Worker's cache is on and keyed by version: ${JSON.stringify(built.cache)}`,
+);
 
 const port = await freePort();
 const state = mkdtempSync(join(tmpdir(), "cache-headers-"));
