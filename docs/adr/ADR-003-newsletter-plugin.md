@@ -68,6 +68,7 @@ Recorded in the M7 review fixes (TASK.md § M7 review fixes) for the lodge's sig
 5. **A failed purge leaves a page stale until its max-age.** An hour at most for content pages, fifteen minutes for what comes next, five for the archive; the failure is logged (`cache.purge_failed`). After a rollback, the earlier version may serve its own copies, an hour old at most, and nothing but another deploy clears a Worker's cache.
 6. **A hand-typed slug with a percent escape is unreachable.** Astro decodes a path until it stops changing before routing, so a slug like `50%41` arrives as `50A`. EmDash's slugify never writes `%`; a bare `%` (`pct%zz`) works.
 7. **A subscriber cannot re-add a body they left from the form.** The form never reverses an opt-out, so someone who opted out of a body's Topic and ticks it again stays out; they use the preferences link in a past newsletter.
+8. **Maybe: an existing subscriber cannot add any body from the form.** Body Topics default to "opt out". Resend's contact-topics answer (`ContactTopic` in resend 6.39) carries only `subscription: "opt_in" | "opt_out"`, nothing that tells a default from a contact's choice, so if Resend lists a Topic the contact never chose as `opt_out`, risk 7 covers every body Topic of every existing contact. Not knowable from the SDK; deploy.md § Check step 6 settles it on staging before launch. Recorded in the second round of review fixes (TS.5).
 
 ## Alternatives considered
 
