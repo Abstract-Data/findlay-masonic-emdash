@@ -298,6 +298,10 @@ describe("non-production Broadcasts go only to a Segment of allowlisted inboxes 
 		["omits segment_id", { object: "broadcast", id: "b-1" }],
 		["has an empty segment_id", { object: "broadcast", id: "b-1", segment_id: "" }],
 		["has a blank segment_id", { object: "broadcast", id: "b-1", segment_id: "  " }],
+		[
+			"has a zero-width segment_id",
+			{ object: "broadcast", id: "b-1", segment_id: "\u200B\u200C\u200D\uFEFF" },
+		],
 	])(
 		"refuses a Broadcast whose Resend record %s, without listing the account's contacts",
 		async (_, record) => {
@@ -315,12 +319,15 @@ describe("non-production Broadcasts go only to a Segment of allowlisted inboxes 
 		},
 	);
 
-	it("refuses to create a Broadcast to a blank Segment id, without listing anything", async () => {
-		const calls = segmentOf(["admin@example.test"]);
-		const created = await workerMailer("staging").createBroadcast({ ...BROADCAST, segmentId: " " });
-		expect(created).toMatchObject({ ok: false, error: { kind: "blocked" } });
-		expect(calls).toEqual([]);
-	});
+	it.each([" ", "\u200B", " \u200C\u200D "])(
+		"refuses to create a Broadcast to a blank Segment id %j, without listing anything",
+		async (segmentId) => {
+			const calls = segmentOf(["admin@example.test"]);
+			const created = await workerMailer("staging").createBroadcast({ ...BROADCAST, segmentId });
+			expect(created).toMatchObject({ ok: false, error: { kind: "blocked" } });
+			expect(calls).toEqual([]);
+		},
+	);
 
 	it("sends a Resend draft Broadcast whose Segment is all allowlisted", async () => {
 		const calls = segmentOf(["admin@example.test"]);

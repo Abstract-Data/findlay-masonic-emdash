@@ -12,6 +12,9 @@ export function parseSiteEnv(raw: string | undefined): SiteEnv {
 	return raw?.trim() === "production" ? "production" : "non-production";
 }
 
+// trim() keeps the zero-width spaces and joiners a pasted id can carry.
+const BLANK = /^[\s\u200B\u200C\u200D\uFEFF]*$/u;
+
 // Resend's test inboxes (delivered@, bounced@, complained@resend.dev, with optional +labels)
 // accept mail without reaching a person.
 const RESEND_TEST = /@resend\.dev$/i;
@@ -73,7 +76,7 @@ export function gateOutbound(
 	): Promise<Result<T, MailerError>> {
 		// Resend's SDK lists every contact in the account when it is given no Segment id, and a
 		// blank one names no Segment either.
-		if (segmentId === null || segmentId === undefined || segmentId.trim() === "") {
+		if (segmentId === null || segmentId === undefined || BLANK.test(segmentId)) {
 			return refuse(
 				{ action: "broadcast", recipients: 0, blocked: 0 },
 				"a Broadcast must go to a Segment it can check.",
