@@ -6,7 +6,8 @@ import { pageSeo } from "@adapters/site/seo";
 import { parseNewsView } from "@adapters/site/views";
 import { formatDate, SITE_TZ } from "@core/time";
 import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
-import { Image, PortableText } from "emdash/ui";
+import { Image } from "emdash/ui";
+import RichText from "../../../../components/RichText.astro";
 import Base from "../../../../layouts/Base.astro";
 import { resolveSiteIdentity } from "../../../../utils/site-identity";
 import "../../../../styles/prose.css";
@@ -86,7 +87,7 @@ const seo = pageSeo(entry, {
 					</div>
 				)}
 				<div class="prose" {...entry.edit.content}>
-					<PortableText value={item.content} />
+					<RichText value={item.content} />
 				</div>
 				<p class="news-item__more">
 					<a class="arrow-link" href={paths.bodyNews(body.slug)}>

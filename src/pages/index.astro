@@ -17,7 +17,7 @@ import { expand } from "@core/recurrence/expand";
 import { meetingsByBody } from "@core/recurrence/meetings";
 import { SITE_TZ } from "@core/time";
 import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
-import { PortableText } from "emdash/ui";
+import RichText from "../components/RichText.astro";
 import type { Temporal } from "temporal-polyfill";
 import BodyCards from "../components/BodyCards.astro";
 import CalendarFilter from "../components/CalendarFilter.astro";
@@ -199,7 +199,7 @@ const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 					{siteTitle}
 				</h2>
 				<div class="prose" {...home.entry.edit.content}>
-					<PortableText value={home.entry.data.content} />
+					<RichText value={home.entry.data.content} />
 				</div>
 			</div>
 		</section>

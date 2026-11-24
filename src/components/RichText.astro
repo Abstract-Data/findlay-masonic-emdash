@@ -1,0 +1,13 @@
+---
+import { PortableText, type PortableTextProps } from "emdash/ui";
+import TableRegion from "./TableRegion.astro";
+
+// EmDash's Portable Text with the site's overrides; every rich text field renders through it.
+interface Props {
+	value: PortableTextProps["value"] | null | undefined;
+}
+
+const components = { type: { table: TableRegion } };
+---
+
+<PortableText value={Astro.props.value} components={components} />

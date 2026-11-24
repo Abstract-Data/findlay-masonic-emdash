@@ -11,7 +11,8 @@ import { daysAhead, expand } from "@core/recurrence/expand";
 import { meetings } from "@core/recurrence/meetings";
 import { SITE_TZ } from "@core/time";
 import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
-import { Image, PortableText } from "emdash/ui";
+import { Image } from "emdash/ui";
+import RichText from "../../../components/RichText.astro";
 import Agenda from "../../../components/Agenda.astro";
 import ContactForm from "../../../components/ContactForm.astro";
 import FeedLinks from "../../../components/FeedLinks.astro";
@@ -142,7 +143,7 @@ const seo = pageSeo(entry, {
 							About {body.label}
 						</h2>
 						<div class="prose body-about" {...entry.edit.description}>
-							<PortableText value={body.description} />
+							<RichText value={body.description} />
 						</div>
 					</section>
 				)}
