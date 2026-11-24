@@ -500,7 +500,7 @@ An independent verifier of the M4 functional half reported one blocking item (B1
   Evidence: before, 7 skipped; after, 18 passed and only the setup project's pre-existing stub skipped.
 
 ## Direction C fixes
-An independent verification of 6798ffe with realistic content failed direction C on layout (STATUS.md "Direction C fixes"). TC.1 came first and failed on 6798ffe; each fix after it turned some of its failures green. Evidence was run on a clean copy (`git archive` into `/tmp/cfixrun`, `pnpm install --frozen-lockfile`, its own portless name, a fresh database) on 2026-11-24.
+An independent verification of 6798ffe with realistic content failed direction C on layout (STATUS.md "Direction C fixes"). TC.1 came first and failed on 6798ffe; each fix after it turned some of its failures green. Evidence was run on a clean copy (`git archive` into `/tmp/cfixrun`, `pnpm install --frozen-lockfile`, its own portless name, a fresh database) on 2026-11-24. After the rebase onto the M7 review fixes (a752033), a second clean copy of 58718d3 passed the same way: 2915 unit tests, 155 e2e with `CI=true` (44 visual), axe 0 violations, `check-cache-headers` 15 of 15.
 
 - [x] **TC.1 [AGENT] The visual project checks layout on realistic content.** Seeds the bodies' full names, a 60-character title, a 45-letter word, seven entries on one day, and a wide and a tall emblem; checks 37 public pages at 320, 390, 768, 1024 and 1280 px for sideways scrolling, every week-strip and month-grid entry and its body's name inside its day (also at 761 and 1001 px), one emblem slot with names in line, and the search field's 2px outline. The a11y and visual projects share `tests/e2e/public/routes.ts`.
   Verify: `pnpm e2e --project visual`.
