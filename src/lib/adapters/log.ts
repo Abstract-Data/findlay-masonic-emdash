@@ -78,6 +78,17 @@ export type LogEvent =
 			readonly event: "heartbeat.failed";
 			readonly status: number | null;
 			readonly error: string;
+	  }
+	| {
+			/** EmDash's scheduled run threw, so this cron run sent no heartbeat. */
+			readonly event: "scheduler.failed";
+			readonly error: string;
+	  }
+	| {
+			/** Edge copies were not purged; they live until their max-age. */
+			readonly event: "cache.purge_failed";
+			readonly tags: number;
+			readonly error: string;
 	  };
 
 export type LogRecord = Readonly<Record<string, string | number | boolean | null>>;
@@ -88,11 +99,13 @@ function levelOf(entry: LogEvent): Level {
 	switch (entry.event) {
 		case "body_access.lookup_failed":
 		case "email.failed":
+		case "scheduler.failed":
 			return "error";
 		case "body_access.refused":
 		case "form.rate_limited":
 		case "email.blocked":
 		case "heartbeat.failed":
+		case "cache.purge_failed":
 			return "warn";
 		case "newsletter.refused":
 			return UNAVAILABLE.has(entry.code) ? "error" : "warn";

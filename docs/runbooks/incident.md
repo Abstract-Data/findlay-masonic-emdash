@@ -12,7 +12,7 @@
 | Editors are refused writes they should be allowed | Medium | Step 2, `body_access.refused`; see [grant-changes.md](grant-changes.md) |
 | Contact or signup forms say they are not working | Medium | Step 2, `form.submitted` with `unavailable`; check Resend and Turnstile status pages |
 | A newsletter went wrong | High if it reached subscribers | Step 4 |
-| The heartbeat alert fired | Medium | Scheduled publishes are not running; step 2, then roll back |
+| The heartbeat alert fired | Medium | The cron stopped or EmDash's scheduled run throws, so scheduled publishes are not running. Step 2: look for `scheduler.failed` and the "Scheduled work" query in `axiom.md`, then roll back if a deploy caused it. The heartbeat stays green while one publish step fails inside a run; the `[scheduled-publish]` alert covers that |
 
 ## 2. Read the logs
 

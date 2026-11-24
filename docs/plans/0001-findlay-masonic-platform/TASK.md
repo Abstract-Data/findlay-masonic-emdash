@@ -517,9 +517,9 @@ Design: logs as typed events (`src/lib/adapters/log.ts`), checks as code (`check
   Evidence: 7 passed (the five checks and the two setup sign-ins they depend on).
 - [x] **T7.5 [AGENT] Checkly constructs.** `checkly.config.ts` (a Playwright Check Suite on `@monitor`, every ten minutes, two US locations), `checkly/playwright.config.ts` (no dev server, `ENVIRONMENT_URL`), `checkly/scheduler.check.ts` (`HeartbeatMonitor`, hourly, ten minutes' grace). `checkly@10.2.0` pinned: the receipt's 10.3.0 was inside pnpm's one-day release age; receipt amended.
   Verify: `astro check` and lint cover `checkly/`; `pnpm exec checkly --version` reports 10.2.0.
-- [x] **T7.6 [AGENT] Scheduler heartbeat.** `src/worker.ts` pings the Worker secret `CHECKLY_HEARTBEAT_URL` after a scheduled run that succeeded at the top of the hour (`src/lib/adapters/heartbeat.ts`).
-  Verify: `tests/unit/adapters/heartbeat.test.ts`.
-  Evidence: 7 tests green: one ping an hour, none for a missing or non-HTTPS URL, a failed ping logged without the URL.
+- [x] **T7.6 [AGENT] Scheduler heartbeat.** At the top of the hour `src/worker.ts` pings the Worker secret `CHECKLY_HEARTBEAT_URL` (`src/lib/adapters/heartbeat.ts`). Corrected in the M7 review fixes (TR.2): the first version pinged after EmDash's `createScheduledHandler`, which returns at once and swallows the run's failure, so the ping proved nothing. The Worker now awaits `runScheduledTasks` from `emdash/middleware` and pings only when it returned. That proves the cron fired and EmDash ran its pass against D1; a publish step EmDash treats as non-fatal logs `[scheduled-publish]` and does not stop the ping (Axiom alert in `docs/observability/axiom.md`).
+  Verify: `tests/unit/adapters/heartbeat.test.ts`, `tests/unit/worker.test.ts`.
+  Evidence: 7 heartbeat tests green: one ping an hour, none for a missing or non-HTTPS URL, a failed ping logged without the URL. The worker tests are under TR.2.
 - [ ] **T7.7 [HUMAN] Checkly account, API key, `checkly test` and `checkly deploy`, the heartbeat secret, alert channel.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 2. Replaces T5.18.
   Deps: T0.16. Verify: both checks green in Checkly against staging.
 - [ ] **T7.8 [HUMAN] 48-hour soak on staging (M7 exit check).** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 3.
@@ -556,6 +556,16 @@ Design: logs as typed events (`src/lib/adapters/log.ts`), checks as code (`check
   Verify: the code-devil review has no open Critical or High finding.
 - [ ] **T7.19 [AGENT] Close M7.** Exit check: T7.8 green, T7.18 clean; task-critic PASS; update STATUS.md.
   Deps: all of M7.
+
+### M7 review fixes
+An independent adversarial review of f0fc275 failed M7 on two blocking items (B1, B2) and raised M1, L1 to L8 and S1 to S4. Each fix below has a test that failed before it; the failing and passing output is in the hand-off report. Run on a clean copy of the committed tree (`git archive` into `/tmp/m7fixrun`, `pnpm install --frozen-lockfile`) on 2026-11-24. L6 (the "previously unsubscribed" message) stays as it is, by the operator's decision.
+
+- [x] **TR.1 [AGENT] B1: outside production, signups and Broadcasts reach only the allowlist.** `gateOutbound` wrapped only `sendEmail`, so on staging a stranger who signed up joined the Segment and would get the next staging Broadcast. It now refuses a signup for an address off `NEWSLETTER_TEST_ALLOWLIST` and `@resend.dev` before Resend hears of it (outcome `test-site`, with a plain message), and refuses to create or send a Broadcast unless every contact in its Segment is on the list. The Segment is read through two new mailer port methods (`segmentContacts`, `broadcastSegment`), every page, and a Segment or Broadcast that cannot be read refuses. A refusal is a `blocked` mailer error: the approval answers `mail-blocked` and the issue stays a tested draft.
+  Verify: `tests/unit/plugins/newsletter/send-gate.test.ts` (through the plugin's real runtime with Resend's HTTP API stubbed), `service.test.ts`, `log.test.ts`.
+  Evidence: against the old gate, 4 of 19 failed (a stranger's signup reached `GET /contacts`; a Broadcast was created and sent to a Segment holding a stranger, and when the Segment could not be read). Green after, 2867 unit tests in all.
+- [x] **TR.2 [AGENT] B2: the heartbeat follows the scheduled run, not its start.** `src/worker.ts` awaits `runScheduledTasks` from `emdash/middleware` (the export EmDash documents for a Worker's `scheduled()`), with the cache purge and publish window EmDash's own handler passes, and pings only if it returned; a run that throws logs `scheduler.failed` and rethrows, so Cloudflare records the cron run as failed. The heartbeat therefore proves the cron fired, EmDash started against D1 and finished its pass. It cannot prove each step inside the pass: EmDash catches a failed publish sweep, logs `[scheduled-publish] …` and returns normally, so `docs/observability/axiom.md` alerts on those lines.
+  Verify: `tests/unit/worker.test.ts` (the real `src/worker.ts` with EmDash's runner replaced); a production build under `wrangler dev`.
+  Evidence: against the old worker, 2 of 3 failed (a ping although the run rejected; the ping before the run finished). Under `wrangler dev` with the D1 binding removed, the old build answered the cron `outcome ok` and still pinged; this one answers `outcome exception`, logs `scheduler.failed` and sends no ping. On the e2e database, a news item scheduled 12 seconds ahead was published inside the awaited run (12 s), and the ping followed it.
 
 ---
 
