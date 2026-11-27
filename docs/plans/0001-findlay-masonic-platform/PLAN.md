@@ -62,7 +62,7 @@ docs/ spec/ plans/ adr/ runbooks/
 - Lint/format: house `oxlint.config.ts` + `.oxfmtrc.jsonc` (JS/TS Base), `.prettierrc (Astro)`, and the two-rule `eslint.config.mjs (Astro)`.
 - Vitest 5 via `getViteConfig()`; Playwright 1.65 with a portless-wrapped `dev` and a setup project producing per-role `storageState`.
 - `astro:env` schema for `RESEND_API_KEY`, `RESEND_SEGMENT_ID`, `RESEND_NEWSLETTER_TOPIC_ID`, `TURNSTILE_SECRET`, OAuth IDs/secrets, `NEWSLETTER_TEST_ALLOWLIST`, all with `context: 'server', access: 'secret'` as appropriate.
-- `wrangler.jsonc`: `staging` and `production` envs (D1, R2, KV, `observability` block with Axiom destinations), from the house Astro-on-Cloudflare template.
+- `wrangler.jsonc`: `staging` and `production` envs (D1, R2, KV, `observability` block: Workers Logs and Traces), from the house Astro-on-Cloudflare template.
 - GitHub Actions CI (Astro template): `astro check` → lint → format check → vitest → build → Playwright smoke.
 - Project `AGENTS.md` built from the JS/TS Base + Astro overlay, carrying the Agent Scope from Phase 3.
 - Verify Astro 7 against the overlay (the Phase 1 override). Record the outcome in STATUS.md.
@@ -119,7 +119,7 @@ docs/ spec/ plans/ adr/ runbooks/
 - Public subscribe route + signup form: Zod validation, Turnstile, Origin/CSRF rule (FR-7.1/7.2), Resend contact upsert into Segment + newsletter Topic + selected body Topics.
 - React admin "Newsletter" page: issue list; "New issue" calls core assembly (FR-6.1); `EmailEditor` with `bodySection`/`articleCard` `EmailNode` extensions and `EmailTheming` matching the approved design (FR-6.2); save JSON (FR-6.3).
 - Routes (Admin permission): test-send to allowlist only (FR-6.4); approve → Broadcast create/schedule with idempotency key, enforcing the "test-send since last edit" rule (FR-6.5–6.7); archive render (FR-6.8).
-- Checkly HeartbeatMonitor wired to scheduled sends.
+- An hourly overdue check on scheduled sends, logged to Workers Logs (the Checkly heartbeat was dropped 2026-11-27).
 
 **Exit check:** unit tests (Resend adapter mocked) are green. On staging, an end-to-end test sends to the allowlisted inbox, and a Broadcast to a staging-only test Segment is received. FR-6.6 refusal is proven by test.
 
@@ -133,13 +133,13 @@ docs/ spec/ plans/ adr/ runbooks/
 
 ### M7 — Observability and hardening
 **Goal:** the production-readiness gates pass.
-- Axiom destinations live for staging/production (logs + traces); a dashboard for errors and the guard's SAVE_REJECTED counts.
-- Checkly Playwright Check Suites tagged `@monitor` (home, a body page, calendar, ICS feed, signup) running against production.
+- Workers Logs and Traces for staging/production; Workers Issues and Monitors alert on errors and the guard's refusal bursts (Cloudflare only, 2026-11-27).
+- Post-deploy Playwright checks tagged `@monitor` (home, a body page, calendar, ICS feed, signup), run against a deployed site after each deploy.
 - Performance: verify the P95 < 300 ms cached-page budget, and add caching headers / Astro cache hints where needed.
 - Adversarial review of `body-access` and the newsletter routes (`abstract-data-code-devil`); fix findings.
 - Runbooks: newsletter send, editor onboarding, grant changes, incident.
 
-**Exit check:** the code-devil review has no open Critical/High findings. Checkly is green for 48 h on staging.
+**Exit check:** the code-devil review has no open Critical/High findings. 48 h on staging with no unexplained Workers Issue.
 
 ### M8 — Launch
 **Goal:** findlaymason.org is served by the new platform.
@@ -147,7 +147,7 @@ docs/ spec/ plans/ adr/ runbooks/
 - Human tasks: Resend sending-domain DNS verification; production secrets in 1Password → Wrangler; `pnpm run deploy:production`; move the findlaymason.org DNS to Cloudflare; enable the redirects.
 - ~~Promote the ADR draft to `docs/adr/ADR-001-…`~~ Done at plan approval (2026-11-23).
 
-**Exit check:** production Checkly is green. The old URLs redirect. The first newsletter test send from production reaches the allowlist.
+**Exit check:** the post-deploy checks pass on production. The old URLs redirect. The first newsletter test send from production reaches the allowlist.
 
 ## 5. Requirement traceability
 | Requirement | Milestone | Verified by |
@@ -166,7 +166,7 @@ docs/ spec/ plans/ adr/ runbooks/
 | FR-8.1–8.2 | M3, M5 | staging e2e |
 | FR-9.1 | M6 | e2e |
 | FR-9.2 | M1 | seed test |
-| NFR a11y/perf | M4, M7 | axe, Lighthouse CI, Axiom P95 |
+| NFR a11y/perf | M4, M7 | axe, Lighthouse CI, Workers Traces P95 |
 
 ## 6. Risks
 | Risk | Likelihood | Impact | Mitigation |

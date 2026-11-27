@@ -13,7 +13,7 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
 - Email: Resend (`resend` SDK) + `@react-email/editor` (pinned exact)
 - Calendar: `rrule-temporal` (recurrence) + `ical-generator` (ICS feeds)
 - Deploy target: Cloudflare Workers, Paid plan, via `wrangler deploy`
-- Observability: Workers Logs + OTLP export to Axiom; Checkly synthetic monitoring
+- Observability: Cloudflare Workers Logs and Traces only (amendment 4)
 
 ## Non-negotiable constraints
 
@@ -26,7 +26,7 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
 - **[B]** 🚫 Never use Bun- or Node-only APIs in runtime code. ✅ Use Web-standard and Workers APIs, accessing bindings via `import { env } from "cloudflare:workers"`.
 
 ### Secrets and configuration
-- **[B]** 🚫 Never commit, log or hardcode secrets (`RESEND_API_KEY`, OAuth client secrets, Axiom tokens). ✅ Keep them in 1Password Environments, push them with `wrangler secret put`, and read them via `astro:env` fields with `context: 'server', access: 'secret'`.
+- **[B]** 🚫 Never commit, log or hardcode secrets (`RESEND_API_KEY`, OAuth client secrets). ✅ Keep them in 1Password Environments, push them with `wrangler secret put`, and read them via `astro:env` fields with `context: 'server', access: 'secret'`.
 - **[B]** 🚫 Never declare an `astro:env` field as both `secret` and `client`. ✅ Expose only non-secret values through `access: 'public'`.
 - **[B]** 🚫 Never document or hardcode numeric localhost ports. ✅ Wrap `dev` with portless and use the named `.localhost` URL.
 
@@ -81,7 +81,8 @@ Source tags: **[I]** = fixed constraint stated at intake · **[B]** = implied by
 ## Amendments
 1. **2026-11-23 — PLAN-phase human decisions (plan 0001 §2, ADR-001).** Adds these non-negotiables:
    - 🚫 Never ship a public page or plugin admin page that fails WCAG 2.1 AA. ✅ Zero axe AA violations in e2e.
-   - 🚫 Never regress public pages below Lighthouse 90 (Performance, Accessibility, Best Practices, SEO) or cached public pages above P95 300 ms server time. ✅ Lighthouse CI budget; Axiom P95.
+   - 🚫 Never regress public pages below Lighthouse 90 (Performance, Accessibility, Best Practices, SEO) or cached public pages above P95 300 ms server time. ✅ Lighthouse CI budget; P95 from Workers Traces (amendment 4).
    - 🚫 Never share a D1, R2 or KV resource between environments. ✅ Separate `staging` and `production` Wrangler environments; still no Terraform.
 2. **2026-11-23 — Cloudflare bindings access (M0 Astro 7 verification, STATUS.md).** § Platform and stack read bindings through `locals.runtime.env`. Astro 6 removed it and `@astrojs/cloudflare` 14 throws on access. Bindings now come from `import { env } from "cloudflare:workers"`.
 3. **2026-11-23 — Node tooling floor (M0 follow-up).** § Stack said Node ≥ 22.16, but astro 7.4.13 declares `engines.node >= 22.23.4`. `package.json` engines and the CI matrix now use 22.23.4 as the floor, alongside the latest Node 22.
+4. **2026-11-27 — Cloudflare-only observability (operator decision).** § Stack named OTLP export to Axiom and Checkly synthetic monitoring. Both are removed: logs, traces, alerts (Workers Issues, Monitors) and dashboards stay in Cloudflare, and the post-deploy checks run by hand. The Checkly heartbeat is replaced by an hourly overdue check that logs at error level.

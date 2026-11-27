@@ -74,7 +74,7 @@ export default defineConfig({
 			dependencies: ["setup", "newsletter"],
 		},
 		{
-			// Checkly's synthetic monitors (@monitor), as a visitor. Setup applies the seed, so the
+			// The post-deploy checks (@monitor), as a visitor. Setup applies the seed, so the
 			// bodies every deployment has exist on a fresh local database too.
 			name: "monitor",
 			testDir: "tests/e2e/monitor",

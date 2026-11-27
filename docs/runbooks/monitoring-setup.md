@@ -1,54 +1,39 @@
-# Runbook: set up Axiom and Checkly
+# Runbook: set up monitoring in Cloudflare
 
-**Who runs it:** a human with the Temple's Cloudflare, Axiom and Checkly accounts. Agents never create accounts, keys or deploys.
-**Result:** each environment's logs and traces reach Axiom, Checkly checks the public site every ten minutes, and a heartbeat alerts when scheduled publishing stops.
-**Time:** about an hour, then 48 hours of watching staging (the M7 exit check).
+**Who runs it:** a human with the Temple's Cloudflare account. Agents never create alerts, keys or deploys.
+**Result:** each environment's logs and traces are kept in Workers Logs, failures email the Temple administrators, and a burst of refusals or rate limits raises an alert.
+**Time:** about twenty minutes per environment, then 48 hours of watching staging (the M7 exit check).
 
-Everything the services run is already in the repository: the log events and queries in [docs/observability/axiom.md](../observability/axiom.md), the checks in `checkly.config.ts` and `checkly/`, and the monitors' tests in `tests/e2e/monitor/`.
+Cloudflare's own tools are the only monitoring this project uses: Workers Logs and Traces, Workers Issues, Monitors, and optionally a Custom Dashboard. The events, filters and alert thresholds are in [docs/observability/workers-logs.md](../observability/workers-logs.md).
 
-## 1. Axiom (once per environment)
+## 1. Logs and traces (nothing to do)
 
-1. In Axiom, create two datasets per environment: `findlay-masonic-staging-logs` and `findlay-masonic-staging-traces`, then the same with `production`. Set each dataset's retention to 30 days ([axiom.md](../observability/axiom.md), "What reaches Axiom").
-2. Create an Axiom API token that can only ingest into those datasets. Keep it in 1Password; it never goes into the repository.
-3. In the Cloudflare dashboard, **Workers & Pages → Observability → Destinations**, add four OTLP destinations, named exactly as `wrangler.jsonc` expects:
+`wrangler.jsonc` turns on Workers Logs (with invocation logs) and Workers Traces in both environments, with query strings redacted. A deploy applies it. After the first deploy, open **Workers & Pages → the Worker → Observability**, load a page of the site, and check that the request appears within a minute.
 
-   | Destination name | Endpoint | Header |
-   | --- | --- | --- |
-   | `axiom-staging-logs` | `https://api.axiom.co/v1/logs` | `Authorization: Bearer <token>`, `X-Axiom-Dataset: findlay-masonic-staging-logs` |
-   | `axiom-staging-traces` | `https://api.axiom.co/v1/traces` | the token, `X-Axiom-Dataset: findlay-masonic-staging-traces` |
-   | `axiom-production-logs` | `https://api.axiom.co/v1/logs` | the token, `X-Axiom-Dataset: findlay-masonic-production-logs` |
-   | `axiom-production-traces` | `https://api.axiom.co/v1/traces` | the token, `X-Axiom-Dataset: findlay-masonic-production-traces` |
+## 2. Alerts (once per environment)
 
-4. Deploy the environment ([deploy.md](deploy.md)). Open the site, submit nothing, and after a few minutes check that the logs dataset has Cloudflare's invocation records.
-5. In Axiom, run the "Site events, parsed" query from `axiom.md`. If it returns nothing after a contact form test on staging, open one record in Axiom's schema view and adjust the field name the queries parse (`body`). In the same view, open one invocation log and one trace of a request with a query string (a page with `?month=`): the URL should end at the path. Search both datasets for `@` followed by your test inbox's domain; nothing should match except `[email]`.
-6. Create the dashboard and the four alerts listed in `axiom.md` (errors, form outages and failed email, refusal bursts, P95 over 300 ms). Send alerts to the Temple administrators' inbox.
+1. **Workers Issues.** In the Worker's **Observability → Issues**, turn Issues on. Add an automation that emails the Temple administrators with an occurrence threshold of `1`, so the first error of each kind notifies, and a recurrence trigger, so an issue that returns after going quiet notifies again.
+2. **Monitors.** In **Notifications → Monitors**, create two threshold monitors on the Workers Logs dataset of this Worker, each emailing the administrators:
+   - `event` = `body_access.refused`: more than 20 in an hour.
+   - `event` = `form.rate_limited`: more than 10 in an hour.
+3. **Saved queries.** In the Query Builder, save the queries in `workers-logs.md` § Finding things, so whoever is on call starts from them.
+4. Optional: build the Custom Dashboard described in `workers-logs.md` § Dashboard.
 
-## 2. Checkly (once, then per environment)
+## 3. Check what is recorded (first staging deploy)
 
-1. Create a Checkly account for the Temple (the free tier covers one Playwright Check Suite every ten minutes from two locations; check the current plan limits).
-2. Create a Checkly API key (**User settings → API keys**) and note the account id. Keep both in 1Password.
-3. From a checkout of the repository, on a computer, not in CI:
+1. Open one invocation log and one trace of a request with a query string (a calendar page with `?month=`): the URL should end at the path.
+2. Submit the contact form once with an allowlisted address, then search the logs for `@` followed by your test inbox's domain. Nothing should match except `[email]`.
 
-   ```bash
-   pnpm install --frozen-lockfile
-   export CHECKLY_API_KEY=<from 1Password> CHECKLY_ACCOUNT_ID=<from 1Password>
-   pnpm exec checkly test -e ENVIRONMENT_URL=https://<staging address>
-   ```
+## 4. The 48-hour soak (M7 exit check)
 
-   `checkly test` runs the five `@monitor` checks in Checkly's cloud against staging, and records the session in Checkly (`--record` is the default). The run happens in Checkly's cloud, so the address goes in with `-e` (`--env`, "Env vars to be passed to the test run" in `checkly test --help`, checkly 10.2.0); without it the checks visit the production address, `checkly/playwright.config.ts`'s default. All five must pass.
-4. Deploy the checks: `pnpm exec checkly deploy`. This creates the Playwright Check Suite "Public site: home, a body, calendar, ICS feed, signup" and the heartbeat "Scheduled publishing (Worker cron)".
-5. In Checkly, set the check suite's environment variable `ENVIRONMENT_URL` to the staging address for the 48-hour soak, and to `https://findlaymason.org` after launch (M8). Add an alert channel (email to the Temple administrators).
-6. Open the heartbeat, copy its ping URL, and store it as a Worker secret in each environment that should report: `pnpm wrangler secret put CHECKLY_HEARTBEAT_URL --env staging` (then `production` at launch). The URL is a credential: anyone holding it can keep the monitor green.
-7. Wait an hour. The heartbeat turns green after the first scheduled run at the top of the hour.
-
-## 3. The 48-hour soak (M7 exit check)
-
-With staging deployed and the checks pointed at it, leave everything running for 48 hours. The exit check passes when the check suite and the heartbeat stayed green the whole time (a failure that a retry cleared counts as green) and Axiom shows no unexplained error. Record the start and end time and the Checkly result link in `docs/plans/0001-findlay-masonic-platform/STATUS.md`.
-
-## Running the monitors without Checkly
-
-`pnpm e2e --grep @monitor` runs the same five checks against the local dev server (the `monitor` project in `playwright.config.ts`). To run them against a deployed site without an account, use the Checkly configuration's Playwright file directly:
+With staging deployed, leave it running for 48 hours, using it as editors would: publish something, schedule something an hour ahead, send a test newsletter. The exit check passes when Workers Issues shows no unexplained issue and the scheduled entry went live on time (no `scheduler.overdue`). Run the post-deploy checks at the start and the end:
 
 ```bash
-ENVIRONMENT_URL=https://<address> pnpm exec playwright test -c checkly/playwright.config.ts
+ENVIRONMENT_URL=https://<staging address> pnpm exec playwright test -c tests/e2e/monitor/deployed.config.ts
 ```
+
+Record the start and end time and the result in `docs/plans/0001-findlay-masonic-platform/STATUS.md`.
+
+## What is not covered
+
+Cloudflare has no check from outside that the site answers. A Worker that throws shows up as `5xx` responses and failed invocations in Issues; a site no one visits, or a cron that stops firing, shows nothing at all. Run the post-deploy checks after each deploy, and look at the Worker's **Metrics** tab now and then: the cron's invocations should appear every minute.

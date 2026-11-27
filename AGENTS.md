@@ -30,7 +30,7 @@ pnpm test                        # vitest run (tests/unit); add --coverage for a
 pnpm e2e                         # Playwright; starts pnpm dev itself. CI: pnpm e2e --trace off
 pnpm astro build                 # production build into dist/
 node tests/build/check-cache-headers.mjs   # after a build: cache headers per route class, under wrangler dev
-pnpm e2e --grep @monitor         # the synthetic monitors Checkly runs (checkly.config.ts)
+pnpm e2e --grep @monitor         # the post-deploy checks (tests/e2e/monitor/deployed.config.ts runs them against a site)
 pnpm wrangler d1 execute DB --local --command "select 1"   # local D1 only
 pnpm wrangler types              # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 ```
@@ -96,7 +96,7 @@ Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:pr
 ### Tests
 
 - Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
-- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) axe in `tests/e2e/a11y/` and the read-only synthetic monitors in `tests/e2e/monitor/` (tag `@monitor`; Checkly runs them against production). Tag smoke tests `@smoke`.
+- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) axe in `tests/e2e/a11y/` and the read-only post-deploy checks in `tests/e2e/monitor/` (tag `@monitor`; `tests/e2e/monitor/deployed.config.ts` runs them against a deployed site). Tag smoke tests `@smoke`.
 - The `visual` project (`tests/e2e/visual/`) runs last: it seeds a busy week, scans it with axe and screenshots home, a body page and the calendar at 1280 and 390 px in both schemes. `VISUAL_OUT=docs/design/direction-c/built pnpm e2e --project visual` refreshes the committed set.
 - Lighthouse runs against a production build under `wrangler dev`: `CHROME_PATH=<chromium> node tests/perf/lighthouse.mjs <base URL> [runs per page]`.
 - Assert what a user or caller can observe, not internals.

@@ -25,7 +25,7 @@ New editors start with [onboard-body-editor.md](onboard-body-editor.md). This ru
 
 ## Check the change
 
-Ask the editor to open **News** → **Add New**. The **Body** field lists exactly the bodies they hold, with a single body chosen already. To check without them: their next refused write appears in Axiom as `body_access.refused` with their user id and the body it names ([axiom.md](../observability/axiom.md) § Denials and rejections).
+Ask the editor to open **News** → **Add New**. The **Body** field lists exactly the bodies they hold, with a single body chosen already. To check without them: their next refused write appears in Workers Logs as `body_access.refused` with their user id and the body it names ([workers-logs.md](../observability/workers-logs.md) § Finding things).
 
 ## When an editor is refused
 

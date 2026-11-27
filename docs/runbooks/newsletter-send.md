@@ -78,7 +78,7 @@ Before editing an issue whose approval failed with "could not be reached", check
 - The issue appears at `/newsletters` for every visitor, signed in or not, newest first, and opens in a frame that shows the email as sent, with a signup link in place of the unsubscribe link. The archive shows only each sent issue's subject, date and email.
 - A scheduled issue joins the archive once its time passes.
 - Subscribers manage their body preferences from the link in each email. Signups from the site's form land in the `subscribers` Segment with the newsletter Topic and the Topics of the bodies they ticked.
-- The signup form takes five signups an hour from one network and sixty an hour in total; past that, visitors are asked to try later (`form.rate_limited` in Axiom).
+- The signup form takes five signups an hour from one network and sixty an hour in total; past that, visitors are asked to try later (`form.rate_limited` in Workers Logs).
 - The form never undoes a choice a subscriber made, because anyone can type anyone's address. An address that unsubscribed from all Temple email, or from the newsletter Topic, is not changed: the visitor is told the address unsubscribed before and to use the preferences link in a past newsletter, or to contact the Temple. A subscriber who opted out of a body's Topic stays out of it even if they tick that body again; they add it back from the preferences link. To re-add someone who asks, change the contact in the Resend dashboard.
 
 ## Development and tests

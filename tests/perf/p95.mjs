@@ -1,5 +1,5 @@
 // A local indicator of server time per public route, not the NFR measurement: the budget
-// (P95 < 300 ms on cached pages) is measured in production through Axiom in M7. Server time is
+// (P95 < 300 ms on cached pages) is measured in production with Workers Traces in M7. Server time is
 // EmDash's `Server-Timing: mw` (total middleware, the whole render); wall time adds the local
 // proxy and the network.
 //
