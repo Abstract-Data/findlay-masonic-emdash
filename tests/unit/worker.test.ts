@@ -59,28 +59,14 @@ vi.mock("@emdash-cms/cloudflare/worker", () => ({
 
 const { default: worker } = await import("../../src/worker");
 
-const PING = `https://ping.checklyhq.com/${["fake", "test", "ping"].join("-")}`;
 const TOP_OF_HOUR = Date.UTC(2026, 10, 24, 15, 0, 0);
 
-/** Every ping the Worker sends, and when, against the order the scheduled work finished in. */
-function heartbeat() {
-	const events: string[] = [];
-	vi.stubGlobal("fetch", async (url: string) => {
-		events.push(`ping ${url}`);
-		return new Response(null, { status: 200 });
-	});
-	return events;
-}
-
 /** One cron run of the Worker, settled with everything it handed to waitUntil. */
-async function cron(
-	scheduledTime = TOP_OF_HOUR,
-	env: Record<string, string> = { CHECKLY_HEARTBEAT_URL: PING },
-): Promise<"resolved" | "rejected"> {
+async function cron(scheduledTime = TOP_OF_HOUR): Promise<"resolved" | "rejected"> {
 	const pending: Promise<unknown>[] = [];
 	const ctx = { waitUntil: (promise: Promise<unknown>) => pending.push(promise), props: {} };
 	const controller = { cron: "* * * * *", scheduledTime, noRetry() {} };
-	const run = Reflect.apply(Reflect.get(worker, "scheduled"), worker, [controller, env, ctx]);
+	const run = Reflect.apply(Reflect.get(worker, "scheduled"), worker, [controller, {}, ctx]);
 	const outcome = await Promise.resolve(run).then(
 		() => "resolved" as const,
 		() => "rejected" as const,
@@ -105,49 +91,6 @@ afterEach(() => {
 	emdash.runtimeError = null;
 });
 
-describe("the Worker's cron run and its heartbeat (M7 review B2)", () => {
-	it("sends no heartbeat when EmDash's scheduled run fails", async () => {
-		const events = heartbeat();
-		emdash.runScheduledTasks.mockRejectedValue(new Error("D1 is unreachable"));
-		await cron();
-		expect(events).toEqual([]);
-	});
-
-	it("pings only after the scheduled run has finished", async () => {
-		const events = heartbeat();
-		emdash.runScheduledTasks.mockImplementation(async () => {
-			await new Promise((resolve) => setTimeout(resolve, 20));
-			events.push("scheduled work done");
-			return { published: [] };
-		});
-		expect(await cron()).toBe("resolved");
-		expect(events).toEqual(["scheduled work done", `ping ${PING}`]);
-	});
-
-	it("purges the edge copies of what the scheduled run published", async () => {
-		heartbeat();
-		emdash.runScheduledTasks.mockImplementation(async (options) => {
-			const published = [
-				{ collection: "news", id: "01NEWS" },
-				{ collection: "news", id: "01MORE" },
-			];
-			await Reflect.get(Object(options), "onPublished")(published);
-			return { published };
-		});
-		await cron(TOP_OF_HOUR + 60_000);
-		expect(emdash.purge.mock.calls).toEqual([[{ tags: ["news", "01NEWS", "01MORE"] }]]);
-	});
-
-	it("still finishes the run when the ping fails", async () => {
-		vi.stubGlobal("fetch", async () => {
-			throw new TypeError("fetch failed");
-		});
-		emdash.runScheduledTasks.mockResolvedValue({ published: [] });
-		expect(await cron()).toBe("resolved");
-		expect(emdash.runScheduledTasks).toHaveBeenCalledTimes(1);
-	});
-});
-
 const NOW = TOP_OF_HOUR + 20_000;
 const ago = (ms: number) => new Date(NOW - ms).toISOString();
 
@@ -160,19 +103,56 @@ function logged(level: "error" | "warn"): Record<string, unknown>[] {
 		);
 }
 
-describe("the heartbeat means nothing is overdue (M7 review round 2, B2)", () => {
+describe("the Worker's cron run (M7 review B2)", () => {
+	it("fails the cron run and logs it when EmDash's scheduled run fails", async () => {
+		emdash.runScheduledTasks.mockRejectedValue(new Error("D1 is unreachable"));
+		expect(await cron()).toBe("rejected");
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.failed", error: "Error: D1 is unreachable" },
+		]);
+	});
+
+	it("checks for overdue entries only after the scheduled run has finished", async () => {
+		const order: string[] = [];
+		emdash.runtimeError = new Error("no database");
+		emdash.runScheduledTasks.mockImplementation(async () => {
+			await new Promise((resolve) => setTimeout(resolve, 20));
+			order.push("scheduled work done");
+			return { published: [] };
+		});
+		vi.mocked(console.error).mockImplementation((line: unknown) => {
+			order.push(String(line));
+		});
+		expect(await cron()).toBe("resolved");
+		expect(order[0]).toBe("scheduled work done");
+		expect(order[1]).toContain("scheduler.check_failed");
+	});
+
+	it("purges the edge copies of what the scheduled run published", async () => {
+		emdash.runScheduledTasks.mockImplementation(async (options) => {
+			const published = [
+				{ collection: "news", id: "01NEWS" },
+				{ collection: "news", id: "01MORE" },
+			];
+			await Reflect.get(Object(options), "onPublished")(published);
+			return { published };
+		});
+		await cron(TOP_OF_HOUR + 60_000);
+		expect(emdash.purge.mock.calls).toEqual([[{ tags: ["news", "01NEWS", "01MORE"] }]]);
+	});
+});
+
+describe("the hourly overdue check (M7 review round 2, B2)", () => {
 	beforeEach(() => {
 		vi.useFakeTimers({ now: NOW, toFake: ["Date"] });
 		emdash.runScheduledTasks.mockResolvedValue({ published: [] });
 	});
 
-	it("sends no heartbeat while an entry the run should have published is still waiting", async () => {
-		const events = heartbeat();
+	it("logs, by count only, an entry the run should have published that is still waiting", async () => {
 		emdash.scheduled.set("news", [
 			{ id: "01NEWS", title: "Ladies' Night", scheduledAt: ago(5 * 60_000) },
 		]);
 		expect(await cron()).toBe("resolved");
-		expect(events).toEqual([]);
 		expect(logged("error")).toEqual([
 			{ level: "error", event: "scheduler.overdue", entries: 1, collections: 1 },
 		]);
@@ -180,7 +160,6 @@ describe("the heartbeat means nothing is overdue (M7 review round 2, B2)", () =>
 	});
 
 	it("checks every collection, not only news", async () => {
-		const events = heartbeat();
 		emdash.scheduled.set("news", []);
 		emdash.scheduled.set("events", [
 			{ id: "01EVENT", title: "Installation", scheduledAt: ago(3 * 60_000) },
@@ -190,60 +169,48 @@ describe("the heartbeat means nothing is overdue (M7 review round 2, B2)", () =>
 			{ id: "01PAGE", title: "History", scheduledAt: ago(10 * 60_000) },
 		]);
 		await cron();
-		expect(events).toEqual([]);
 		expect(logged("error")).toEqual([
 			{ level: "error", event: "scheduler.overdue", entries: 3, collections: 2 },
 		]);
 	});
 
 	it("counts an entry that fell due during the run and is still waiting", async () => {
-		const events = heartbeat();
 		emdash.runScheduledTasks.mockImplementation(async () => {
 			vi.setSystemTime(NOW + 9_000);
 			return { published: [] };
 		});
 		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Due", scheduledAt: ago(-7_000) }]);
 		await cron();
-		expect(events).toEqual([]);
+		expect(logged("error")).toEqual([
+			{ level: "error", event: "scheduler.overdue", entries: 1, collections: 1 },
+		]);
 	});
 
-	it("pings when what is waiting fell due after the run's publish window", async () => {
-		const events = heartbeat();
+	it("logs nothing when what is waiting fell due after the run's publish window", async () => {
 		emdash.runScheduledTasks.mockImplementation(async () => {
 			vi.setSystemTime(NOW + 100_000);
 			return { published: [] };
 		});
 		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Later", scheduledAt: ago(-90_000) }]);
 		await cron();
-		expect(events).toEqual([`ping ${PING}`]);
+		expect(logged("error")).toEqual([]);
 	});
 
-	it("sends no heartbeat when the overdue check cannot run", async () => {
-		const events = heartbeat();
+	it("logs when the overdue check cannot run", async () => {
 		emdash.runtimeError = new Error("EmDash is not configured");
 		expect(await cron()).toBe("resolved");
-		expect(events).toEqual([]);
 		expect(logged("error")).toEqual([
 			{ level: "error", event: "scheduler.check_failed", error: "Error: EmDash is not configured" },
 		]);
 	});
 
-	it("still logs what is overdue, once an hour, when no heartbeat URL is set", async () => {
-		const events = heartbeat();
+	it("checks once an hour, not on every run", async () => {
 		emdash.scheduled.set("news", [{ id: "01NEWS", title: "Late", scheduledAt: ago(5 * 60_000) }]);
-		await cron(TOP_OF_HOUR, {});
-		await cron(TOP_OF_HOUR + 60_000, {});
-		expect(events).toEqual([]);
+		await cron(TOP_OF_HOUR);
+		await cron(TOP_OF_HOUR + 60_000);
 		expect(logged("error")).toEqual([
 			{ level: "error", event: "scheduler.overdue", entries: 1, collections: 1 },
 		]);
-	});
-
-	it("checks nothing on the runs that send no heartbeat", async () => {
-		heartbeat();
-		emdash.runtimeError = new Error("no database");
-		await cron(TOP_OF_HOUR + 60_000);
-		expect(logged("error")).toEqual([]);
 	});
 });
 

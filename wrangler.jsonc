@@ -68,11 +68,9 @@
 				"logs": {
 					"enabled": true,
 					"invocation_logs": true,
-					"destinations": ["axiom-staging-logs"],
 				},
 				"traces": {
 					"enabled": true,
-					"destinations": ["axiom-staging-traces"],
 				},
 			},
 		},
@@ -114,11 +112,9 @@
 				"logs": {
 					"enabled": true,
 					"invocation_logs": true,
-					"destinations": ["axiom-production-logs"],
 				},
 				"traces": {
 					"enabled": true,
-					"destinations": ["axiom-production-traces"],
 				},
 			},
 		},

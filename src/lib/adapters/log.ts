@@ -1,6 +1,6 @@
 /**
  * One JSON line per security- or delivery-relevant event, which Workers Logs indexes field by
- * field and exports to Axiom (docs/observability/axiom.md). An event's fields are primitives
+ * field (docs/observability/workers-logs.md). An event's fields are primitives
  * named by its type, so no request body, email or message has a field to travel in, and every
  * string is scrubbed of email addresses and token-shaped runs before it leaves the Worker.
  */
@@ -80,25 +80,19 @@ export type LogEvent =
 			readonly error: string;
 	  }
 	| {
-			/** The scheduler ran, but its Checkly heartbeat ping did not land. */
-			readonly event: "heartbeat.failed";
-			readonly status: number | null;
-			readonly error: string;
-	  }
-	| {
-			/** EmDash's scheduled run threw, so this cron run sent no heartbeat. */
+			/** EmDash's scheduled run threw. */
 			readonly event: "scheduler.failed";
 			readonly error: string;
 	  }
 	| {
-			/** Entries past their scheduled time are still unpublished, so no heartbeat went. */
+			/** At the hourly check, entries past their scheduled time are still unpublished. */
 			readonly event: "scheduler.overdue";
 			/** How many, up to 100 a collection. */
 			readonly entries: number;
 			readonly collections: number;
 	  }
 	| {
-			/** The overdue check could not run, so no heartbeat went. */
+			/** The hourly overdue check could not run. */
 			readonly event: "scheduler.check_failed";
 			readonly error: string;
 	  }
@@ -125,7 +119,6 @@ function levelOf(entry: LogEvent): Level {
 		case "form.rate_limited":
 		case "form.sweep_failed":
 		case "email.blocked":
-		case "heartbeat.failed":
 		case "cache.purge_failed":
 			return "warn";
 		case "newsletter.refused":
@@ -238,7 +231,7 @@ function withoutEmails(
 }
 
 /**
- * Everything the Worker writes to the console reaches Workers Logs and Axiom, EmDash's own lines
+ * Everything the Worker writes to the console reaches Workers Logs, EmDash's own lines
  * included, and some of those quote an address: a failed delivery names its recipient (a body's
  * private contact recipient or an invitee), a sign-in names the user. This wraps each console
  * method that writes, so every string and error argument of a level method, and every string

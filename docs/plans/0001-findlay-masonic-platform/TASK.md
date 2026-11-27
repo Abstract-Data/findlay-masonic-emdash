@@ -56,9 +56,9 @@
 - [ ] **T0.11 [PATH_ASK] Wrangler environments.** Restructure `wrangler.jsonc` from the house "wrangler.jsonc (Astro on Cloudflare)" template: top level = local dev; `env.staging` and `env.production`, each with its own `name`, D1 (`DB`), R2 (`MEDIA`), KV (`SESSION`), Durable Object binding, cron and an `observability` block (logs + traces, Axiom destinations by name). Resource IDs are placeholders `"<set by human: T0.12>"`. Decide with the human whether the existing D1 `findlay-masonic-site` (`e973aaf5-…`) becomes production or is retired; record the answer in the PR.
   Deps: T0.1. Verify: `pnpm wrangler deploy --dry-run --env staging` resolves config (placeholders aside); `pnpm wrangler types` regenerates `worker-configuration.d.ts` with the KV binding.
   Agent part done (unticked until the human approves): `CLOUDFLARE_ENV=staging pnpm astro build && pnpm wrangler deploy --dry-run` resolves staging bindings; `wrangler types` emits `SESSION: KVNamespace`. `--env staging` after a plain build resolves local bindings, so deploys use `deploy:staging`. Awaiting human approval and the D1 decision (STATUS.md).
-- [ ] **T0.12 [HUMAN] Create staging resources.** In Cloudflare: staging D1, R2 bucket and KV namespace; Axiom dataset + OTLP destinations for staging logs and traces. Paste the IDs into `wrangler.jsonc` (IDs are not secrets).
+- [x] **T0.12 [HUMAN] Create staging resources.** In Cloudflare: staging D1, R2 bucket and KV namespace; Paste the IDs into `wrangler.jsonc` (IDs are not secrets).
   Deps: T0.11. Verify: `pnpm wrangler d1 list` shows the staging DB; IDs are committed.
-  D1, R2 and KV created and committed 2026-11-27 (STATUS § Workers Builds); unticked until the Axiom destinations exist.
+  D1, R2 and KV created and committed 2026-11-27 (STATUS § Workers Builds); the Axiom destinations were dropped with Axiom (TX.1).
 
 ### CI and agent docs
 - [x] **T0.13 [AGENT] GitHub Actions CI.** `.github/workflows/ci.yml` from the house "GitHub Actions CI (Astro)" template: pnpm 11.9 + Node setup with cache (matrix: the engines floor 22.23.4 and latest 22) → `pnpm install --frozen-lockfile` → `astro check` → `lint` → `format:check` → `vitest run` → `astro build` → Playwright install + `e2e --grep @smoke --trace off`. No secrets required to pass.
@@ -471,8 +471,7 @@ An independent verifier failed 6d49955 on one blocking item (B1) and five findin
   Deps: T0.16. Verify: the runbook's "Before the first send" table is complete on staging.
 - [ ] **T5.17 [HUMAN] Staging send test (PLAN M5 exit check).** A test send reaches the allowlisted inbox; an approved Broadcast to the staging-only Segment is received with a working unsubscribe link; an EmDash invite arrives by email (FR-8.1); a signup appears in Resend with its Topics. Note whether Resend honoured `Idempotency-Key` on the Broadcast and how it answered adding an existing contact to the Segment.
   Deps: T5.16. Verify: the runbook passes end to end on staging.
-- [ ] **T5.18 [HUMAN] Checkly HeartbeatMonitor for scheduled sends.** Now T7.7: the monitor is code (`checkly/scheduler.check.ts`) and the Worker pings it; the human creates the account and sets the secret.
-  Deps: T5.17. Verify: the heartbeat goes green after a scheduled staging send.
+- [x] **T5.18 [HUMAN] Checkly HeartbeatMonitor for scheduled sends.** Withdrawn 2026-11-27 (TX.1): no Checkly. The hourly overdue check logs `scheduler.overdue` to Workers Logs instead.
 - [ ] **T5.19 [AGENT] Close M5.** Exit check: CI green on both legs; task-critic PASS; update STATUS.md.
   Deps: all of M5. Verify: critic returns PASS.
 
@@ -527,30 +526,29 @@ An independent verification of 6798ffe with realistic content failed direction C
   Evidence: on c4548b2 with only the new seed and check, 11 failed and 95 passed: ten routes scrolled sideways (`/`, `/news`, the `?body` and `?week` home pages and a body's news list by 493 px at 320, 423 at 390, 63 at 768; the Blue Lodge page and the news item by 388 px at 320), and excerpts ended 347 to 521 px past their card at every width up to 1280. After, 106 passed.
 
 ## M7 — Observability and hardening
-Design: logs as typed events (`src/lib/adapters/log.ts`), checks as code (`checkly.config.ts`), caching opt-in per route with a central opt-out for anything personal. Evidence was run as above on 2026-11-24. Human steps: [monitoring-setup.md](../../runbooks/monitoring-setup.md) and [deploy.md](../../runbooks/deploy.md).
+Design: logs as typed events (`src/lib/adapters/log.ts`), post-deploy checks in `tests/e2e/monitor/` (Checkly and Axiom removed 2026-11-27, TX.1), caching opt-in per route with a central opt-out for anything personal. Evidence was run as above on 2026-11-24. Human steps: [monitoring-setup.md](../../runbooks/monitoring-setup.md) and [deploy.md](../../runbooks/deploy.md).
 
 ### Observability
 - [x] **T7.1 [AGENT] JSON-line logger.** One object per line at the event's level; fields named by the event type and primitives only; every string scrubbed of email addresses and token-shaped runs. Logged: `body_access.refused` (`BODY_ACCESS_DENIED`, `INVALID_SLUG`, `SAVE_REJECTED`), `body_access.lookup_failed`, `newsletter.test_sent`, `.approved`, `.refused`, `form.submitted`, `form.rate_limited`, `email.blocked`, `email.failed`, `heartbeat.failed`. `guardRequest` returns a `Refusal` the middleware logs and answers.
   Verify: `tests/unit/adapters/log.test.ts` drives the transport and the send gate with recipient addresses, a message body and Resend-, Turnstile- and token-shaped values (assembled at run time).
   Evidence: 5 tests green; with `scrub` made a no-op, 2 fail.
-- [x] **T7.2 [AGENT] Axiom queries.** `docs/observability/axiom.md`: the event table, errors, denials and rejections, `SAVE_REJECTED` with reasons, failed lookups, forms and email, newsletter sends, P95 server time from trace root spans, D1 time.
+- [x] **T7.2 [AGENT] Axiom queries.** Superseded by TX.1 (`docs/observability/workers-logs.md`). Was `docs/observability/axiom.md`: the event table, errors, denials and rejections, `SAVE_REJECTED` with reasons, failed lookups, forms and email, newsletter sends, P95 server time from trace root spans, D1 time.
   Verify: the document. Field names are checked against the first day of data (runbook step 1.5).
-- [ ] **T7.3 [HUMAN] Axiom datasets, token, Cloudflare OTLP destinations, dashboard and alerts.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 1.
-  Deps: T0.12, T8.0. Verify: the "Site events, parsed" query returns rows on staging.
+- [ ] **T7.3 [HUMAN] Cloudflare alerts per environment: Workers Issues with an email automation, two Monitors, saved queries.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 2 and § 3. Replaces the Axiom datasets and destinations (TX.1).
+  Deps: T0.16. Verify: an `event` = `form.submitted` filter returns rows on staging.
 
-### Synthetic monitoring
+### Post-deploy checks
 - [x] **T7.4 [AGENT] `@monitor` checks.** `tests/e2e/monitor/monitor.spec.ts`: home, a body's page, the Temple calendar, the ICS feed, the signup form; read-only. Project `monitor` in `playwright.config.ts`.
   Verify: `CI=true pnpm e2e --grep @monitor` on a fresh database.
   Evidence: 7 passed (the five checks and the two setup sign-ins they depend on).
-- [x] **T7.5 [AGENT] Checkly constructs.** `checkly.config.ts` (a Playwright Check Suite on `@monitor`, every ten minutes, two US locations), `checkly/playwright.config.ts` (no dev server, `ENVIRONMENT_URL`), `checkly/scheduler.check.ts` (`HeartbeatMonitor`, hourly, ten minutes' grace). `checkly@10.2.0` pinned: the receipt's 10.3.0 was inside pnpm's one-day release age; receipt amended.
+- [x] **T7.5 [AGENT] Checkly constructs.** Removed by TX.1; `checkly/playwright.config.ts` became `tests/e2e/monitor/deployed.config.ts`. Was: `checkly.config.ts` (a Playwright Check Suite on `@monitor`, every ten minutes, two US locations), `checkly/playwright.config.ts` (no dev server, `ENVIRONMENT_URL`), `checkly/scheduler.check.ts` (`HeartbeatMonitor`, hourly, ten minutes' grace). `checkly@10.2.0` pinned: the receipt's 10.3.0 was inside pnpm's one-day release age; receipt amended.
   Verify: `astro check` and lint cover `checkly/`; `pnpm exec checkly --version` reports 10.2.0.
-- [x] **T7.6 [AGENT] Scheduler heartbeat.** At the top of the hour `src/worker.ts` pings the Worker secret `CHECKLY_HEARTBEAT_URL` (`src/lib/adapters/heartbeat.ts`). Corrected in the M7 review fixes (TR.2): the first version pinged after EmDash's `createScheduledHandler`, which returns at once and swallows the run's failure, so the ping proved nothing. The Worker now awaits `runScheduledTasks` from `emdash/middleware` and pings only when it returned. Corrected again in round 2 (TS.1): a publish step EmDash treats as non-fatal still let the ping go, so the ping now also waits for a check that no collection holds an entry the run had to publish.
+- [x] **T7.6 [AGENT] Scheduler heartbeat.** The ping was removed by TX.1; the hourly overdue check it waited on stays and logs. Was: At the top of the hour `src/worker.ts` pings the Worker secret `CHECKLY_HEARTBEAT_URL` (`src/lib/adapters/heartbeat.ts`). Corrected in the M7 review fixes (TR.2): the first version pinged after EmDash's `createScheduledHandler`, which returns at once and swallows the run's failure, so the ping proved nothing. The Worker now awaits `runScheduledTasks` from `emdash/middleware` and pings only when it returned. Corrected again in round 2 (TS.1): a publish step EmDash treats as non-fatal still let the ping go, so the ping now also waits for a check that no collection holds an entry the run had to publish.
   Verify: `tests/unit/adapters/heartbeat.test.ts`, `tests/unit/worker.test.ts`.
   Evidence: 7 heartbeat tests green: one ping an hour, none for a missing or non-HTTPS URL, a failed ping logged without the URL. The worker tests are under TR.2.
-- [ ] **T7.7 [HUMAN] Checkly account, API key, `checkly test` and `checkly deploy`, the heartbeat secret, alert channel.** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 2. Replaces T5.18.
-  Deps: T0.16. Verify: both checks green in Checkly against staging.
+- [x] **T7.7 [HUMAN] Checkly account and checks.** Withdrawn 2026-11-27 (TX.1): no Checkly.
 - [ ] **T7.8 [HUMAN] 48-hour soak on staging (M7 exit check).** [monitoring-setup.md](../../runbooks/monitoring-setup.md) § 3.
-  Deps: T7.3, T7.7. Verify: Checkly green for 48 hours; result link in STATUS.md.
+  Deps: T7.3. Verify: no unexplained Workers Issue for 48 hours, the scheduled entry went live on time, and the post-deploy checks pass at the start and end; result in STATUS.md.
 
 ### Caching and performance
 - [ ] **T7.9 [PATH_ASK] Route caching.** `astro.config.mjs` `cache: { provider: cacheCloudflare() }`; `cacheRoute` always sets an expiry (content an hour, clock-bound fifteen minutes, the newsletter archive five); `src/middleware.ts` opts out, after the page ran, every response for a signed-in user, a session cookie, a cookie being set or a non-GET, and marks it `private, no-store`.
@@ -696,6 +694,10 @@ An independent verifier passed 66b143c with six findings for older readers on ph
 
 ---
 
+### Cloudflare-only observability (2026-11-27, operator decision)
+- [x] **TX.1 [AGENT] Remove Axiom and Checkly.** The operator wants Cloudflare's own logging only. Removed: the OTLP `destinations` in both environments (`wrangler.jsonc`), `checkly.config.ts`, `checkly/`, the `checkly` dev dependency, `src/lib/adapters/heartbeat.ts` and its test, the `heartbeat.failed` event and the `CHECKLY_HEARTBEAT_URL` secret. Kept: Workers Logs and Traces with `redact_query_string`, the console redaction, the typed events, and the hourly overdue check, which logs `scheduler.overdue` / `scheduler.check_failed` at error level for Workers Issues. `checkly/playwright.config.ts` moved to `tests/e2e/monitor/deployed.config.ts` for post-deploy checks. `docs/observability/axiom.md` became `workers-logs.md`; monitoring-setup.md, deploy.md, incident.md, ADR-001, ADR-003 risk 4, spec and constitution (amendment 4) updated. New gap, in ADR-003 risk 4: nothing alerts if the cron stops firing or the site stops answering with no traffic.
+  Verify: `pnpm astro check`, `pnpm lint`, `pnpm test`; `CLOUDFLARE_ENV=staging pnpm astro build && pnpm exec wrangler deploy --dry-run`.
+
 ## Carried forward (tasked in full when the milestone starts)
-- [ ] **T8.0 [HUMAN] Production resources.** Create the production D1, R2 bucket (`findlay-masonic-media-production`) and KV namespace, and the Axiom dataset with OTLP destinations `axiom-production-logs` / `axiom-production-traces`; paste the IDs into `env.production` in `wrangler.jsonc`. Decide first whether the existing D1 `findlay-masonic-site` becomes production (T0.11).
+- [x] **T8.0 [HUMAN] Production resources.** Create the production D1, R2 bucket (`findlay-masonic-media-production`) and KV namespace. Done 2026-11-27 with staging's; paste the IDs into `env.production` in `wrangler.jsonc`. Decide first whether the existing D1 `findlay-masonic-site` becomes production (T0.11).
   Verify: `tests/unit/wrangler-envs.test.ts` compares the real IDs and passes; `pnpm wrangler d1 list` shows the production DB.

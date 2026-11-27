@@ -18,7 +18,7 @@ This system replaces findlaymason.org with an EmDash CMS on Cloudflare. Each bod
 - A Resend `email:deliver` transport for EmDash system email (invites, login)
 - Static pages carried over from the current navigation: Home, About Freemasonry, Scholarships, Contact Us (EmDash `pages` collection)
 - Login via passkeys plus EmDash built-in Google and/or Microsoft providers
-- Observability: Workers Logs → Axiom, Checkly monitors
+- Observability: Cloudflare Workers Logs and Traces, Workers Issues and Monitors (no third-party services; 2026-11-27)
 - Migration of current body names, numbers and any existing schedules/officers from findlaymason.org (see Open Questions for archive scope)
 
 ### Out of scope
@@ -273,7 +273,7 @@ SO THAT body numbers are correct at launch.
 
 ## Non-functional Requirements
 - **Security (constitution § Per-body access control):** all body-write authorization is enforced server-side in `content:*` hooks; hiding admin UI is never the boundary. The grant policy is a pure function with exhaustive tests covering actor × editedBy × grant × role × operation.
-- **Security (constitution § Secrets and configuration):** `RESEND_API_KEY`, OAuth secrets and Axiom tokens come from 1Password Environments → Wrangler secrets → `astro:env` server secrets; none appear in client bundles or logs.
+- **Security (constitution § Secrets and configuration):** `RESEND_API_KEY`, and OAuth secrets come from 1Password Environments → Wrangler secrets → `astro:env` server secrets; none appear in client bundles or logs.
 - **Security (constitution § Newsletter and email):** the `resend` SDK is imported only in plugin routes and the transport. Non-production sends go only to the allowlisted admin inbox.
 - **Data integrity (constitution § Per-body access control):** every body-scoped entry has a required, indexed `body` reference.
 - **Data integrity (constitution § Calendar):** recurrence is stored as RRULE + DTSTART (America/New_York) + EXDATE and never pre-expanded.
@@ -281,7 +281,7 @@ SO THAT body numbers are correct at launch.
 - **Data integrity (constitution § Data integrity and operations):** schema changes to `seed/seed.json` require human confirmation.
 - **Frontend (constitution § Frontend):** public pages ship zero client JS except explicitly justified islands. Rich text is rendered via PortableText, never `set:html`.
 - **Accessibility (human decision 2026-11-23, PLAN §2):** all public pages and plugin admin pages meet WCAG 2.1 AA; zero axe AA violations in e2e.
-- **Performance (human decision 2026-11-23, PLAN §2):** Lighthouse ≥ 90 (Performance, Accessibility, Best Practices, SEO) on public pages; P95 server time < 300 ms on cached public pages, measured via Axiom.
+- **Performance (human decision 2026-11-23, PLAN §2):** Lighthouse ≥ 90 (Performance, Accessibility, Best Practices, SEO) on public pages; P95 server time < 300 ms on cached public pages, measured with Workers Logs and Traces.
 - **Environments (human decision 2026-11-23, PLAN §2):** separate `staging` and `production` Wrangler environments, each with its own Worker, D1, R2 and KV.
 - *Constitution note:* these three NFRs come from the PLAN-phase human decisions and are recorded as constitution amendment 1 (2026-11-23).
 

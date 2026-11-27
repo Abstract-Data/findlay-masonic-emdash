@@ -9,7 +9,7 @@ const COUNT_LIMIT = 100;
  * Whether every collection has published what fell due by `cutoff`, by the test EmDash's own
  * sweep uses (`findReadyToPublish`): a `scheduled_at` at or before the time on an entry not in
  * the trash. False when anything is overdue (`scheduler.overdue`, counts only) and when the
- * check could not run (`scheduler.check_failed`), so the heartbeat fails closed.
+ * check could not run (`scheduler.check_failed`); both are logged at error level.
  */
 export async function nothingOverdue(cutoff: Date): Promise<boolean> {
 	try {

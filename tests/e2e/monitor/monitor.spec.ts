@@ -1,7 +1,8 @@
 import { expect, test } from "@playwright/test";
 
-// Synthetic monitors (M7): run against production by Checkly (checkly.config.ts) and locally
-// with `pnpm e2e --grep @monitor`. They read only what every deployment has, the seeded bodies
+// Post-deploy checks (M7): run against a deployed site with
+// `ENVIRONMENT_URL=<site> pnpm exec playwright test -c tests/e2e/monitor/deployed.config.ts`,
+// and locally with `pnpm e2e --grep @monitor`. They read only what every deployment has, the seeded bodies
 // and the routes, and write nothing, so they are safe to run against the live site.
 const MONITOR = { tag: "@monitor" } as const;
 

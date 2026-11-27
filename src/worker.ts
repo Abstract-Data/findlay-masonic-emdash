@@ -1,6 +1,5 @@
 import handler, { EmDashRoom, EmDashRoomSite, PluginBridge } from "@emdash-cms/cloudflare/worker";
 import { nothingOverdue } from "@adapters/emdash/overdue";
-import { pingHeartbeat } from "@adapters/heartbeat";
 import { log, messageOf, redactConsoleEmails } from "@adapters/log";
 import { forSharedCache } from "@adapters/site/cache";
 import cacheProvider from "@adapters/site/cache-provider";
@@ -22,14 +21,15 @@ export default {
 		return forSharedCache(request, await handler.fetch(request, env, ctx));
 	},
 	/**
-	 * The heartbeat means "nothing is overdue". EmDash's createScheduledHandler queues the run in
-	 * waitUntil and swallows its failure, and the run itself catches a failed publish sweep and
-	 * returns normally, so neither its start nor its return proves the publishing happened. Here
-	 * the run is awaited, then the ping goes only if no collection still holds an entry the run
-	 * had to publish: one due by its end, or by the end of its publish window if it ran longer
-	 * (docs/runbooks/incident.md).
+	 * EmDash's createScheduledHandler queues the run in waitUntil and swallows its failure, and the
+	 * run itself catches a failed publish sweep and returns normally, so neither its start nor its
+	 * return proves the publishing happened. Here the run is awaited, and on the run scheduled at
+	 * the top of each hour the Worker checks that no collection still holds an entry the run had
+	 * to publish: one due by its end, or by the end of its publish window if it ran longer. What is
+	 * overdue is logged at error level (`scheduler.overdue`), which Workers Issues picks up
+	 * (docs/observability/workers-logs.md, docs/runbooks/incident.md).
 	 */
-	async scheduled(controller, env) {
+	async scheduled(controller) {
 		const started = Date.now();
 		try {
 			await runScheduledTasks({
@@ -42,12 +42,7 @@ export default {
 			log({ event: "scheduler.failed", error: messageOf(error) });
 			throw error;
 		}
-		await pingHeartbeat(
-			Reflect.get(env, "CHECKLY_HEARTBEAT_URL"),
-			controller.scheduledTime,
-			async (url) => fetch(url),
-			async () =>
-				nothingOverdue(new Date(Math.min(Date.now(), started + PUBLISH_UPCOMING_WITHIN_MS))),
-		);
+		if (new Date(controller.scheduledTime).getUTCMinutes() !== 0) return;
+		await nothingOverdue(new Date(Math.min(Date.now(), started + PUBLISH_UPCOMING_WITHIN_MS)));
 	},
 } satisfies ExportedHandler<Env>;

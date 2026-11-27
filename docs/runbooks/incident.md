@@ -1,6 +1,6 @@
 # Runbook: something is wrong with the site
 
-**Who runs it:** whoever got the alert (Checkly, Axiom) or the report. Steps 1 to 3 need only read access; rolling back and changing secrets need deploy rights.
+**Who runs it:** whoever got the alert (Workers Issues, a Cloudflare Monitor) or the report. Steps 1 to 3 need only read access; rolling back and changing secrets need deploy rights.
 **Rule:** restore service first, understand it second. Write down what you did and when, as you go.
 
 ## 1. How bad is it?
@@ -12,11 +12,11 @@
 | Editors are refused writes they should be allowed | Medium | Step 2, `body_access.refused`; see [grant-changes.md](grant-changes.md) |
 | Contact or signup forms say they are not working | Medium | Step 2, `form.submitted` with `unavailable`; check Resend and Turnstile status pages |
 | A newsletter went wrong | High if it reached subscribers | Step 4 |
-| The heartbeat alert fired | Medium | Scheduled content is not going live: the cron stopped, EmDash's scheduled run throws, or entries past their time are still waiting. Step 2: the "Scheduled work" query in `axiom.md` shows `scheduler.failed`, `scheduler.overdue` or `scheduler.check_failed`. For `scheduler.overdue`, step 6. Roll back if a deploy caused it |
+| An Issue for `scheduler.failed`, `scheduler.overdue` or `scheduler.check_failed` | Medium | Scheduled content is not going live: EmDash's scheduled run throws, or entries past their time are still waiting. Step 2: the "Scheduled work" saved query in `workers-logs.md` shows which. For `scheduler.overdue`, step 6. Roll back if a deploy caused it |
 
 ## 2. Read the logs
 
-- **Axiom:** the queries in [docs/observability/axiom.md](../observability/axiom.md). Start with "Errors" for the last hour, then "P95 server time".
+- **Workers Logs:** the saved queries in [docs/observability/workers-logs.md](../observability/workers-logs.md), in the Worker's **Observability** tab. Start with "Errors" for the last hour, then the **Metrics** tab for wall time.
 - **Cloudflare, live:** `pnpm wrangler tail --env production --format pretty` streams the production Worker's logs as they happen (read-only; needs a Cloudflare login). Add `--status error` to see only failures.
 - **Cloudflare dashboard:** **Workers & Pages → findlay-masonic-emdash-production → Logs** for the last hours, with each request's logs and exceptions.
 - The site's own lines are JSON with an `event` field. They never contain message bodies, recipient addresses or secrets, so they are safe to paste into a ticket.
@@ -44,17 +44,17 @@ If a newsletter reached subscribers by mistake, do not send a correction straigh
 
 ## 5. A form is being abused
 
-The contact form takes five messages an hour from one network (an IPv6 /64 or an IPv4 address) to one body, and thirty an hour to one body from everyone; the signup form five from one network and sixty in total (`form.rate_limited` in Axiom). If that is not enough, turn on Cloudflare's WAF rate limiting for `/_emdash/api/plugins/newsletter/contact` and `/subscribe`, or set Turnstile's widget to "Managed" or "Interactive" in the Turnstile dashboard.
+The contact form takes five messages an hour from one network (an IPv6 /64 or an IPv4 address) to one body, and thirty an hour to one body from everyone; the signup form five from one network and sixty in total (`form.rate_limited` in Workers Logs). If that is not enough, turn on Cloudflare's WAF rate limiting for `/_emdash/api/plugins/newsletter/contact` and `/subscribe`, or set Turnstile's widget to "Managed" or "Interactive" in the Turnstile dashboard.
 
 ## 6. Scheduled content did not go live
 
-The hourly heartbeat goes only when no entry is still waiting past its scheduled time (`src/worker.ts`). An entry stays waiting when its publish keeps failing: a database error, or a plugin hook that throws. EmDash takes an entry a hook refuses outright back out of the schedule (it shows as a draft with the refusal in the admin), so those do not hold the heartbeat. A waiting entry does not clear itself: someone has to publish it, fix what refuses it, or unschedule it, and the heartbeat stays red until then. To list them (read-only; drop `--remote` and add `--local` against a local copy):
+Once an hour the Worker checks that no entry is still waiting past its scheduled time, and logs `scheduler.overdue` if one is (`src/worker.ts`). An entry stays waiting when its publish keeps failing: a database error, or a plugin hook that throws. EmDash takes an entry a hook refuses outright back out of the schedule (it shows as a draft with the refusal in the admin), so those are not reported. A waiting entry does not clear itself: someone has to publish it, fix what refuses it, or unschedule it, and the hourly check reports it until then. To list them (read-only; drop `--remote` and add `--local` against a local copy):
 
 ```bash
 pnpm wrangler d1 execute DB --env production --remote --command "SELECT 'news' AS collection, id, slug, status, scheduled_at FROM ec_news WHERE scheduled_at IS NOT NULL AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AND deleted_at IS NULL UNION ALL SELECT 'events', id, slug, status, scheduled_at FROM ec_events WHERE scheduled_at IS NOT NULL AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AND deleted_at IS NULL UNION ALL SELECT 'officers', id, slug, status, scheduled_at FROM ec_officers WHERE scheduled_at IS NOT NULL AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AND deleted_at IS NULL UNION ALL SELECT 'bodies', id, slug, status, scheduled_at FROM ec_bodies WHERE scheduled_at IS NOT NULL AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AND deleted_at IS NULL UNION ALL SELECT 'pages', id, slug, status, scheduled_at FROM ec_pages WHERE scheduled_at IS NOT NULL AND scheduled_at <= strftime('%Y-%m-%dT%H:%M:%fZ', 'now') AND deleted_at IS NULL"
 ```
 
-These are the five collections in `seed/seed.json`; `SELECT slug FROM _emdash_collections` lists them if one is added. A published entry can appear too, with `status` `published`: its scheduled draft is what is waiting. For each row, open the entry in the admin and publish it by hand. If that fails, the admin shows why; the `[scheduled-publish] Failed to publish <collection>/<id>` line in Axiom has the error the cron run met.
+These are the five collections in `seed/seed.json`; `SELECT slug FROM _emdash_collections` lists them if one is added. A published entry can appear too, with `status` `published`: its scheduled draft is what is waiting. For each row, open the entry in the admin and publish it by hand. If that fails, the admin shows why; the `[scheduled-publish] Failed to publish <collection>/<id>` line in Workers Logs has the error the cron run met.
 
 ## 7. Contacts
 
@@ -64,8 +64,8 @@ These are the five collections in `seed/seed.json`; `SELECT slug FROM _emdash_co
 | The site's maintainer | Code, deploys, rollbacks | `<name, phone, email>` (fill in at launch) |
 | Cloudflare | Platform outages | cloudflarestatus.com; support from the dashboard |
 | Resend | Email outages, deliverability | resend-status.com; support from the dashboard |
-| Checkly / Axiom | Monitoring itself | Their status pages |
+| Cloudflare | Hosting, logs and alerts | cloudflarestatus.com |
 
 ## 8. Afterwards
 
-Within a week, write down what happened, how it was found, what fixed it and what would have caught it sooner, and add that check (a test, an alert, a Checkly check) rather than only a note.
+Within a week, write down what happened, how it was found, what fixed it and what would have caught it sooner, and add that check (a test, an alert, a saved query) rather than only a note.

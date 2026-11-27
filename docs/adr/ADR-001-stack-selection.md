@@ -12,7 +12,7 @@ Phase 2 surfaced two platform facts that shape this decision:
 - **A Resend Broadcast carries one Topic.** A single sectioned newsletter cannot drop sections per recipient according to that recipient's topic preferences.
 
 ## Decision
-**Stack:** TypeScript 5 (strict) · Astro 7 (`output: "server"`) · EmDash 1.6 · Cloudflare Workers (Paid) + D1 + R2 + KV · pnpm 11.9 · `resend` 6.39 + `@react-email/editor` 1.8 · `rrule-temporal` 2.3 · `ical-generator` 11.1 · Vitest 5 + Playwright 1.65 · Oxlint/Oxfmt · Axiom (OTLP export) + Checkly.
+**Stack:** TypeScript 5 (strict) · Astro 7 (`output: "server"`) · EmDash 1.6 · Cloudflare Workers (Paid) + D1 + R2 + KV · pnpm 11.9 · `resend` 6.39 + `@react-email/editor` 1.8 · `rrule-temporal` 2.3 · `ical-generator` 11.1 · Vitest 5 + Playwright 1.65 · Oxlint/Oxfmt · Cloudflare Workers Logs and Traces (no third-party monitoring; amended 2026-11-27).
 
 **Primary pattern:** Routing. The `body` key is the dispatch dimension for authorization, public pages, calendars, ICS feeds and newsletter sections. Composed with **prompt chaining** for the newsletter build pipeline (fixed sequence, with a human preview gate before send).
 

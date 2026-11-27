@@ -83,9 +83,9 @@ describe("wrangler.jsonc environments (constitution amendment 1)", () => {
 	);
 
 	// Invocation logs and traces carry each request's URL, and EmDash puts preview, magic-link,
-	// invite and sign-up tokens in the query string; both go to Axiom (M7 review S4).
+	// invite and sign-up tokens in the query string; Workers Logs stores both (M7 review S4).
 	it.each(["staging", "production"])(
-		"%s keeps query strings out of the logs and traces it exports",
+		"%s keeps query strings out of the logs and traces it stores",
 		(env) => {
 			const environment: unknown = Reflect.get(Object(Reflect.get(Object(config), "env")), env);
 			const observability: unknown = Reflect.get(Object(environment), "observability");
