@@ -24,7 +24,9 @@
 
 ## Deploy
 
-From a clean checkout of `main`:
+**Staging deploys itself.** Workers Builds is attached to the staging Worker `findlay-masonic-emdash`: every push to `main` runs `pnpm astro build` with the build variable `CLOUDFLARE_ENV=staging`, then `pnpm exec wrangler deploy`. Branch builds run the same build and `wrangler deploy --dry-run` only. Settings: Cloudflare dashboard, Workers & Pages, `findlay-masonic-emdash`, Settings, Build. Watch the build there after a merge; a failed build leaves the previous version serving.
+
+**Production, and staging by hand,** from a clean checkout of `main`:
 
 ```bash
 pnpm install --frozen-lockfile

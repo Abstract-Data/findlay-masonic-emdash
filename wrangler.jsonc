@@ -1,7 +1,7 @@
 // Top level is local dev only (astro dev, wrangler --local); its IDs never
 // reach Cloudflare. Deploy with an env: CLOUDFLARE_ENV=staging pnpm astro build
 // && pnpm wrangler deploy. Environments never share D1, R2 or KV (constitution
-// amendment 1). Placeholder IDs are filled in by a human (T0.12).
+// amendment 1). Resource IDs are not secrets.
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "findlay-masonic-emdash",
@@ -30,16 +30,18 @@
 	},
 	"env": {
 		"staging": {
-			"name": "findlay-masonic-emdash-staging",
+			// Same name as the Worker that Workers Builds is attached to: it deploys
+			// staging on every merge to main (docs/runbooks/deploy.md).
+			"name": "findlay-masonic-emdash",
 			"d1_databases": [
 				{
 					"binding": "DB",
 					"database_name": "findlay-masonic-staging",
-					"database_id": "<set by human: T0.12>",
+					"database_id": "0d0aa21a-7d94-4fd4-8113-96bdb8158ec3",
 				},
 			],
 			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-staging" }],
-			"kv_namespaces": [{ "binding": "SESSION", "id": "<set by human: T0.12>" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "dcb11ba409c54932a39fc79d04b81d6c" }],
 			"durable_objects": {
 				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
 			},
@@ -82,11 +84,11 @@
 				{
 					"binding": "DB",
 					"database_name": "findlay-masonic-production",
-					"database_id": "<set by human: T0.12>",
+					"database_id": "59d5191c-9979-4645-ae22-896c529aed97",
 				},
 			],
 			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-production" }],
-			"kv_namespaces": [{ "binding": "SESSION", "id": "<set by human: T0.12>" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "d0f2f9dcc1c74d1696ab89a563fdc512" }],
 			"durable_objects": {
 				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
 			},

@@ -58,6 +58,7 @@
   Agent part done (unticked until the human approves): `CLOUDFLARE_ENV=staging pnpm astro build && pnpm wrangler deploy --dry-run` resolves staging bindings; `wrangler types` emits `SESSION: KVNamespace`. `--env staging` after a plain build resolves local bindings, so deploys use `deploy:staging`. Awaiting human approval and the D1 decision (STATUS.md).
 - [ ] **T0.12 [HUMAN] Create staging resources.** In Cloudflare: staging D1, R2 bucket and KV namespace; Axiom dataset + OTLP destinations for staging logs and traces. Paste the IDs into `wrangler.jsonc` (IDs are not secrets).
   Deps: T0.11. Verify: `pnpm wrangler d1 list` shows the staging DB; IDs are committed.
+  D1, R2 and KV created and committed 2026-11-27 (STATUS § Workers Builds); unticked until the Axiom destinations exist.
 
 ### CI and agent docs
 - [x] **T0.13 [AGENT] GitHub Actions CI.** `.github/workflows/ci.yml` from the house "GitHub Actions CI (Astro)" template: pnpm 11.9 + Node setup with cache (matrix: the engines floor 22.23.4 and latest 22) → `pnpm install --frozen-lockfile` → `astro check` → `lint` → `format:check` → `vitest run` → `astro build` → Playwright install + `e2e --grep @smoke --trace off`. No secrets required to pass.
