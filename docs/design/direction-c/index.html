@@ -1,0 +1,813 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Findlay Design Directions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,500;0,8..60,600;1,8..60,400&family=Atkinson+Hyperlegible+Next:wght@400;600;700&display=swap">
+<style>
+
+:root { color-scheme: light dark; --mk-bg: light-dark(#e9e9ec, #050506); --mk-text: light-dark(#1c1c22, #e6e6ea); --mk-muted: light-dark(#55555f, #a0a0aa); --mk-line: light-dark(#cfcfd6, #2b2b31); --mk-accent: light-dark(#a21caf, #f0abfc); }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--mk-bg); color: var(--mk-text); font: 15px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+.mk-bar { position: sticky; top: 0; z-index: 10; background: color-mix(in srgb, var(--mk-bg) 92%, transparent); backdrop-filter: blur(8px); border-bottom: 1px solid var(--mk-line); }
+.mk-bar__inner { max-width: 1240px; margin: 0 auto; padding: 10px 16px; display: flex; flex-wrap: wrap; gap: 8px 20px; align-items: center; }
+.mk-bar h1 { font-size: 15px; margin: 0; font-weight: 650; }
+.mk-tabs { display: flex; gap: 4px; flex-wrap: wrap; }
+.mk-tabs a { color: var(--mk-text); text-decoration: none; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--mk-line); font-weight: 550; }
+.mk-tabs a[aria-current="true"] { background: var(--mk-text); color: var(--mk-bg); border-color: var(--mk-text); }
+.mk-note { color: var(--mk-muted); font-size: 13px; margin: 0; }
+.mk-dir[hidden] { display: none; }
+.mk-sum { max-width: 1240px; margin: 0 auto; padding: 24px 16px 8px; }
+.mk-sum h2 { margin: 0 0 6px; font-size: 22px; }
+.mk-sum p { margin: 0 0 6px; max-width: 80ch; color: var(--mk-muted); }
+.mk-label { max-width: 1240px; margin: 0 auto; padding: 28px 16px 10px; font: 600 13px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: 0.04em; text-transform: uppercase; color: var(--mk-muted); }
+.mk-specimen { position: relative; margin-top: 1.5rem; padding: 1.9rem 0.75rem 0.75rem; border: 1.5px dashed var(--mk-accent); border-radius: 12px; }
+.mk-specimen::before { content: attr(data-label); position: absolute; top: 6px; inset-inline-start: 10px; font: 600 12px/1.3 system-ui, sans-serif; color: var(--mk-accent); }
+.site.calendar-only { padding-block: 8px; }
+
+
+.site {
+	color-scheme: light dark;
+	--color-bg: light-dark(#fafafa, #0a0a0a);
+	--color-surface: light-dark(#ffffff, #141414);
+	--color-fill: light-dark(#f2f2f2, #1f1f1f);
+	--color-fill-strong: light-dark(#e8e8e8, #2a2a2a);
+	--color-text: light-dark(#171717, #ededed);
+	--color-text-secondary: light-dark(#525252, #a3a3a3);
+	--color-muted: light-dark(#6b6b6b, #8f8f8f);
+	--color-border: light-dark(#e5e5e5, #262626);
+	--color-border-subtle: light-dark(#efefef, #1c1c1c);
+	--color-border-strong: light-dark(#d4d4d4, #3a3a3a);
+	--color-ring: light-dark(rgb(0 0 0 / 0.07), rgb(255 255 255 / 0.09));
+	--color-shadow: light-dark(rgb(0 0 0 / 0.06), rgb(0 0 0 / 0.4));
+	--color-shadow-strong: light-dark(rgb(0 0 0 / 0.12), rgb(0 0 0 / 0.6));
+	--color-brand: light-dark(#171717, #fafafa);
+	--color-brand-hover: light-dark(#404040, #d4d4d4);
+	--color-on-brand: light-dark(#ffffff, #0a0a0a);
+	--color-brand-ring: color-mix(in srgb, var(--color-brand) 15%, transparent);
+	--font-body: "Inter", sans-serif;
+	--font-mono: "JetBrains Mono", monospace;
+	--font-heading: var(--font-body);
+	--font-weight-heading: 600;
+	--font-weight-display: 600;
+	--font-size-label: 0.75rem;
+	--font-size-xs: 0.8125rem;
+	--font-size-sm: 0.875rem;
+	--font-size-base: 1rem;
+	--font-size-lg: 1.125rem;
+	--font-size-xl: 1.25rem;
+	--font-size-2xl: 1.5rem;
+	--font-size-3xl: 2rem;
+	--font-size-display: clamp(2.25rem, 1.6rem + 2.6vw, 3.5rem);
+	--leading-tight: 1.1;
+	--leading-snug: 1.3;
+	--leading-normal: 1.5;
+	--leading-relaxed: 1.7;
+	--tracking-tight: -0.035em;
+	--tracking-snug: -0.02em;
+	--tracking-wider: 0.08em;
+	--spacing-1: 0.25rem; --spacing-2: 0.5rem; --spacing-3: 0.75rem; --spacing-4: 1rem; --spacing-5: 1.25rem;
+	--spacing-6: 1.5rem; --spacing-8: 2rem; --spacing-10: 2.5rem; --spacing-12: 3rem; --spacing-16: 4rem;
+	--content-width: 680px;
+	--wide-width: 1200px;
+	--frame-margin: clamp(0.75rem, 3vw, 2rem);
+	--frame-padding: clamp(1rem, 3vw, 2rem);
+	--frame-width: min(100% - 2 * var(--frame-margin), var(--wide-width));
+	--gutter-width: 200px;
+	--meta-col-width: 180px;
+	--nav-height: 64px;
+	--radius-sm: 6px; --radius: 8px; --radius-lg: 12px; --radius-xl: 18px; --radius-full: 999px;
+	--card-padding: 6px;
+	--ease-out: cubic-bezier(0.2, 0, 0, 1);
+	--transition-fast: 150ms var(--ease-out);
+	--shadow-sm: 0 1px 2px var(--color-shadow);
+	--shadow-card: 0 0 0 1px var(--color-ring), 0 1px 2px var(--color-shadow), 0 4px 12px -4px var(--color-shadow);
+}
+.site {
+	position: relative;
+	isolation: isolate;
+	font-family: var(--font-body);
+	font-size: var(--font-size-base);
+	line-height: var(--leading-normal);
+	color: var(--color-text);
+	background: var(--color-bg);
+	-webkit-font-smoothing: antialiased;
+	overflow: hidden;
+}
+.site::before {
+	content: "";
+	position: absolute;
+	inset-block: 0;
+	inset-inline: 0;
+	z-index: -1;
+	width: var(--frame-width);
+	margin-inline: auto;
+	border-inline: 1px solid var(--color-border);
+	pointer-events: none;
+}
+.site *, .site *::before, .site *::after { box-sizing: border-box; }
+.site :is(h1, h2, h3, h4, p, ul, ol, figure, dl, dd, blockquote) { margin: 0; }
+.site :is(ul, ol) { padding: 0; }
+.site :is(h1, h2, h3, h4) {
+	font-family: var(--font-heading);
+	line-height: var(--leading-tight);
+	font-weight: var(--font-weight-heading);
+	letter-spacing: var(--tracking-snug);
+	text-wrap: balance;
+}
+.site h1 { font-weight: var(--font-weight-display); letter-spacing: var(--tracking-tight); }
+.site p { text-wrap: pretty; }
+.site a {
+	color: var(--color-brand);
+	text-decoration-line: underline;
+	text-decoration-thickness: 1px;
+	text-decoration-color: var(--color-border-strong);
+	text-underline-offset: 0.2em;
+}
+.site a:hover { text-decoration-color: currentColor; }
+.site :focus-visible { outline: 2px solid var(--color-brand); outline-offset: 2px; }
+.site .frame { width: var(--frame-width); margin-inline: auto; padding-inline: var(--frame-padding); }
+.site .band { position: relative; border-top: 1px solid var(--color-border); }
+.site .band::before, .site .band::after {
+	content: "";
+	position: absolute;
+	top: -5px;
+	width: 9px;
+	height: 9px;
+	background:
+		linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 1px 100% no-repeat,
+		linear-gradient(var(--color-border-strong), var(--color-border-strong)) center / 100% 1px no-repeat;
+}
+.site .band::before { inset-inline-start: calc((100% - var(--frame-width)) / 2 - 4px); }
+.site .band::after { inset-inline-end: calc((100% - var(--frame-width)) / 2 - 4px); }
+.site .section { padding-block: clamp(2.5rem, 1.75rem + 2.5vw, 4rem); }
+.site .intro { padding-block: clamp(3rem, 2rem + 4vw, 5.5rem) clamp(2.5rem, 1.75rem + 2.5vw, 3.5rem); }
+.site .intro__title { font-size: var(--font-size-display); line-height: 1.05; max-width: 22ch; }
+.site .intro__subtitle {
+	font-size: var(--font-size-display);
+	font-weight: var(--font-weight-display);
+	line-height: 1.05;
+	letter-spacing: var(--tracking-tight);
+	color: var(--color-muted);
+	max-width: 22ch;
+	text-wrap: balance;
+	font-family: var(--font-heading);
+}
+.site .intro__lead { margin-top: var(--spacing-5); font-size: var(--font-size-lg); color: var(--color-text-secondary); max-width: 60ch; }
+.site .eyebrow + .intro__title { margin-top: var(--spacing-4); }
+.site .eyebrow {
+	font-family: var(--font-mono);
+	font-size: var(--font-size-label);
+	font-weight: 500;
+	line-height: var(--leading-snug);
+	letter-spacing: var(--tracking-wider);
+	text-transform: uppercase;
+	color: var(--color-muted);
+}
+.site .section-head { display: flex; align-items: baseline; justify-content: space-between; gap: var(--spacing-4); margin-bottom: var(--spacing-6); flex-wrap: wrap; }
+.site .section-head__title { font-size: var(--font-size-xl); }
+.site .arrow-link { font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text-secondary); text-decoration: none; white-space: nowrap; }
+.site .arrow-link:hover { color: var(--color-text); }
+.site .chips { display: flex; flex-wrap: wrap; gap: var(--spacing-2); list-style: none; }
+.site .chip {
+	display: inline-block;
+	padding: 2px 10px;
+	border-radius: var(--radius-full);
+	background: var(--color-surface);
+	box-shadow: inset 0 0 0 1px var(--color-border);
+	font-size: var(--font-size-xs);
+	font-weight: 500;
+	line-height: 1.375rem;
+	color: var(--color-text-secondary);
+	text-decoration: none;
+	white-space: nowrap;
+}
+.site .btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--spacing-2);
+	min-height: 2.75rem;
+	padding: var(--spacing-2) var(--spacing-5);
+	border: 0;
+	border-radius: var(--radius-full);
+	background: var(--color-brand);
+	color: var(--color-on-brand);
+	font: inherit;
+	font-size: var(--font-size-sm);
+	font-weight: 500;
+	line-height: 1;
+	white-space: nowrap;
+	text-decoration: none;
+	cursor: pointer;
+}
+.site .btn:hover { background: var(--color-brand-hover); }
+.site .btn--ghost { background: var(--color-surface); color: var(--color-text); box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-sm); }
+.site .btn--ghost:hover { background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-border-strong), var(--shadow-sm); }
+.site .btn-row { display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-top: var(--spacing-8); }
+.site .card { background: var(--color-surface); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); }
+.site .muted { color: var(--color-muted); }
+.site .tnum { font-variant-numeric: tabular-nums; }
+
+.site .site-header { position: relative; border-bottom: 1px solid var(--color-border); background: color-mix(in srgb, var(--color-bg) 82%, transparent); }
+.site .site-header__inner { display: flex; align-items: center; gap: var(--spacing-6); min-height: var(--nav-height); padding-block: var(--spacing-2); }
+.site .brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; letter-spacing: -0.01em; color: var(--color-text); text-decoration: none; white-space: nowrap; }
+.site .brand__mark { display: grid; place-items: center; width: 2rem; height: 2rem; border-radius: var(--radius); background: var(--color-brand); color: var(--color-on-brand); }
+.site .site-nav ul { display: flex; flex-wrap: wrap; gap: 2px; list-style: none; }
+.site .site-nav a { display: block; padding: 6px 12px; border-radius: var(--radius-full); font-size: var(--font-size-sm); font-weight: 500; color: var(--color-text-secondary); text-decoration: none; white-space: nowrap; }
+.site .site-nav a:hover { color: var(--color-text); background: var(--color-fill); }
+.site .site-nav a[aria-current] { color: var(--color-text); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-border), var(--shadow-sm); }
+.site .site-header__actions { margin-inline-start: auto; display: flex; gap: var(--spacing-2); align-items: center; }
+.site .menu { display: none; }
+.site .menu summary {
+	list-style: none;
+	cursor: pointer;
+	min-height: 2.75rem;
+	display: inline-flex;
+	align-items: center;
+	padding: 0 var(--spacing-4);
+	border-radius: var(--radius-full);
+	box-shadow: inset 0 0 0 1px var(--color-border);
+	background: var(--color-surface);
+	font-size: var(--font-size-sm);
+	font-weight: 600;
+}
+.site .menu summary::-webkit-details-marker { display: none; }
+@media (max-width: 1180px) {
+	.site .site-nav, .site .site-header__actions .btn { display: none; }
+	.site .menu { display: block; }
+}
+.site .site-footer { border-top: 1px solid var(--color-border); padding-block: var(--spacing-10); color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.site .site-footer__inner { display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--spacing-6); }
+.site .site-footer strong { color: var(--color-text); display: block; margin-bottom: var(--spacing-1); }
+.site .site-footer ul { list-style: none; display: flex; flex-wrap: wrap; gap: var(--spacing-2) var(--spacing-5); }
+.site .site-footer a { color: inherit; }
+
+.site.dir-a {
+	--color-brand: light-dark(#1200b8, #aaa5ff);
+	--color-brand-hover: light-dark(#0d0090, #c9c6ff);
+	--color-on-brand: light-dark(#ffffff, #0a0a0a);
+	--font-size-label: 0.8125rem;
+	--font-size-xs: 0.875rem;
+	--font-size-sm: 1rem;
+	--font-size-base: 1.0625rem;
+}
+.site.dir-b {
+	--font-body: "Source Serif 4", Georgia, serif;
+	--color-bg: light-dark(#f8f5ee, #0d1322);
+	--color-surface: light-dark(#fffdf8, #141b2e);
+	--color-fill: light-dark(#f0ebdf, #1b2338);
+	--color-fill-strong: light-dark(#e6dfcf, #243050);
+	--color-text: light-dark(#1f1b16, #ece7dc);
+	--color-text-secondary: light-dark(#4a443b, #bfb8a9);
+	--color-muted: light-dark(#665d4e, #a39c8c);
+	--color-border: light-dark(#e4dccb, #262f47);
+	--color-border-subtle: light-dark(#eee8da, #1c2438);
+	--color-border-strong: light-dark(#b8963e, #8c7338);
+	--color-brand: light-dark(#1b2a5c, #e0bd66);
+	--color-brand-hover: light-dark(#2a3d7a, #ecd08c);
+	--color-on-brand: light-dark(#ffffff, #0d1322);
+	--temple-gold: light-dark(#a8862f, #e0bd66);
+	--font-heading: "Source Serif 4", Georgia, serif;
+	--font-size-base: 1.125rem;
+	--font-size-label: 0.875rem;
+	--font-size-xs: 0.9375rem;
+	--font-size-sm: 1rem;
+	--font-weight-display: 500;
+	--tracking-tight: -0.015em;
+	--tracking-snug: -0.01em;
+	--radius-xl: 10px;
+	--radius-lg: 6px;
+	--card-padding: 4px;
+}
+.site.dir-c {
+	--font-body: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", sans-serif;
+	--color-brand: light-dark(#14213d, #e6ebf5);
+	--color-brand-hover: light-dark(#24365f, #ffffff);
+	--color-on-brand: light-dark(#ffffff, #0a0a0a);
+	--body-lodge: light-dark(#1d4ed8, #8fb0ff);
+	--body-chapter: light-dark(#b91c1c, #ff9e9e);
+	--body-council: light-dark(#6d28d9, #c4abff);
+	--body-commandery: light-dark(#334155, #cbd5e1);
+	--body-oes: light-dark(#047857, #5fdcb0);
+	--body-temple: light-dark(#92400e, #f2b56b);
+	--font-size-label: 0.875rem;
+	--font-size-xs: 0.875rem;
+	--font-size-sm: 1rem;
+	--font-size-base: 1.125rem;
+}
+
+.dir-a .a-agenda { list-style: none; padding: var(--spacing-2) var(--spacing-5); }
+.dir-a .a-agenda li { display: grid; grid-template-columns: 8rem minmax(0, 1fr) auto; gap: var(--spacing-2) var(--spacing-5); align-items: baseline; padding-block: var(--spacing-4); border-top: 1px solid var(--color-border-subtle); }
+.dir-a .a-agenda li:first-child { border-top: 0; }
+.dir-a .a-date { font-family: var(--font-mono); font-size: var(--font-size-label); letter-spacing: var(--tracking-wider); text-transform: uppercase; color: var(--color-muted); }
+.dir-a .a-agenda__title { font-weight: 600; }
+.dir-a .a-agenda__title a { color: var(--color-text); text-decoration: none; }
+.dir-a .a-agenda__time { color: var(--color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.dir-a .a-agenda .chip { margin-inline-start: var(--spacing-2); vertical-align: 1px; }
+@media (max-width: 640px) {
+	.dir-a .a-agenda li { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-1); }
+	.dir-a .a-agenda .chip { margin: var(--spacing-1) 0 0; }
+	.dir-a .a-agenda__title .chip { display: table; }
+}
+.dir-a .a-bodies { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: var(--spacing-6); list-style: none; }
+.dir-a .a-body-card { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-5); padding: var(--card-padding); padding-inline-end: var(--spacing-5); align-items: center; text-decoration: none; color: inherit; }
+.dir-a .a-body-card__tile { display: grid; place-items: center; width: 104px; aspect-ratio: 1; border-radius: var(--radius-lg); background: var(--color-fill); }
+.dir-a .a-body-card h3 { font-size: var(--font-size-lg); margin-top: var(--spacing-1); }
+.dir-a .a-body-card p { margin-top: var(--spacing-2); font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dir-a .a-body-card .a-next { display: block; color: var(--color-text); font-weight: 600; }
+@media (max-width: 640px) { .dir-a .a-body-card__tile { width: 76px; } .dir-a .a-body-card__tile svg { width: 52px; height: 52px; } .dir-a .a-body-card { gap: var(--spacing-4); } }
+.dir-a .a-news { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--spacing-6); list-style: none; }
+.dir-a .a-news article { padding: var(--spacing-6); height: 100%; display: flex; flex-direction: column; gap: var(--spacing-3); }
+.dir-a .a-news h3 { font-size: var(--font-size-lg); }
+.dir-a .a-news h3 a { color: var(--color-text); text-decoration: none; }
+.dir-a .a-news p { color: var(--color-text-secondary); }
+.dir-a .a-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-2) var(--spacing-3); font-size: var(--font-size-xs); color: var(--color-muted); }
+.dir-a .a-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--spacing-10); align-items: start; }
+@media (max-width: 860px) { .dir-a .a-split { grid-template-columns: minmax(0, 1fr); } }
+.dir-a .a-issues { list-style: none; margin-top: var(--spacing-5); }
+.dir-a .a-issues li { padding-block: var(--spacing-3); border-top: 1px solid var(--color-border); }
+.dir-a .a-issues a { font-weight: 600; }
+.dir-a .a-issues p { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
+.dir-a .a-form { padding: var(--spacing-6); display: grid; gap: var(--spacing-4); }
+.dir-a label { font-weight: 500; }
+.dir-a .a-input { width: 100%; min-height: 2.75rem; padding: 0 var(--spacing-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; }
+.dir-a fieldset { border: 0; padding: 0; margin: 0; }
+.dir-a legend { font-weight: 500; margin-bottom: var(--spacing-2); }
+.dir-a .a-checks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-2) var(--spacing-4); font-size: var(--font-size-sm); }
+.dir-a .a-checks label { display: flex; gap: var(--spacing-2); align-items: center; font-weight: 400; min-height: 2rem; }
+.dir-a input[type=checkbox] { width: 1.15rem; height: 1.15rem; accent-color: var(--color-brand); }
+
+.dir-a .a-head { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-8); align-items: center; }
+.dir-a .a-head__tile { padding: var(--spacing-4); border-radius: var(--radius-xl); background: var(--color-surface); box-shadow: var(--shadow-card); }
+@media (max-width: 640px) { .dir-a .a-head { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-5); } .dir-a .a-head__tile { width: max-content; padding: var(--spacing-3); } .dir-a .a-head__tile svg { width: 72px; height: 72px; } }
+.dir-a .a-layout { display: grid; grid-template-columns: minmax(9rem, var(--meta-col-width)) minmax(0, var(--content-width)) minmax(10rem, var(--gutter-width)); justify-content: space-between; gap: var(--spacing-10) clamp(1.5rem, 1rem + 1.5vw, 2.25rem); align-items: start; }
+@media (max-width: 1100px) { .dir-a .a-layout { grid-template-columns: minmax(0, 1fr); } .dir-a .a-layout > * { max-width: var(--content-width); } }
+.dir-a .a-rail { display: grid; gap: var(--spacing-8); }
+.dir-a .a-rail h2, .dir-a .a-main h2 { margin-bottom: var(--spacing-3); }
+.dir-a .a-schedule { display: grid; gap: var(--spacing-2); }
+.dir-a .a-schedule__rule { font-size: var(--font-size-lg); font-weight: 600; line-height: var(--leading-snug); letter-spacing: var(--tracking-snug); }
+.dir-a .a-schedule__note { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dir-a .a-schedule ol { list-style: none; display: grid; gap: var(--spacing-1); margin-top: var(--spacing-2); font-size: var(--font-size-sm); font-variant-numeric: tabular-nums; }
+.dir-a .a-empty { padding: var(--spacing-4); border-radius: var(--radius-lg); border: 1px dashed var(--color-border-strong); font-size: var(--font-size-sm); color: var(--color-text-secondary); display: grid; gap: var(--spacing-2); }
+.dir-a .a-empty strong { color: var(--color-text); font-size: var(--font-size-base); line-height: var(--leading-snug); }
+.dir-a .a-main { display: grid; gap: var(--spacing-12); font-size: var(--font-size-lg); line-height: var(--leading-relaxed); }
+.dir-a .a-main h2 { font-size: var(--font-size-2xl); line-height: var(--leading-tight); }
+.dir-a .a-prose { display: grid; gap: var(--spacing-5); }
+.dir-a .a-list { list-style: none; font-size: var(--font-size-base); line-height: var(--leading-normal); }
+.dir-a .a-list li { padding-block: var(--spacing-4); border-top: 1px solid var(--color-border); display: grid; gap: var(--spacing-1); }
+.dir-a .a-list li:last-child { border-bottom: 1px solid var(--color-border); }
+.dir-a .a-list a { font-weight: 600; font-size: var(--font-size-lg); color: var(--color-text); text-decoration: none; }
+.dir-a .a-list p { color: var(--color-text-secondary); }
+.dir-a .a-officers { list-style: none; display: grid; gap: var(--spacing-3); }
+.dir-a .a-officers span { display: block; font-size: var(--font-size-xs); color: var(--color-muted); }
+.dir-a .a-officers strong { font-weight: 500; }
+
+.dir-a .a-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 1px; background: var(--color-border); border-radius: var(--radius-xl); overflow: hidden; box-shadow: var(--shadow-card); }
+.dir-a .a-week > div { background: var(--color-surface); min-height: 9rem; padding: var(--spacing-3); display: grid; align-content: start; gap: var(--spacing-2); }
+.dir-a .a-week .a-day { font-family: var(--font-mono); font-size: var(--font-size-label); text-transform: uppercase; letter-spacing: var(--tracking-wider); color: var(--color-muted); }
+.dir-a .a-week .is-today .a-day { color: var(--color-brand); font-weight: 600; }
+.dir-a .a-ev { text-decoration: none; color: var(--color-text); display: grid; gap: 2px; font-size: var(--font-size-xs); line-height: var(--leading-snug); padding: var(--spacing-2); border-radius: var(--radius); background: var(--color-fill); }
+.dir-a .a-ev b { font-weight: 600; color: var(--color-text); }
+.dir-a .a-ev .a-code { font-family: var(--font-mono); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: var(--color-text-secondary); }
+@media (max-width: 860px) {
+	.dir-a .a-week { grid-template-columns: minmax(0, 1fr); }
+	.dir-a .a-week > div { min-height: 0; grid-template-columns: 4.5rem minmax(0, 1fr); }
+	.dir-a .a-week > div > .a-ev { grid-column: 2; }
+	.dir-a .a-week > div:not(:has(.a-ev)) { display: none; }
+}
+
+
+.dir-b { font-family: var(--font-heading); font-optical-sizing: auto; }
+.dir-b .eyebrow { font-family: var(--font-heading); letter-spacing: 0.12em; font-weight: 600; }
+.dir-b .b-mast { border-bottom: 1px solid var(--color-border); }
+.dir-b .b-mast__top { display: flex; align-items: center; justify-content: center; gap: var(--spacing-4); padding-block: var(--spacing-6) var(--spacing-4); text-align: center; flex-direction: column; }
+.dir-b .b-mast__name { font-size: var(--font-size-3xl); font-weight: 600; letter-spacing: -0.01em; color: var(--color-text); text-decoration: none; line-height: 1.1; }
+.dir-b .b-mast__sub { font-size: var(--font-size-sm); color: var(--color-muted); font-style: italic; }
+.dir-b .b-mast nav { border-top: 1px solid var(--color-border); padding-block: var(--spacing-2); }
+.dir-b .b-mast nav ul { justify-content: center; }
+.dir-b .site-nav a { border-radius: 0; font-weight: 500; color: var(--color-text-secondary); padding: 8px 14px; }
+.dir-b .site-nav a[aria-current] { box-shadow: inset 0 -2px 0 var(--temple-gold); background: transparent; color: var(--color-text); }
+.dir-b .b-mast .menu { margin-top: var(--spacing-2); }
+@media (max-width: 1180px) { .dir-b .b-mast nav { display: none; } .dir-b .b-mast__top { flex-direction: row; justify-content: space-between; text-align: start; padding-block: var(--spacing-4); } .dir-b .b-mast__name { font-size: var(--font-size-xl); } .dir-b .b-mast__sub { display: none; } .dir-b .b-mast .menu { margin: 0; } .dir-b .b-mast .b-brand { display: flex; align-items: center; gap: var(--spacing-3); } .dir-b .b-mast .b-brand svg { width: 40px; height: 40px; } }
+.dir-b .b-brand { display: grid; justify-items: center; gap: var(--spacing-3); text-decoration: none; }
+.dir-b .b-rule { display: flex; align-items: center; gap: var(--spacing-4); color: var(--temple-gold); justify-content: center; margin-block: var(--spacing-5); }
+.dir-b .b-rule::before, .dir-b .b-rule::after { content: ""; height: 1px; width: 4rem; background: currentColor; }
+.dir-b .b-intro { text-align: center; padding-block: clamp(2.5rem, 2rem + 3vw, 4.5rem) var(--spacing-10); }
+.dir-b .b-intro h1 { font-size: var(--font-size-display); line-height: 1.08; max-width: 20ch; margin-inline: auto; }
+.dir-b .b-intro p { font-size: var(--font-size-lg); color: var(--color-text-secondary); max-width: 52ch; margin-inline: auto; }
+.dir-b .b-intro .btn-row { justify-content: center; margin-top: var(--spacing-6); }
+.dir-b .b-figure { padding: var(--card-padding); }
+.dir-b .b-figure svg { display: block; width: 100%; height: auto; aspect-ratio: 16 / 5; border-radius: var(--radius-lg); }
+.dir-b .b-figure figcaption { padding: var(--spacing-3) var(--spacing-4) var(--spacing-2); font-size: var(--font-size-sm); color: var(--color-muted); font-style: italic; }
+@media (max-width: 640px) { .dir-b .b-figure svg { aspect-ratio: 4 / 3; } }
+.dir-b h2.b-h { font-size: var(--font-size-3xl); text-align: center; }
+.dir-b .b-sub { text-align: center; color: var(--color-text-secondary); margin-top: var(--spacing-2); margin-bottom: var(--spacing-8); }
+.dir-b .b-table { width: 100%; border-collapse: collapse; background: var(--color-surface); box-shadow: var(--shadow-card); border-radius: var(--radius-xl); overflow: hidden; border-top: 3px solid var(--temple-gold); }
+.dir-b .b-table th, .dir-b .b-table td { text-align: start; padding: var(--spacing-4) var(--spacing-5); border-bottom: 1px solid var(--color-border-subtle); vertical-align: middle; }
+.dir-b .b-table thead th { font-size: var(--font-size-label); text-transform: uppercase; letter-spacing: 0.12em; color: var(--color-muted); font-weight: 600; background: var(--color-fill); }
+.dir-b .b-table tbody th { font-weight: 600; }
+.dir-b .b-table tbody th a { color: var(--color-text); text-decoration: none; display: flex; align-items: center; gap: var(--spacing-3); }
+.dir-b .b-table tbody th small { display: block; font-weight: 400; color: var(--color-muted); font-size: var(--font-size-xs); font-style: italic; }
+.dir-b .b-table .b-next { font-weight: 600; white-space: nowrap; }
+.dir-b .b-table .b-none { color: var(--color-text-secondary); font-style: italic; }
+@media (max-width: 760px) {
+	.dir-b .b-table thead { display: none; }
+	.dir-b .b-table, .dir-b .b-table tbody, .dir-b .b-table tr, .dir-b .b-table th, .dir-b .b-table td { display: block; }
+	.dir-b .b-table tr { padding: var(--spacing-4) var(--spacing-4); border-bottom: 1px solid var(--color-border); }
+	.dir-b .b-table th, .dir-b .b-table td { padding: 0; border: 0; }
+	.dir-b .b-table td { padding-inline-start: calc(40px + var(--spacing-3)); margin-top: var(--spacing-1); }
+}
+.dir-b .b-two { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr); gap: var(--spacing-12); align-items: start; }
+@media (max-width: 960px) { .dir-b .b-two { grid-template-columns: minmax(0, 1fr); } }
+.dir-b .b-news { list-style: none; }
+.dir-b .b-news li { padding-block: var(--spacing-5); border-top: 1px solid var(--color-border); display: grid; gap: var(--spacing-2); }
+.dir-b .b-news h3 { font-size: var(--font-size-2xl); font-weight: 600; }
+.dir-b .b-news h3 a { color: var(--color-text); text-decoration: none; }
+.dir-b .b-news p { color: var(--color-text-secondary); }
+.dir-b .b-by { font-size: var(--font-size-xs); color: var(--color-muted); display: flex; gap: var(--spacing-2); align-items: center; flex-wrap: wrap; }
+.dir-b .b-by strong { color: var(--color-text-secondary); font-variant-caps: all-small-caps; letter-spacing: 0.06em; font-size: 1.05em; }
+.dir-b .b-h3 { font-size: var(--font-size-xl); margin-bottom: var(--spacing-4); }
+.dir-b .b-panel { padding: var(--spacing-6); display: grid; gap: var(--spacing-4); border-top: 3px solid var(--temple-gold); }
+.dir-b .b-issues { list-style: none; display: grid; gap: var(--spacing-3); }
+.dir-b .b-issues a { font-weight: 600; font-size: var(--font-size-lg); }
+.dir-b .b-issues span { display: block; font-size: var(--font-size-xs); color: var(--color-muted); }
+.dir-b .b-input { width: 100%; min-height: 2.75rem; padding: 0 var(--spacing-4); border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; }
+.dir-b .b-ask { text-align: center; max-width: 40rem; margin-inline: auto; }
+.dir-b .b-ask p { font-size: var(--font-size-lg); color: var(--color-text-secondary); margin-top: var(--spacing-3); }
+.dir-b .b-ask .b-motto { font-style: italic; color: var(--color-text); font-size: var(--font-size-2xl); margin-top: 0; }
+
+.dir-b .b-medal { display: inline-grid; place-items: center; padding: 10px; border-radius: 50%; box-shadow: 0 0 0 2px var(--temple-gold), 0 0 0 8px var(--color-surface), 0 0 0 9px var(--color-border); background: var(--color-surface); margin-bottom: var(--spacing-6); }
+.dir-b .b-bodyhead .eyebrow { display: block; margin-bottom: var(--spacing-3); }
+.dir-b .b-bodylayout { display: grid; grid-template-columns: minmax(0, 680px) minmax(0, 340px); gap: var(--spacing-12); justify-content: space-between; align-items: start; }
+@media (max-width: 1000px) { .dir-b .b-bodylayout { grid-template-columns: minmax(0, 1fr); } }
+.dir-b .b-plaque { padding: var(--spacing-8); text-align: center; border-top: 3px solid var(--temple-gold); display: grid; gap: var(--spacing-2); }
+.dir-b .b-plaque__rule { font-size: var(--font-size-3xl); font-weight: 600; line-height: 1.15; }
+.dir-b .b-plaque__note { color: var(--color-text-secondary); font-style: italic; }
+.dir-b .b-plaque ol { list-style: none; display: flex; flex-wrap: wrap; justify-content: center; gap: var(--spacing-2) var(--spacing-6); margin-top: var(--spacing-3); font-variant-numeric: tabular-nums; }
+.dir-b .b-plaque--empty { border-top-color: var(--color-border-strong); background: transparent; box-shadow: inset 0 0 0 1px var(--color-border); }
+.dir-b .b-prose { display: grid; gap: var(--spacing-5); font-size: var(--font-size-lg); line-height: var(--leading-relaxed); margin-top: var(--spacing-10); }
+.dir-b .b-roster { list-style: none; }
+.dir-b .b-roster li { display: flex; align-items: baseline; gap: var(--spacing-2); padding-block: var(--spacing-2); }
+.dir-b .b-roster li::after { content: ""; order: 1; flex: 1; border-bottom: 1px dotted var(--color-border-strong); translate: 0 -0.3em; }
+.dir-b .b-roster span { color: var(--color-text-secondary); font-style: italic; }
+.dir-b .b-roster strong { order: 2; font-weight: 600; text-align: end; }
+.dir-b .b-events { list-style: none; display: grid; gap: var(--spacing-4); }
+.dir-b .b-events li { display: grid; grid-template-columns: 3.5rem minmax(0, 1fr); gap: var(--spacing-4); align-items: start; }
+.dir-b .b-cal { text-align: center; border: 1px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); line-height: 1.1; padding-block: 4px; }
+.dir-b .b-cal span { display: block; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--color-muted); }
+.dir-b .b-cal b { font-size: var(--font-size-xl); }
+.dir-b .b-events a { color: var(--color-text); font-weight: 600; text-decoration: none; }
+.dir-b .b-events small { display: block; color: var(--color-muted); font-size: var(--font-size-xs); }
+.dir-b .b-aside { display: grid; gap: var(--spacing-10); }
+
+.dir-b .b-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); border-top: 3px solid var(--temple-gold); background: var(--color-surface); box-shadow: var(--shadow-card); border-radius: var(--radius-xl); overflow: hidden; }
+.dir-b .b-week > div { min-height: 9.5rem; padding: var(--spacing-3); border-inline-start: 1px solid var(--color-border-subtle); display: grid; align-content: start; gap: var(--spacing-2); }
+.dir-b .b-week > div:first-child { border-inline-start: 0; }
+.dir-b .b-week .b-day { font-size: var(--font-size-label); font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--color-muted); }
+.dir-b .b-week .is-today { background: var(--color-fill); }
+.dir-b .b-ev { display: grid; grid-template-columns: 22px minmax(0, 1fr); gap: 2px var(--spacing-2); font-size: var(--font-size-xs); line-height: var(--leading-snug); color: var(--color-text); text-decoration: none; }
+.dir-b .b-ev svg { grid-row: span 3; }
+.dir-b .b-ev em { color: var(--color-text-secondary); font-size: 0.875rem; }
+@media (max-width: 860px) {
+	.dir-b .b-week { grid-template-columns: minmax(0, 1fr); }
+	.dir-b .b-week > div { min-height: 0; border-inline-start: 0; border-top: 1px solid var(--color-border-subtle); grid-template-columns: 4.5rem minmax(0, 1fr); }
+	.dir-b .b-week > div > .b-ev { grid-column: 2; }
+	.dir-b .b-week > div:not(:has(.b-ev)) { display: none; }
+}
+
+
+.dir-c { --on-body: light-dark(#ffffff, #0a0a0a); }
+.dir-c .eyebrow { font-family: var(--font-body); text-transform: none; letter-spacing: 0; font-weight: 700; font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dir-c :is(h1, h2, h3) { letter-spacing: -0.01em; font-weight: 700; }
+.dir-c .c-tag { display: inline-flex; align-items: center; gap: 6px; font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text); }
+.dir-c .c-tag::before { content: ""; width: 0.75rem; height: 0.75rem; border-radius: 3px; background: var(--c); flex-shrink: 0; }
+.dir-c .c-lead { padding-block: var(--spacing-10) var(--spacing-12); }
+.dir-c .c-lead__head { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: var(--spacing-4); margin-bottom: var(--spacing-6); }
+.dir-c .c-lead h1 { font-size: clamp(2rem, 1.5rem + 2vw, 3rem); }
+.dir-c .c-lead__dates { font-size: var(--font-size-lg); color: var(--color-text-secondary); margin-top: var(--spacing-2); }
+.dir-c .c-filter { border: 0; margin: 0 0 var(--spacing-5); padding: 0; display: flex; flex-wrap: wrap; gap: var(--spacing-2); align-items: center; }
+.dir-c .c-filter legend { float: left; margin-inline-end: var(--spacing-3); font-weight: 700; font-size: var(--font-size-sm); }
+.dir-c .c-filter label { display: inline-flex; align-items: center; gap: var(--spacing-2); min-height: 2.75rem; padding: 0 var(--spacing-4) 0 var(--spacing-3); border-radius: var(--radius-full); background: var(--color-surface); box-shadow: inset 0 0 0 1px var(--color-border-strong); font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; }
+.dir-c .c-filter input { width: 1.15rem; height: 1.15rem; accent-color: var(--c); margin: 0; }
+.dir-c .c-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--spacing-2); list-style: none; }
+.dir-c .c-day { background: var(--color-surface); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); padding: var(--spacing-3); min-height: 13rem; display: grid; align-content: start; gap: var(--spacing-3); }
+.dir-c .c-day__h { display: flex; align-items: baseline; gap: var(--spacing-2); font-weight: 700; }
+.dir-c .c-day__h b { font-size: var(--font-size-2xl); line-height: 1; }
+.dir-c .c-day__h span { color: var(--color-text-secondary); }
+.dir-c .c-day.is-today { box-shadow: inset 0 0 0 2px var(--color-brand), var(--shadow-card); }
+.dir-c .c-day.is-today .c-day__h::after { content: "Today"; margin-inline-start: auto; font-size: var(--font-size-label); background: var(--color-brand); color: var(--color-on-brand); padding: 2px 8px; border-radius: var(--radius-full); }
+.dir-c .c-ev { display: grid; gap: 2px; padding: var(--spacing-2) var(--spacing-3); border-radius: var(--radius); background: color-mix(in srgb, var(--c) 12%, var(--color-surface)); border-inline-start: 4px solid var(--c); color: var(--color-text); text-decoration: none; font-size: var(--font-size-sm); line-height: var(--leading-snug); }
+.dir-c .c-ev b { font-weight: 700; }
+.dir-c .c-ev .c-ev__body { font-size: var(--font-size-xs); font-weight: 700; color: var(--color-text); }
+.dir-c .c-ev .c-ev__time { font-variant-numeric: tabular-nums; color: var(--color-text-secondary); }
+.dir-c .c-none { color: var(--color-muted); font-size: var(--font-size-sm); }
+@media (max-width: 1000px) {
+	.dir-c .c-week { grid-template-columns: minmax(0, 1fr); }
+	.dir-c .c-day { min-height: 0; grid-template-columns: 4.5rem minmax(0, 1fr); align-items: start; }
+	.dir-c .c-day__h { flex-direction: column; gap: 0; grid-row: 1 / span 2; }
+	.dir-c .c-day { row-gap: var(--spacing-2); }
+	.dir-c .c-day.is-today .c-day__h::after { margin: var(--spacing-1) 0 0; }
+	.dir-c .c-day > :not(.c-day__h) { grid-column: 2; }
+}
+.dir-c .c-meet { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr)); gap: var(--spacing-4); list-style: none; }
+.dir-c .c-meet a { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: var(--spacing-4); align-items: center; padding: var(--spacing-4); border-top: 4px solid var(--c); color: var(--color-text); text-decoration: none; height: 100%; border-radius: var(--radius-lg); }
+.dir-c .c-meet h3 { font-size: var(--font-size-lg); }
+.dir-c .c-meet p { font-size: var(--font-size-sm); color: var(--color-text-secondary); }
+.dir-c .c-tile { display: grid; place-items: center; text-align: center; min-width: 4.25rem; padding: var(--spacing-2); border-radius: var(--radius); background: var(--c); color: var(--on-body); line-height: 1.1; font-weight: 700; }
+.dir-c .c-tile small { font-size: var(--font-size-label); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+.dir-c .c-tile b { font-size: var(--font-size-2xl); }
+.dir-c .c-tile--none { background: var(--color-fill); color: var(--color-text-secondary); font-size: var(--font-size-label); font-weight: 600; }
+.dir-c .c-notes { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr)); gap: var(--spacing-6); list-style: none; }
+.dir-c .c-notes article { padding: var(--spacing-6); display: grid; gap: var(--spacing-3); border-top: 4px solid var(--c); height: 100%; align-content: start; border-radius: var(--radius-lg); }
+.dir-c .c-notes h3 { font-size: var(--font-size-xl); }
+.dir-c .c-notes h3 a { color: var(--color-text); text-decoration: none; }
+.dir-c .c-notes p { color: var(--color-text-secondary); }
+.dir-c .c-notes time { font-size: var(--font-size-xs); color: var(--color-muted); }
+.dir-c .c-split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--spacing-6); }
+@media (max-width: 860px) { .dir-c .c-split { grid-template-columns: minmax(0, 1fr); } }
+.dir-c .c-box { padding: var(--spacing-8); display: grid; gap: var(--spacing-4); align-content: start; border-radius: var(--radius-lg); }
+.dir-c .c-box h2 { font-size: var(--font-size-2xl); }
+.dir-c .c-box p { color: var(--color-text-secondary); }
+.dir-c .c-input { width: 100%; min-height: 3rem; padding: 0 var(--spacing-4); border: 2px solid var(--color-border-strong); border-radius: var(--radius); background: var(--color-surface); color: var(--color-text); font: inherit; }
+
+.dir-c .c-bodyhead { padding-block: var(--spacing-10); border-top: 8px solid var(--c); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-6); align-items: center; }
+.dir-c .c-bodyhead h1 { font-size: clamp(2rem, 1.5rem + 2vw, 3rem); }
+.dir-c .c-bodyhead p { color: var(--color-text-secondary); font-size: var(--font-size-lg); margin-top: var(--spacing-2); }
+@media (max-width: 640px) { .dir-c .c-bodyhead { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-4); } .dir-c .c-bodyhead svg { width: 72px; height: 72px; } }
+.dir-c .c-next { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-6); padding: var(--spacing-6); align-items: center; border-radius: var(--radius-lg); }
+.dir-c .c-next .c-tile { min-width: 6.5rem; padding: var(--spacing-3); }
+.dir-c .c-next .c-tile b { font-size: var(--font-size-3xl); }
+.dir-c .c-next h2 { font-size: var(--font-size-2xl); }
+.dir-c .c-next__rule { font-size: var(--font-size-lg); font-weight: 700; margin-top: var(--spacing-3); }
+.dir-c .c-next__note { color: var(--color-text-secondary); }
+.dir-c .c-next .btn-row { margin-top: var(--spacing-4); }
+@media (max-width: 640px) { .dir-c .c-empty { grid-template-columns: minmax(0, 1fr); } .dir-c .c-empty .c-tile { justify-self: start; } .dir-c .c-next { grid-template-columns: minmax(0, 1fr); } .dir-c .c-next .c-tile { justify-self: start; } }
+.dir-c .c-empty { padding: var(--spacing-6); border-radius: var(--radius-lg); border: 2px dashed var(--color-border-strong); display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--spacing-5); align-items: center; }
+.dir-c .c-empty strong { font-size: var(--font-size-lg); display: block; }
+.dir-c .c-bodylayout { display: grid; grid-template-columns: minmax(0, 1.7fr) minmax(0, 1fr); gap: var(--spacing-10); align-items: start; }
+@media (max-width: 1000px) { .dir-c .c-bodylayout { grid-template-columns: minmax(0, 1fr); } }
+.dir-c .c-month { width: 100%; border-collapse: separate; border-spacing: 4px; table-layout: fixed; }
+.dir-c .c-month th { font-size: var(--font-size-xs); color: var(--color-text-secondary); font-weight: 700; text-align: start; padding: 0 var(--spacing-2); }
+.dir-c .c-month td { vertical-align: top; height: 6.5rem; padding: var(--spacing-2); background: var(--color-surface); border-radius: var(--radius); box-shadow: inset 0 0 0 1px var(--color-border); font-size: var(--font-size-xs); }
+.dir-c .c-month td.out { background: transparent; color: var(--color-muted); }
+.dir-c .c-month td > span { font-weight: 700; display: block; margin-bottom: 4px; }
+.dir-c .c-month .c-ev { font-size: 0.875rem; padding: 4px 6px; }
+.dir-c .c-agenda { display: none; list-style: none; }
+@media (max-width: 760px) { .dir-c .c-month { display: none; } .dir-c .c-agenda { display: grid; gap: var(--spacing-2); } }
+.dir-c .c-officers { list-style: none; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--spacing-4) var(--spacing-5); }
+.dir-c .c-officers span { display: block; font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+.dir-c .c-officers strong { font-weight: 700; }
+.dir-c .c-side { display: grid; gap: var(--spacing-10); }
+.dir-c .c-side h2, .dir-c .c-main h2 { font-size: var(--font-size-xl); margin-bottom: var(--spacing-4); }
+.dir-c .c-main { display: grid; gap: var(--spacing-12); }
+.dir-c .c-prose { display: grid; gap: var(--spacing-4); font-size: var(--font-size-lg); line-height: var(--leading-relaxed); }
+.dir-c .c-newslist { list-style: none; display: grid; gap: var(--spacing-5); }
+.dir-c .c-newslist a { font-weight: 700; font-size: var(--font-size-lg); color: var(--color-text); }
+.dir-c .c-newslist time { display: block; font-size: var(--font-size-xs); color: var(--color-muted); }
+
+</style>
+</head>
+<body>
+<header class="mk-bar"><div class="mk-bar__inner">
+<h1>Findlay Masonic Bodies · M4 design directions</h1>
+<nav class="mk-tabs" aria-label="Directions"><a href="#a" data-dir="a">A. Framed Lodge</a><a href="#b" data-dir="b">B. Temple</a><a href="#c" data-dir="c">C. Noticeboard</a></nav>
+<p class="mk-note">Sample content. Emblems and the building photo are stand-ins. Dashed magenta boxes show alternate states.</p>
+</div></header>
+<section class="mk-dir" id="a" aria-label="A. Framed Lodge">
+<div class="mk-sum"><h2>A. Framed Lodge</h2><p>The template as it ships, with the 2023 site's royal blue (#1200B8) in <code>--color-brand</code> and a larger type scale for older readers. Inter and JetBrains Mono, hairline rails, white cards.</p><p>Body identity on the calendar is a text label ("Lodge 227"), never a colour. The single-accent rule holds unchanged.</p></div>
+<p class="mk-label">Home page · /</p>
+<div class="site dir-a" id="a-home"><header class="site-header"><div class="frame site-header__inner">
+<a class="brand" href="#"><span class="brand__mark"><svg width="20" height="20" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M32 8 L13 50 M32 8 L51 50" stroke-width="6"/><path d="M14 38 L32 56 L50 38" stroke-width="7"/></g></svg></span>Findlay Masonic Bodies</a>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#">Bodies</a></li><li><a href="#">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+<div class="site-header__actions"><a class="btn" href="#">Email signup</a><details class="menu"><summary>Menu</summary></details></div>
+</div></header>
+<main>
+<section class="band"><div class="frame intro">
+	<p class="eyebrow">Findlay Masonic Complex · Findlay, Ohio</p>
+	<h1 class="intro__title">Findlay Masonic Bodies</h1>
+	<p class="intro__subtitle">Six bodies. One Temple.</p>
+	<p class="intro__lead">Meeting times, officers, news and the Temple calendar for Findlay Lodge No. 227 and the five bodies that share its building.</p>
+	<div class="btn-row"><a class="btn" href="#">See the Temple calendar</a><a class="btn btn--ghost" href="#">Becoming a Mason</a></div>
+</div></section>
+<section class="band"><div class="frame section">
+	<div class="section-head"><h2 class="section-head__title">This week at the Temple</h2><a class="arrow-link" href="#">Full calendar →</a></div>
+	<ol class="a-agenda card"><li><span class="a-date">Mon Nov 23</span><span class="a-agenda__title"><a href="#">Stated conclave</a><span class="chip">Commandery 49</span></span><span class="a-agenda__time">7:30 PM</span></li><li><span class="a-date">Tue Nov 24</span><span class="a-agenda__title"><a href="#">Fellowcraft degree rehearsal</a><span class="chip">Lodge 227</span></span><span class="a-agenda__time">7:00 PM</span></li><li><span class="a-date">Wed Nov 25</span><span class="a-agenda__title"><a href="#">Royal Arch degree practice</a><span class="chip">Chapter 58</span></span><span class="a-agenda__time">7:00 PM</span></li><li><span class="a-date">Thu Nov 26</span><span class="a-agenda__title"><a href="#">Temple closed for Thanksgiving</a><span class="chip">Temple Board</span></span><span class="a-agenda__time">All day</span></li><li><span class="a-date">Sat Nov 28</span><span class="a-agenda__title"><a href="#">Holiday bake sale</a><span class="chip">OES 23</span></span><span class="a-agenda__time">9:00 AM</span></li></ol>
+</div></section>
+<section class="band"><div class="frame section">
+	<div class="section-head"><h2 class="section-head__title">The bodies</h2><a class="arrow-link" href="#">All bodies →</a></div>
+	<ul class="a-bodies"><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg></span><span><span class="eyebrow">Blue Lodge</span><h3>Findlay Lodge No. 227</h3><p>Next meeting <span class="a-next">Tue, Dec 8, 7:30 PM</span></p></span></a></li><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Chapter No. 58 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#b91c1c" stroke-width="3"/><path d="M32 10 L54 48 L10 48 Z" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/><g fill="#b91c1c"><rect x="23" y="23" width="18" height="3.5"/><rect x="30.25" y="23" width="3.5" height="12"/><rect x="24" y="33" width="3.5" height="11"/><rect x="36.5" y="33" width="3.5" height="11"/><rect x="24" y="36" width="16" height="3"/></g></svg></span><span><span class="eyebrow">Royal Arch Masons</span><h3>Findlay Chapter No. 58</h3><p>Next meeting <span class="a-next">Thu, Dec 3, 7:30 PM</span></p></span></a></li><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Council No. 50 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#6d28d9" stroke-width="3"/><path d="M32 11 L53 47 L11 47 Z" fill="#6d28d9"/><path d="M32 21 L38 32 L32 40 L26 32 Z" fill="#ffffff"/><rect x="31" y="40" width="2" height="5" fill="#ffffff"/></svg></span><span><span class="eyebrow">Cryptic Masons</span><h3>Findlay Council No. 50</h3><p>Next meeting <span class="a-next">Thu, Dec 17, 7:30 PM</span></p></span></a></li><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Commandery No. 49 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><g fill="#111827"><polygon points="26,9 38,9 34.5,27 29.5,27"/><polygon points="26,55 38,55 34.5,37 29.5,37"/><polygon points="9,26 9,38 27,34.5 27,29.5"/><polygon points="55,26 55,38 37,34.5 37,29.5"/><rect x="27" y="27" width="10" height="10"/></g><g fill="#dc2626"><rect x="30.5" y="18" width="3" height="28"/><rect x="18" y="30.5" width="28" height="3"/></g></svg></span><span><span class="eyebrow">Knights Templar</span><h3>Findlay Commandery No. 49</h3><p>Next meeting <span class="a-next">Tonight, 7:30 PM</span></p></span></a></li><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Eastern Star Chapter No. 23 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><polygon points="37.9,41.1 32.0,58.0 26.1,41.1 32.0,33.0" fill="#e8e8e8" stroke="#1f2937" stroke-width="1"/><polygon points="26.1,41.1 8.2,40.7 22.5,29.9 32.0,33.0" fill="#15803d" stroke="#1f2937" stroke-width="1"/><polygon points="22.5,29.9 17.3,12.8 32.0,23.0 32.0,33.0" fill="#b91c1c" stroke="#1f2937" stroke-width="1"/><polygon points="32.0,23.0 46.7,12.8 41.5,29.9 32.0,33.0" fill="#1d4ed8" stroke="#1f2937" stroke-width="1"/><polygon points="41.5,29.9 55.8,40.7 37.9,41.1 32.0,33.0" fill="#eab308" stroke="#1f2937" stroke-width="1"/></svg></span><span><span class="eyebrow">Order of the Eastern Star</span><h3>Eastern Star Chapter No. 23</h3><p>Next meeting <span class="a-next">Mon, Dec 7, 7:00 PM</span></p></span></a></li><li><a class="a-body-card card" href="#"><span class="a-body-card__tile"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Temple Board emblem"><circle cx="32" cy="32" r="30" fill="#fffaf0" stroke="#92400e" stroke-width="3"/><g fill="#92400e"><path d="M14 27 L32 15 L50 27 Z"/><rect x="14" y="44" width="36" height="4"/><rect x="17" y="29" width="4" height="14"/><rect x="25" y="29" width="4" height="14"/><rect x="35" y="29" width="4" height="14"/><rect x="43" y="29" width="4" height="14"/></g></svg></span><span><span class="eyebrow">Building and grounds</span><h3>Findlay Temple Board</h3><p>Contact the secretary for meeting times</p></span></a></li></ul>
+</div></section>
+<section class="band"><div class="frame section">
+	<div class="section-head"><h2 class="section-head__title">Latest news</h2><a class="arrow-link" href="#">All news →</a></div>
+	<ul class="a-news"><li><article class="card"><div class="a-meta"><span class="chip">Lodge 227</span><time>Nov 18, 2026</time></div><h3><a href="#">Election of 2027 officers on December 8</a></h3><p>Members vote for next year's officers at the December stated meeting. Dinner is at 6:30 PM and the lodge opens at 7:30.</p></article></li><li><article class="card"><div class="a-meta"><span class="chip">OES 23</span><time>Nov 16, 2026</time></div><h3><a href="#">Holiday bake sale this Saturday</a></h3><p>Pies, cookies and candy in the dining room from 9:00 AM until they run out. Proceeds go to the chapter's scholarship fund.</p></article></li><li><article class="card"><div class="a-meta"><span class="chip">Temple Board</span><time>Nov 12, 2026</time></div><h3><a href="#">Building closed on Thanksgiving Day</a></h3><p>The Temple is closed Thursday, November 26. Saturday's bake sale goes ahead as planned.</p></article></li></ul>
+</div></section>
+<section class="band"><div class="frame section a-split">
+	<div><p class="eyebrow">Quarterly newsletter</p><h2 class="section-head__title" style="margin-top:var(--spacing-3)">News from every body, four times a year</h2>
+	<ul class="a-issues"><li><a href="#">Autumn 2026</a> <span class="muted">· Sent Oct 1, 2026</span><p>Fall degree work, the scholarship winners and the new parking lot.</p></li><li><a href="#">Summer 2026</a> <span class="muted">· Sent Jul 1, 2026</span><p>The Temple Board's roof report and the July 4th float.</p></li><li><a href="#">Spring 2026</a> <span class="muted">· Sent Apr 1, 2026</span><p>Installation of officers for every body.</p></li></ul></div>
+	<form class="a-form card" onsubmit="return false"><label for="a-email">Email address</label><input class="a-input" id="a-email" type="email" autocomplete="email" placeholder="you@example.com">
+	<fieldset><legend>Also tell me about</legend><div class="a-checks"><label><input type="checkbox" checked> Lodge 227</label><label><input type="checkbox" checked> Chapter 58</label><label><input type="checkbox" checked> Council 50</label><label><input type="checkbox" checked> Commandery 49</label><label><input type="checkbox" checked> OES 23</label><label><input type="checkbox" checked> Temple Board</label></div></fieldset>
+	<button class="btn" type="submit">Subscribe</button></form>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+<p class="mk-label">Body page · /bodies/findlay-lodge-227</p>
+<div class="site dir-a" id="a-body"><header class="site-header"><div class="frame site-header__inner">
+<a class="brand" href="#"><span class="brand__mark"><svg width="20" height="20" viewBox="0 0 64 64" aria-hidden="true"><g fill="none" stroke="currentColor" stroke-linecap="round"><path d="M32 8 L13 50 M32 8 L51 50" stroke-width="6"/><path d="M14 38 L32 56 L50 38" stroke-width="7"/></g></svg></span>Findlay Masonic Bodies</a>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#" aria-current="page">Bodies</a></li><li><a href="#">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+<div class="site-header__actions"><a class="btn" href="#">Email signup</a><details class="menu"><summary>Menu</summary></details></div>
+</div></header>
+<main>
+<section class="band"><div class="frame intro a-head">
+	<div class="a-head__tile"><svg class="emblem" width="112" height="112" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg></div>
+	<div><p class="eyebrow">Bodies / Blue Lodge</p><h1 class="intro__title">Findlay Lodge No. 227</h1><p class="intro__lead">Free & Accepted Masons. The first lodge every Findlay Mason joins.</p></div>
+</div></section>
+<section class="band"><div class="frame section a-layout">
+	<aside class="a-rail" aria-label="Meetings">
+		<div class="a-schedule"><h2 class="eyebrow">Stated meetings</h2><p class="a-schedule__rule">2nd Tuesday of each month, 7:30 PM</p><p class="a-schedule__note">Dinner is served at 6:30 PM before each stated meeting.</p>
+		<ol><li>Tue, Dec 8, 7:30 PM</li><li>Tue, Jan 12, 7:30 PM</li><li>Tue, Feb 9, 7:30 PM</li></ol><a class="arrow-link" href="#">Add to my calendar →</a></div>
+		<div class="mk-specimen" data-label="No stated meeting set"><div class="a-schedule"><h2 class="eyebrow">Stated meetings</h2><div class="a-empty"><strong>Contact the secretary for meeting times</strong><a href="#">Contact the secretary</a></div></div></div>
+	</aside>
+	<div class="a-main">
+		<div class="a-prose"><p>Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Complex. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason, and every member of the other bodies in this building began in a Blue Lodge.</p><p>We meet on the second Tuesday of each month and share dinner first. The rest of the year goes to degree work, the pancake breakfasts and the lodge's scholarship for Hancock County students.</p></div>
+		<section><h2>Coming up</h2><ul class="a-list"><li><span class="a-date">Tue Nov 24 · 7:00 PM</span><a href="#">Fellowcraft degree rehearsal</a></li><li><span class="a-date">Sat Dec 5 · 7:00 AM</span><a href="#">Pancake breakfast, open to families and neighbors</a></li><li><span class="a-date">Tue Dec 8 · 7:30 PM</span><a href="#">Stated meeting and election of 2027 officers</a></li><li><span class="a-date">Tue Dec 15 · 7:00 PM</span><a href="#">Master Mason degree</a></li></ul></section>
+		<section><h2>News</h2><ul class="a-list"><li><time class="a-date">Nov 18, 2026</time><a href="#">Election of 2027 officers on December 8</a><p>Members vote for next year's officers at the December stated meeting. Dinner is at 6:30 PM and the lodge opens at 7:30.</p></li><li><time class="a-date">Nov 4, 2026</time><a href="#">Pancake breakfast returns December 5</a><p>Pancakes and sausage from 7:00 to 11:00 AM in the dining room. Families and neighbors are welcome.</p></li><li><time class="a-date">Oct 14, 2026</time><a href="#">Two brothers raised to Master Mason</a><p>The lodge raised two brothers at a called meeting in October. Refreshments followed in the dining room.</p></li></ul><p style="margin-top:var(--spacing-4)"><a class="arrow-link" href="#">All lodge news →</a></p></section>
+	</div>
+	<aside class="a-rail" aria-label="Officers">
+		<div><h2 class="eyebrow">Officers 2026</h2><ul class="a-officers"><li><span>Worshipful Master</span><strong>Drew DeVore</strong></li><li><span>Senior Warden</span><strong>Mark Ellison</strong></li><li><span>Junior Warden</span><strong>Tom Hartman</strong></li><li><span>Treasurer</span><strong>Gary Wolfe</strong></li><li><span>Secretary</span><strong>Dennis Kramer</strong></li><li><span>Senior Deacon</span><strong>Brian Oster</strong></li><li><span>Junior Deacon</span><strong>Kyle Brandt</strong></li><li><span>Chaplain</span><strong>Paul Ames</strong></li><li><span>Tiler</span><strong>Jim Sutter</strong></li></ul></div>
+		<a class="btn btn--ghost" href="#">Contact the lodge</a>
+	</aside>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+<p class="mk-label">Calendar treatment · /calendar, one week of the month grid</p><div class="site dir-a calendar-only" id="a-cal"><div class="frame section">
+<div class="section-head"><h2 class="section-head__title">November 2026 · week of the 23rd</h2><span class="muted">Text labels, no colour</span></div>
+<div class="a-week"><div class="is-today"><span class="a-day">Mon 23 · Today</span><a class="a-ev" href="#"><span class="a-code">Commandery 49</span><b>Stated conclave</b><span>7:30 PM</span></a></div><div class=""><span class="a-day">Tue 24</span><a class="a-ev" href="#"><span class="a-code">Lodge 227</span><b>Fellowcraft degree rehearsal</b><span>7:00 PM</span></a></div><div class=""><span class="a-day">Wed 25</span><a class="a-ev" href="#"><span class="a-code">Chapter 58</span><b>Royal Arch degree practice</b><span>7:00 PM</span></a></div><div class=""><span class="a-day">Thu 26</span><a class="a-ev" href="#"><span class="a-code">Temple Board</span><b>Temple closed for Thanksgiving</b><span>All day</span></a></div><div class=""><span class="a-day">Fri 27</span></div><div class=""><span class="a-day">Sat 28</span><a class="a-ev" href="#"><span class="a-code">OES 23</span><b>Holiday bake sale</b><span>9:00 AM – 1:00 PM</span></a></div><div class=""><span class="a-day">Sun 29</span></div></div>
+</div></div>
+</section>
+<section class="mk-dir" id="b" aria-label="B. Temple">
+<div class="mk-sum"><h2>B. Temple</h2><p>A warmer, traditional direction: Source Serif 4 at 18px, navy brand with gold ornament on an ivory canvas, centred masthead, and the building photograph used once on the home page, with no overlay and no text on it.</p><p>Body identity on the calendar comes from each body's own emblem, which already carries its traditional colour. The UI adds no per-body colours; gold is ornament only.</p></div>
+<p class="mk-label">Home page · /</p>
+<div class="site dir-b" id="b-home"><header class="b-mast"><div class="frame">
+<div class="b-mast__top"><a class="b-brand" href="#"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><span class="b-mast__name">Findlay Masonic Bodies</span></a><span class="b-mast__sub">Findlay Masonic Complex · Findlay, Ohio</span><details class="menu"><summary>Menu</summary></details></div>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#">Bodies</a></li><li><a href="#">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+</div></header>
+<main>
+<section class="band"><div class="frame b-intro">
+	<h1>Six Masonic bodies under one roof</h1><span class="b-rule" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 10 10"><path d="M5 0 L6.2 3.8 L10 5 L6.2 6.2 L5 10 L3.8 6.2 L0 5 L3.8 3.8 Z" fill="currentColor"/></svg></span>
+	<p>Meeting times, officers, news and the Temple calendar for Findlay Lodge No. 227 and the five bodies that share its building.</p>
+	<div class="btn-row"><a class="btn" href="#">See the Temple calendar</a><a class="btn btn--ghost" href="#">About Freemasonry</a></div>
+</div>
+<div class="frame" style="padding-bottom:var(--spacing-12)"><figure class="b-figure card"><svg class="photo" viewBox="0 0 1200 450" role="img" aria-label="Placeholder for the photograph of the Findlay Masonic Complex exterior" preserveAspectRatio="xMidYMid slice">
+<defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#9cc3e6"/><stop offset="1" stop-color="#dfeaf3"/></linearGradient>
+<pattern id="blocks" width="60" height="24" patternUnits="userSpaceOnUse"><rect width="60" height="24" fill="#cdb78f"/><path d="M0 23.5 H60 M30 0 V12 M0 12 H60 M0 12 V24 M60 12 V24" stroke="#b49c72" stroke-width="1"/></pattern></defs>
+<rect width="1200" height="450" fill="url(#sky)"/>
+<rect x="120" y="70" width="960" height="300" fill="url(#blocks)"/>
+<rect x="120" y="62" width="960" height="14" fill="#a8916a"/>
+<text x="600" y="160" text-anchor="middle" font-family="Georgia,serif" font-size="38" letter-spacing="8" fill="#4b3b22">FINDLAY MASONIC COMPLEX</text>
+<rect x="545" y="230" width="110" height="140" fill="#5b4a33"/><rect x="552" y="238" width="96" height="132" fill="#3b3024"/>
+<g fill="#2f2a24"><rect x="420" y="215" width="6" height="155"/><rect x="774" y="215" width="6" height="155"/></g>
+<g fill="#f5e7b5" stroke="#2f2a24" stroke-width="3"><rect x="410" y="190" width="26" height="30" rx="3"/><rect x="764" y="190" width="26" height="30" rx="3"/></g>
+<rect x="0" y="360" width="1200" height="90" fill="#6f9a4a"/>
+<g fill="#3f6b2c"><rect x="120" y="330" width="380" height="40" rx="18"/><rect x="700" y="330" width="380" height="40" rx="18"/></g>
+<rect x="475" y="52" rx="6" width="250" height="34" fill="rgb(0 0 0 / 0.55)"/><text x="600" y="75" text-anchor="middle" font-family="system-ui,sans-serif" font-size="17" fill="#ffffff">Photograph placeholder</text>
+</svg><figcaption>The Findlay Masonic Complex, home of all six bodies.</figcaption></figure></div></section>
+<section class="band"><div class="frame section">
+	<h2 class="b-h">Stated meetings</h2><p class="b-sub">Every body meets in the Temple. Visiting members of every order are welcome.</p>
+	<table class="b-table"><thead><tr><th scope="col">Body</th><th scope="col">Meets</th><th scope="col">Next</th></tr></thead><tbody>
+	<tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><span>Findlay Lodge No. 227<small>Blue Lodge</small></span></a></th><td>2nd Tuesday of each month, 7:30 PM</td><td class="b-next">Tue, Dec 8</td></tr><tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Findlay Chapter No. 58 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#b91c1c" stroke-width="3"/><path d="M32 10 L54 48 L10 48 Z" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/><g fill="#b91c1c"><rect x="23" y="23" width="18" height="3.5"/><rect x="30.25" y="23" width="3.5" height="12"/><rect x="24" y="33" width="3.5" height="11"/><rect x="36.5" y="33" width="3.5" height="11"/><rect x="24" y="36" width="16" height="3"/></g></svg><span>Findlay Chapter No. 58<small>Royal Arch Masons</small></span></a></th><td>1st Thursday of each month, 7:30 PM</td><td class="b-next">Thu, Dec 3</td></tr><tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Findlay Council No. 50 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#6d28d9" stroke-width="3"/><path d="M32 11 L53 47 L11 47 Z" fill="#6d28d9"/><path d="M32 21 L38 32 L32 40 L26 32 Z" fill="#ffffff"/><rect x="31" y="40" width="2" height="5" fill="#ffffff"/></svg><span>Findlay Council No. 50<small>Cryptic Masons</small></span></a></th><td>3rd Thursday of each month, 7:30 PM</td><td class="b-next">Thu, Dec 17</td></tr><tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Findlay Commandery No. 49 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><g fill="#111827"><polygon points="26,9 38,9 34.5,27 29.5,27"/><polygon points="26,55 38,55 34.5,37 29.5,37"/><polygon points="9,26 9,38 27,34.5 27,29.5"/><polygon points="55,26 55,38 37,34.5 37,29.5"/><rect x="27" y="27" width="10" height="10"/></g><g fill="#dc2626"><rect x="30.5" y="18" width="3" height="28"/><rect x="18" y="30.5" width="28" height="3"/></g></svg><span>Findlay Commandery No. 49<small>Knights Templar</small></span></a></th><td>4th Monday of each month, 7:30 PM</td><td class="b-next">Tonight, 7:30 PM</td></tr><tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Eastern Star Chapter No. 23 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><polygon points="37.9,41.1 32.0,58.0 26.1,41.1 32.0,33.0" fill="#e8e8e8" stroke="#1f2937" stroke-width="1"/><polygon points="26.1,41.1 8.2,40.7 22.5,29.9 32.0,33.0" fill="#15803d" stroke="#1f2937" stroke-width="1"/><polygon points="22.5,29.9 17.3,12.8 32.0,23.0 32.0,33.0" fill="#b91c1c" stroke="#1f2937" stroke-width="1"/><polygon points="32.0,23.0 46.7,12.8 41.5,29.9 32.0,33.0" fill="#1d4ed8" stroke="#1f2937" stroke-width="1"/><polygon points="41.5,29.9 55.8,40.7 37.9,41.1 32.0,33.0" fill="#eab308" stroke="#1f2937" stroke-width="1"/></svg><span>Eastern Star Chapter No. 23<small>Order of the Eastern Star</small></span></a></th><td>1st and 3rd Monday of each month, 7:00 PM</td><td class="b-next">Mon, Dec 7</td></tr><tr><th scope="row"><a href="#"><svg class="emblem" width="40" height="40" viewBox="0 0 64 64" role="img" aria-label="Findlay Temple Board emblem"><circle cx="32" cy="32" r="30" fill="#fffaf0" stroke="#92400e" stroke-width="3"/><g fill="#92400e"><path d="M14 27 L32 15 L50 27 Z"/><rect x="14" y="44" width="36" height="4"/><rect x="17" y="29" width="4" height="14"/><rect x="25" y="29" width="4" height="14"/><rect x="35" y="29" width="4" height="14"/><rect x="43" y="29" width="4" height="14"/></g></svg><span>Findlay Temple Board<small>Building and grounds</small></span></a></th><td colspan="2" class="b-none">Contact the secretary for meeting times</td></tr>
+	</tbody></table>
+</div></section>
+<section class="band"><div class="frame section b-two">
+	<div><h2 class="b-h3">News from the bodies</h2><ul class="b-news"><li><div class="b-by"><strong>Findlay Lodge No. 227</strong><span>·</span><time>Nov 18, 2026</time></div><h3><a href="#">Election of 2027 officers on December 8</a></h3><p>Members vote for next year's officers at the December stated meeting. Dinner is at 6:30 PM and the lodge opens at 7:30.</p></li><li><div class="b-by"><strong>Eastern Star Chapter No. 23</strong><span>·</span><time>Nov 16, 2026</time></div><h3><a href="#">Holiday bake sale this Saturday</a></h3><p>Pies, cookies and candy in the dining room from 9:00 AM until they run out. Proceeds go to the chapter's scholarship fund.</p></li><li><div class="b-by"><strong>Findlay Temple Board</strong><span>·</span><time>Nov 12, 2026</time></div><h3><a href="#">Building closed on Thanksgiving Day</a></h3><p>The Temple is closed Thursday, November 26. Saturday's bake sale goes ahead as planned.</p></li><li><div class="b-by"><strong>Findlay Lodge No. 227</strong><span>·</span><time>Nov 4, 2026</time></div><h3><a href="#">Pancake breakfast returns December 5</a></h3><p>Pancakes and sausage from 7:00 to 11:00 AM in the dining room. Families and neighbors are welcome.</p></li></ul></div>
+	<aside class="card b-panel"><h2 class="b-h3" style="margin:0">The quarterly newsletter</h2><ul class="b-issues"><li><a href="#">Autumn 2026</a><span>Sent Oct 1, 2026</span></li><li><a href="#">Summer 2026</a><span>Sent Jul 1, 2026</span></li><li><a href="#">Spring 2026</a><span>Sent Apr 1, 2026</span></li></ul>
+	<form onsubmit="return false" style="display:grid;gap:var(--spacing-3)"><label for="b-email">Receive the next issue by email</label><input class="b-input" id="b-email" type="email" autocomplete="email" placeholder="you@example.com"><button class="btn" type="submit">Subscribe</button></form></aside>
+</div></section>
+<section class="band"><div class="frame section b-ask">
+	<p class="b-motto">“To be one, ask one.”</p>
+	<p>Freemasonry is open to good men of every faith who believe in a Supreme Being. If you would like to know more, ask a Mason you know or write to the lodge secretary.</p>
+	<div class="btn-row" style="justify-content:center"><a class="btn btn--ghost" href="#">How to become a Mason</a></div>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+<p class="mk-label">Body page · /bodies/findlay-lodge-227</p>
+<div class="site dir-b" id="b-body"><header class="b-mast"><div class="frame">
+<div class="b-mast__top"><a class="b-brand" href="#"><svg class="emblem" width="64" height="64" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><span class="b-mast__name">Findlay Masonic Bodies</span></a><span class="b-mast__sub">Findlay Masonic Complex · Findlay, Ohio</span><details class="menu"><summary>Menu</summary></details></div>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#" aria-current="page">Bodies</a></li><li><a href="#">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+</div></header>
+<main>
+<section class="band"><div class="frame b-intro b-bodyhead">
+	<span class="b-medal"><svg class="emblem" width="112" height="112" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg></span>
+	<span class="eyebrow">Blue Lodge · Free & Accepted Masons</span>
+	<h1>Findlay Lodge No. 227</h1><span class="b-rule" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 10 10"><path d="M5 0 L6.2 3.8 L10 5 L6.2 6.2 L5 10 L3.8 6.2 L0 5 L3.8 3.8 Z" fill="currentColor"/></svg></span>
+	<p>The lodge where every Findlay Mason begins.</p>
+</div></section>
+<section class="band"><div class="frame section b-bodylayout">
+	<div>
+		<div class="card b-plaque"><span class="eyebrow">Stated meetings</span><p class="b-plaque__rule">2nd Tuesday of each month<br>7:30 PM</p><p class="b-plaque__note">Dinner is served at 6:30 PM before each stated meeting.</p>
+		<ol><li>Tue, Dec 8</li><li>Tue, Jan 12</li><li>Tue, Feb 9</li></ol><p><a href="#">Add these meetings to my calendar</a></p></div>
+		<div class="mk-specimen" data-label="When a body has no stated meeting"><div class="b-plaque b-plaque--empty" style="border-radius:var(--radius-xl)"><span class="eyebrow">Stated meetings</span><p class="b-plaque__rule" style="font-size:var(--font-size-2xl)">Contact the secretary for meeting times</p><p><a href="#">Write to the secretary</a></p></div></div>
+		<div class="b-prose"><p>Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Complex. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason, and every member of the other bodies in this building began in a Blue Lodge.</p><p>We meet on the second Tuesday of each month and share dinner first. The rest of the year goes to degree work, the pancake breakfasts and the lodge's scholarship for Hancock County students.</p></div>
+		<h2 class="b-h3" style="margin-top:var(--spacing-12)">Lodge news</h2>
+		<ul class="b-news"><li><div class="b-by"><time>Nov 18, 2026</time></div><h3><a href="#">Election of 2027 officers on December 8</a></h3><p>Members vote for next year's officers at the December stated meeting. Dinner is at 6:30 PM and the lodge opens at 7:30.</p></li><li><div class="b-by"><time>Nov 4, 2026</time></div><h3><a href="#">Pancake breakfast returns December 5</a></h3><p>Pancakes and sausage from 7:00 to 11:00 AM in the dining room. Families and neighbors are welcome.</p></li><li><div class="b-by"><time>Oct 14, 2026</time></div><h3><a href="#">Two brothers raised to Master Mason</a></h3><p>The lodge raised two brothers at a called meeting in October. Refreshments followed in the dining room.</p></li></ul>
+	</div>
+	<aside class="b-aside">
+		<div><h2 class="b-h3">Officers for 2026</h2><ul class="b-roster"><li><span>Worshipful Master</span><strong>Drew DeVore</strong></li><li><span>Senior Warden</span><strong>Mark Ellison</strong></li><li><span>Junior Warden</span><strong>Tom Hartman</strong></li><li><span>Treasurer</span><strong>Gary Wolfe</strong></li><li><span>Secretary</span><strong>Dennis Kramer</strong></li><li><span>Senior Deacon</span><strong>Brian Oster</strong></li><li><span>Junior Deacon</span><strong>Kyle Brandt</strong></li><li><span>Chaplain</span><strong>Paul Ames</strong></li><li><span>Tiler</span><strong>Jim Sutter</strong></li></ul></div>
+		<div><h2 class="b-h3">Coming up</h2><ul class="b-events"><li><span class="b-cal"><span>Nov</span><b>24</b></span><span><a href="#">Fellowcraft degree rehearsal</a><small>Tue · 7:00 PM</small></span></li><li><span class="b-cal"><span>Dec</span><b>5</b></span><span><a href="#">Pancake breakfast, open to families and neighbors</a><small>Sat · 7:00 AM</small></span></li><li><span class="b-cal"><span>Dec</span><b>8</b></span><span><a href="#">Stated meeting and election of 2027 officers</a><small>Tue · 7:30 PM</small></span></li><li><span class="b-cal"><span>Dec</span><b>15</b></span><span><a href="#">Master Mason degree</a><small>Tue · 7:00 PM</small></span></li></ul></div>
+		<a class="btn btn--ghost" href="#">Write to the lodge</a>
+	</aside>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+<p class="mk-label">Calendar treatment · /calendar, one week of the month grid</p><div class="site dir-b calendar-only" id="b-cal"><div class="frame section">
+<div class="section-head"><h2 class="section-head__title">November 2026 · week of the 23rd</h2><span class="muted">Each body's own emblem carries its colour</span></div>
+<div class="b-week"><div class="is-today"><span class="b-day">Mon 23 · Today</span><a class="b-ev" href="#"><svg class="emblem" width="22" height="22" viewBox="0 0 64 64" role="img" aria-label="Findlay Commandery No. 49 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><g fill="#111827"><polygon points="26,9 38,9 34.5,27 29.5,27"/><polygon points="26,55 38,55 34.5,37 29.5,37"/><polygon points="9,26 9,38 27,34.5 27,29.5"/><polygon points="55,26 55,38 37,34.5 37,29.5"/><rect x="27" y="27" width="10" height="10"/></g><g fill="#dc2626"><rect x="30.5" y="18" width="3" height="28"/><rect x="18" y="30.5" width="28" height="3"/></g></svg><b>Stated conclave</b><em>Commandery 49</em><span>7:30 PM</span></a></div><div class=""><span class="b-day">Tue 24</span><a class="b-ev" href="#"><svg class="emblem" width="22" height="22" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><b>Fellowcraft degree rehearsal</b><em>Lodge 227</em><span>7:00 PM</span></a></div><div class=""><span class="b-day">Wed 25</span><a class="b-ev" href="#"><svg class="emblem" width="22" height="22" viewBox="0 0 64 64" role="img" aria-label="Findlay Chapter No. 58 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#b91c1c" stroke-width="3"/><path d="M32 10 L54 48 L10 48 Z" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/><g fill="#b91c1c"><rect x="23" y="23" width="18" height="3.5"/><rect x="30.25" y="23" width="3.5" height="12"/><rect x="24" y="33" width="3.5" height="11"/><rect x="36.5" y="33" width="3.5" height="11"/><rect x="24" y="36" width="16" height="3"/></g></svg><b>Royal Arch degree practice</b><em>Chapter 58</em><span>7:00 PM</span></a></div><div class=""><span class="b-day">Thu 26</span><a class="b-ev" href="#"><svg class="emblem" width="22" height="22" viewBox="0 0 64 64" role="img" aria-label="Findlay Temple Board emblem"><circle cx="32" cy="32" r="30" fill="#fffaf0" stroke="#92400e" stroke-width="3"/><g fill="#92400e"><path d="M14 27 L32 15 L50 27 Z"/><rect x="14" y="44" width="36" height="4"/><rect x="17" y="29" width="4" height="14"/><rect x="25" y="29" width="4" height="14"/><rect x="35" y="29" width="4" height="14"/><rect x="43" y="29" width="4" height="14"/></g></svg><b>Temple closed for Thanksgiving</b><em>Temple Board</em><span>All day</span></a></div><div class=""><span class="b-day">Fri 27</span></div><div class=""><span class="b-day">Sat 28</span><a class="b-ev" href="#"><svg class="emblem" width="22" height="22" viewBox="0 0 64 64" role="img" aria-label="Eastern Star Chapter No. 23 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><polygon points="37.9,41.1 32.0,58.0 26.1,41.1 32.0,33.0" fill="#e8e8e8" stroke="#1f2937" stroke-width="1"/><polygon points="26.1,41.1 8.2,40.7 22.5,29.9 32.0,33.0" fill="#15803d" stroke="#1f2937" stroke-width="1"/><polygon points="22.5,29.9 17.3,12.8 32.0,23.0 32.0,33.0" fill="#b91c1c" stroke="#1f2937" stroke-width="1"/><polygon points="32.0,23.0 46.7,12.8 41.5,29.9 32.0,33.0" fill="#1d4ed8" stroke="#1f2937" stroke-width="1"/><polygon points="41.5,29.9 55.8,40.7 37.9,41.1 32.0,33.0" fill="#eab308" stroke="#1f2937" stroke-width="1"/></svg><b>Holiday bake sale</b><em>OES 23</em><span>9:00 AM – 1:00 PM</span></a></div><div class=""><span class="b-day">Sun 29</span></div></div>
+</div></div>
+</section>
+<section class="mk-dir" id="c" aria-label="C. Noticeboard">
+<div class="mk-sum"><h2>C. Noticeboard</h2><p>Calendar first: the home page opens on this week at the Temple, and each body page opens on its next meeting. Atkinson Hyperlegible Next at 18px, sentence-case labels, neutral ink brand.</p><p>The single-accent rule bends for body identity only: six per-body colours appear as a swatch, bar or date tile, always next to the body's name, on calendar entries, meeting cards and body pages. Nothing else on the site is coloured.</p></div>
+<p class="mk-label">Home page · /</p>
+<div class="site dir-c" id="c-home"><header class="site-header"><div class="frame site-header__inner">
+<a class="brand" href="#"><svg class="emblem" width="32" height="32" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg>Findlay Masonic Bodies</a>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#">Bodies</a></li><li><a href="#" aria-current="page">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+<div class="site-header__actions"><details class="menu"><summary>Menu</summary></details></div>
+</div></header>
+<main>
+<section class="band"><div class="frame c-lead">
+	<div class="c-lead__head"><div><h1>This week at the Temple</h1><p class="c-lead__dates">Monday, November 23 to Sunday, November 29, 2026</p></div>
+	<div class="btn-row" style="margin:0"><a class="btn btn--ghost" href="#">← Last week</a><a class="btn btn--ghost" href="#">Next week →</a></div></div>
+	<form onsubmit="return false"><fieldset class="c-filter"><legend>Show</legend><label style="--c: var(--body-lodge)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-lodge)">Lodge 227</span></label><label style="--c: var(--body-chapter)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-chapter)">Chapter 58</span></label><label style="--c: var(--body-council)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-council)">Council 50</span></label><label style="--c: var(--body-commandery)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-commandery)">Commandery 49</span></label><label style="--c: var(--body-oes)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-oes)">OES 23</span></label><label style="--c: var(--body-temple)"><input type="checkbox" checked><span class="c-tag" style="--c: var(--body-temple)">Temple Board</span></label></fieldset></form>
+	<ol class="c-week"><li class="c-day is-today"><div class="c-day__h"><b>23</b><span>Mon</span></div><a class="c-ev" href="#" style="--c: var(--body-commandery)"><b>Stated conclave</b><span class="c-ev__time">7:30 PM</span></a></li><li class="c-day"><div class="c-day__h"><b>24</b><span>Tue</span></div><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Fellowcraft degree rehearsal</b><span class="c-ev__time">7:00 PM</span></a></li><li class="c-day"><div class="c-day__h"><b>25</b><span>Wed</span></div><a class="c-ev" href="#" style="--c: var(--body-chapter)"><b>Royal Arch degree practice</b><span class="c-ev__time">7:00 PM</span></a></li><li class="c-day"><div class="c-day__h"><b>26</b><span>Thu</span></div><a class="c-ev" href="#" style="--c: var(--body-temple)"><b>Temple closed for Thanksgiving</b><span class="c-ev__time">All day</span></a></li><li class="c-day"><div class="c-day__h"><b>27</b><span>Fri</span></div><p class="c-none">Nothing scheduled</p></li><li class="c-day"><div class="c-day__h"><b>28</b><span>Sat</span></div><a class="c-ev" href="#" style="--c: var(--body-oes)"><b>Holiday bake sale</b><span class="c-ev__time">9:00 AM – 1:00 PM</span></a></li><li class="c-day"><div class="c-day__h"><b>29</b><span>Sun</span></div><p class="c-none">Nothing scheduled</p></li></ol>
+	<div class="btn-row"><a class="btn" href="#">Month view</a><a class="btn btn--ghost" href="#">Add the Temple calendar to my phone</a></div>
+</div></section>
+<section class="band"><div class="frame section">
+	<div class="section-head"><h2 class="section-head__title">Next stated meetings</h2><a class="arrow-link" href="#">All six bodies →</a></div>
+	<ul class="c-meet"><li style="--c: var(--body-lodge)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><span><h3>Findlay Lodge No. 227</h3><p>2nd Tuesday of each month, 7:30 PM</p></span><span class="c-tile"><small>Tue</small><b>Dec 8</b></span></a></li><li style="--c: var(--body-chapter)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Findlay Chapter No. 58 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#b91c1c" stroke-width="3"/><path d="M32 10 L54 48 L10 48 Z" fill="none" stroke="#b91c1c" stroke-width="2.5" stroke-linejoin="round"/><g fill="#b91c1c"><rect x="23" y="23" width="18" height="3.5"/><rect x="30.25" y="23" width="3.5" height="12"/><rect x="24" y="33" width="3.5" height="11"/><rect x="36.5" y="33" width="3.5" height="11"/><rect x="24" y="36" width="16" height="3"/></g></svg><span><h3>Findlay Chapter No. 58</h3><p>1st Thursday of each month, 7:30 PM</p></span><span class="c-tile"><small>Thu</small><b>Dec 3</b></span></a></li><li style="--c: var(--body-council)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Findlay Council No. 50 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#6d28d9" stroke-width="3"/><path d="M32 11 L53 47 L11 47 Z" fill="#6d28d9"/><path d="M32 21 L38 32 L32 40 L26 32 Z" fill="#ffffff"/><rect x="31" y="40" width="2" height="5" fill="#ffffff"/></svg><span><h3>Findlay Council No. 50</h3><p>3rd Thursday of each month, 7:30 PM</p></span><span class="c-tile"><small>Thu</small><b>Dec 17</b></span></a></li><li style="--c: var(--body-commandery)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Findlay Commandery No. 49 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><g fill="#111827"><polygon points="26,9 38,9 34.5,27 29.5,27"/><polygon points="26,55 38,55 34.5,37 29.5,37"/><polygon points="9,26 9,38 27,34.5 27,29.5"/><polygon points="55,26 55,38 37,34.5 37,29.5"/><rect x="27" y="27" width="10" height="10"/></g><g fill="#dc2626"><rect x="30.5" y="18" width="3" height="28"/><rect x="18" y="30.5" width="28" height="3"/></g></svg><span><h3>Findlay Commandery No. 49</h3><p>4th Monday of each month, 7:30 PM</p></span><span class="c-tile"><small>Mon 23</small><b>Today</b></span></a></li><li style="--c: var(--body-oes)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Eastern Star Chapter No. 23 emblem"><circle cx="32" cy="32" r="30" fill="#ffffff" stroke="#1f2937" stroke-width="3"/><polygon points="37.9,41.1 32.0,58.0 26.1,41.1 32.0,33.0" fill="#e8e8e8" stroke="#1f2937" stroke-width="1"/><polygon points="26.1,41.1 8.2,40.7 22.5,29.9 32.0,33.0" fill="#15803d" stroke="#1f2937" stroke-width="1"/><polygon points="22.5,29.9 17.3,12.8 32.0,23.0 32.0,33.0" fill="#b91c1c" stroke="#1f2937" stroke-width="1"/><polygon points="32.0,23.0 46.7,12.8 41.5,29.9 32.0,33.0" fill="#1d4ed8" stroke="#1f2937" stroke-width="1"/><polygon points="41.5,29.9 55.8,40.7 37.9,41.1 32.0,33.0" fill="#eab308" stroke="#1f2937" stroke-width="1"/></svg><span><h3>Eastern Star Chapter No. 23</h3><p>1st and 3rd Monday of each month, 7:00 PM</p></span><span class="c-tile"><small>Mon</small><b>Dec 7</b></span></a></li><li style="--c: var(--body-temple)"><a class="card" href="#"><svg class="emblem" width="48" height="48" viewBox="0 0 64 64" role="img" aria-label="Findlay Temple Board emblem"><circle cx="32" cy="32" r="30" fill="#fffaf0" stroke="#92400e" stroke-width="3"/><g fill="#92400e"><path d="M14 27 L32 15 L50 27 Z"/><rect x="14" y="44" width="36" height="4"/><rect x="17" y="29" width="4" height="14"/><rect x="25" y="29" width="4" height="14"/><rect x="35" y="29" width="4" height="14"/><rect x="43" y="29" width="4" height="14"/></g></svg><span><h3>Findlay Temple Board</h3><p>Contact the secretary for meeting times</p></span><span class="c-tile c-tile--none">No set<br>date</span></a></li></ul>
+</div></section>
+<section class="band"><div class="frame section">
+	<div class="section-head"><h2 class="section-head__title">Notices</h2><a class="arrow-link" href="#">All news →</a></div>
+	<ul class="c-notes"><li style="--c: var(--body-lodge)"><article class="card"><span class="c-tag" style="--c: var(--body-lodge)">Lodge 227</span><h3><a href="#">Election of 2027 officers on December 8</a></h3><p>Members vote for next year's officers at the December stated meeting. Dinner is at 6:30 PM and the lodge opens at 7:30.</p><time>Nov 18, 2026</time></article></li><li style="--c: var(--body-oes)"><article class="card"><span class="c-tag" style="--c: var(--body-oes)">OES 23</span><h3><a href="#">Holiday bake sale this Saturday</a></h3><p>Pies, cookies and candy in the dining room from 9:00 AM until they run out. Proceeds go to the chapter's scholarship fund.</p><time>Nov 16, 2026</time></article></li><li style="--c: var(--body-temple)"><article class="card"><span class="c-tag" style="--c: var(--body-temple)">Temple Board</span><h3><a href="#">Building closed on Thanksgiving Day</a></h3><p>The Temple is closed Thursday, November 26. Saturday's bake sale goes ahead as planned.</p><time>Nov 12, 2026</time></article></li></ul>
+</div></section>
+<section class="band"><div class="frame section c-split">
+	<form class="card c-box" onsubmit="return false"><h2>Get the quarterly newsletter</h2><p>One email each season with news from all six bodies. The Autumn 2026 issue is <a href="#">in the archive</a>.</p><label for="c-email" style="font-weight:700">Email address</label><input class="c-input" id="c-email" type="email" autocomplete="email" placeholder="you@example.com"><button class="btn" type="submit">Subscribe</button></form>
+	<div class="card c-box"><h2>Thinking of joining?</h2><p>Every Mason in this building started by asking one. Write to Findlay Lodge No. 227 and the secretary will arrange a time to meet.</p><a class="btn btn--ghost" href="#" style="justify-self:start">Write to the lodge</a></div>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+<p class="mk-label">Body page · /bodies/findlay-lodge-227</p>
+<div class="site dir-c" id="c-body"><header class="site-header"><div class="frame site-header__inner">
+<a class="brand" href="#"><svg class="emblem" width="32" height="32" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg>Findlay Masonic Bodies</a>
+<nav class="site-nav" aria-label="Main"><ul><li><a href="#" aria-current="page">Bodies</a></li><li><a href="#">Calendar</a></li><li><a href="#">News</a></li><li><a href="#">Newsletters</a></li><li><a href="#">About</a></li><li><a href="#">Scholarships</a></li><li><a href="#">Contact</a></li></ul></nav>
+<div class="site-header__actions"><details class="menu"><summary>Menu</summary></details></div>
+</div></header>
+<main>
+<section class="band"><div class="frame"><div class="c-bodyhead" style="--c: var(--body-lodge)"><svg class="emblem" width="96" height="96" viewBox="0 0 64 64" role="img" aria-label="Findlay Lodge No. 227 emblem"><circle cx="32" cy="32" r="30.5" fill="#1b2a5c" stroke="#e0bd66" stroke-width="1.5"/><g fill="none" stroke="#e0bd66" stroke-linecap="round"><path d="M32 11 L15 47 M32 11 L49 47" stroke-width="3.2"/><path d="M17 37 L32 53 L47 37" stroke-width="4.2"/></g><circle cx="32" cy="11" r="3" fill="#e0bd66"/><text x="32" y="38" text-anchor="middle" font-family="Georgia,serif" font-weight="700" font-size="13" fill="#e0bd66">G</text></svg><div><span class="c-tag" style="--c: var(--body-lodge)">Blue Lodge · Free & Accepted Masons</span><h1>Findlay Lodge No. 227</h1><p>The lodge where every Findlay Mason begins.</p></div></div></div></section>
+<section class="band"><div class="frame section" style="display:grid;gap:var(--spacing-6)">
+	<div class="card c-next" style="--c: var(--body-lodge)"><span class="c-tile"><small>Tue</small><b>Dec 8</b><small>7:30 PM</small></span>
+	<div><p class="eyebrow">Next stated meeting</p><h2>Stated meeting and election of 2027 officers</h2><p class="c-next__rule">Meets 2nd Tuesday of each month, 7:30 PM</p><p class="c-next__note">Dinner is served at 6:30 PM before each stated meeting.</p>
+	<div class="btn-row"><a class="btn" href="#">Add to my calendar</a><a class="btn btn--ghost" href="#">Contact the secretary</a></div></div></div>
+	<div class="mk-specimen" data-label="When a body has no stated meeting"><div class="c-empty"><span class="c-tile c-tile--none">No set<br>date</span><div><strong>Contact the secretary for meeting times</strong><a href="#">Write to the secretary</a></div></div></div>
+</div></section>
+<section class="band"><div class="frame section c-bodylayout">
+	<div class="c-main">
+		<section><div class="section-head" style="margin-bottom:var(--spacing-3)"><h2 style="margin:0">December at the lodge</h2><a class="arrow-link" href="#">Full calendar →</a></div>
+		<table class="c-month"><thead><tr><th scope="col">Mon</th><th scope="col">Tue</th><th scope="col">Wed</th><th scope="col">Thu</th><th scope="col">Fri</th><th scope="col">Sat</th><th scope="col">Sun</th></tr></thead><tbody><tr><td class="out"><span>30</span></td><td class=""><span>1</span></td><td class=""><span>2</span></td><td class=""><span>3</span></td><td class=""><span>4</span></td><td class=""><span>5</span><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Pancake breakfast</b><span class="c-ev__time">7:00 AM</span></a></td><td class=""><span>6</span></td></tr><tr><td class=""><span>7</span></td><td class=""><span>8</span><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Stated meeting and election</b><span class="c-ev__time">7:30 PM</span></a></td><td class=""><span>9</span></td><td class=""><span>10</span></td><td class=""><span>11</span></td><td class=""><span>12</span></td><td class=""><span>13</span></td></tr><tr><td class=""><span>14</span></td><td class=""><span>15</span><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Master Mason degree</b><span class="c-ev__time">7:00 PM</span></a></td><td class=""><span>16</span></td><td class=""><span>17</span></td><td class=""><span>18</span></td><td class=""><span>19</span></td><td class=""><span>20</span></td></tr><tr><td class=""><span>21</span></td><td class=""><span>22</span></td><td class=""><span>23</span></td><td class=""><span>24</span></td><td class=""><span>25</span></td><td class=""><span>26</span></td><td class=""><span>27</span></td></tr><tr><td class=""><span>28</span></td><td class=""><span>29</span></td><td class=""><span>30</span></td><td class=""><span>31</span></td><td class="out"><span>1</span></td><td class="out"><span>2</span></td><td class="out"><span>3</span></td></tr></tbody></table>
+		<ol class="c-agenda"><li><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Pancake breakfast</b><span class="c-ev__time">Sat, Dec 5 · 7:00 AM</span></a></li><li><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Stated meeting and election of 2027 officers</b><span class="c-ev__time">Tue, Dec 8 · 7:30 PM</span></a></li><li><a class="c-ev" href="#" style="--c: var(--body-lodge)"><b>Master Mason degree</b><span class="c-ev__time">Tue, Dec 15 · 7:00 PM</span></a></li></ol></section>
+		<section><h2>About the lodge</h2><div class="c-prose"><p>Findlay Lodge No. 227 is the Blue Lodge of the Findlay Masonic Complex. Here a man receives the three degrees of Entered Apprentice, Fellowcraft and Master Mason, and every member of the other bodies in this building began in a Blue Lodge.</p><p>We meet on the second Tuesday of each month and share dinner first. The rest of the year goes to degree work, the pancake breakfasts and the lodge's scholarship for Hancock County students.</p></div></section>
+	</div>
+	<aside class="c-side">
+		<div><h2>Officers for 2026</h2><ul class="c-officers"><li><span>Worshipful Master</span><strong>Drew DeVore</strong></li><li><span>Senior Warden</span><strong>Mark Ellison</strong></li><li><span>Junior Warden</span><strong>Tom Hartman</strong></li><li><span>Treasurer</span><strong>Gary Wolfe</strong></li><li><span>Secretary</span><strong>Dennis Kramer</strong></li><li><span>Senior Deacon</span><strong>Brian Oster</strong></li><li><span>Junior Deacon</span><strong>Kyle Brandt</strong></li><li><span>Chaplain</span><strong>Paul Ames</strong></li><li><span>Tiler</span><strong>Jim Sutter</strong></li></ul></div>
+		<div><h2>Lodge news</h2><ul class="c-newslist"><li><time>Nov 18, 2026</time><a href="#">Election of 2027 officers on December 8</a></li><li><time>Nov 4, 2026</time><a href="#">Pancake breakfast returns December 5</a></li><li><time>Oct 14, 2026</time><a href="#">Two brothers raised to Master Mason</a></li></ul></div>
+	</aside>
+</div></section>
+</main><footer class="site-footer"><div class="frame site-footer__inner">
+<div><strong>Findlay Masonic Bodies</strong>Six Masonic bodies, one Temple, meeting in Findlay, Ohio.</div>
+<ul><li><a href="#">Contact a body</a></li><li><a href="#">Email signup</a></li><li><a href="#">Calendar feed (ICS)</a></li><li><a href="#">Editor login</a></li></ul>
+</div></footer></div>
+
+</section>
+<script>
+const show = () => {
+	const id = (location.hash.slice(1) || "a").charAt(0);
+	const key = ["a", "b", "c"].includes(id) ? id : "a";
+	document.querySelectorAll(".mk-dir").forEach((s) => (s.hidden = s.id !== key));
+	document.querySelectorAll(".mk-tabs a").forEach((a) => a.setAttribute("aria-current", String(a.dataset.dir === key)));
+};
+addEventListener("hashchange", () => { show(); scrollTo(0, 0); });
+show();
+</script>
+</body>
+</html>

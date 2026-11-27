@@ -1,0 +1,128 @@
+---
+import { cacheRoute } from "@adapters/site/cache";
+import { loadBody } from "@adapters/site/content";
+import { paths, slugParam } from "@adapters/site/paths";
+import { pageSeo } from "@adapters/site/seo";
+import { parseNewsView } from "@adapters/site/views";
+import { formatDate, SITE_TZ } from "@core/time";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { Image } from "emdash/ui";
+import RichText from "../../../../components/RichText.astro";
+import Base from "../../../../layouts/Base.astro";
+import { resolveSiteIdentity } from "../../../../utils/site-identity";
+import "../../../../styles/prose.css";
+
+// R8: one news item, the page newsletter article cards link to.
+const bodySlug = slugParam(Astro.params.slug);
+const newsSlug = slugParam(Astro.params.news);
+if (!bodySlug || !newsSlug) return Astro.rewrite("/404");
+const [{ value: body, hint }, { entry, cacheHint, error }, settings] = await Promise.all([
+	loadBody(bodySlug),
+	getEmDashEntry("news", newsSlug),
+	getSiteSettingsWithCacheHint(),
+]);
+if (error !== undefined) throw error;
+const item = entry === null ? null : parseNewsView(entry);
+if (body === null || entry === null || item === null || item.body !== body.id) {
+	return Astro.rewrite("/404");
+}
+cacheRoute(Astro.cache, [hint, cacheHint, settings.cacheHint]);
+
+const date = item.publishedAt.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const labels = new Map(body.tags.map((tag) => [tag.slug, tag.label]));
+const { siteTitle } = resolveSiteIdentity(settings.data);
+const seo = pageSeo(entry, {
+	siteTitle,
+	origin: Astro.url.origin,
+	path: paths.newsItem(body.slug, item.slug),
+	title: item.title,
+	text: item.content,
+	fallback: `News from ${body.displayName}.`,
+});
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	type="article"
+	publishedTime={item.publishedAt.toString()}
+	content={{ collection: "news", id: item.id, slug: item.slug }}
+>
+	<article class="band page news-item">
+		<div class="frame page__layout">
+			<header class="page__header">
+				<p class="eyebrow" data-colour={body.colour ?? undefined}>
+					<a class="body-label" href={paths.body(body.slug)}>
+						{body.displayName}
+					</a>
+				</p>
+				<h1 class="page__title" {...entry.edit.title}>
+					{item.title}
+				</h1>
+				<p class="news-item__date">
+					<time datetime={date.toString()}>{formatDate(date)}</time>
+				</p>
+				{item.tags.length > 0 && (
+					<ul class="chips" aria-label="Tags">
+						{item.tags.map((tag) => (
+							<li>
+								<a
+									class="chip"
+									href={`${paths.bodyNews(body.slug)}?tag=${encodeURIComponent(tag)}`}
+								>
+									{labels.get(tag) ?? tag}
+								</a>
+							</li>
+						))}
+					</ul>
+				)}
+			</header>
+			<div class="news-item__body">
+				{item.image && (
+					<div {...entry.edit.featured_image}>
+						<Image image={item.image} class="news-item__image" />
+					</div>
+				)}
+				<div class="prose" {...entry.edit.content}>
+					<RichText value={item.content} />
+				</div>
+				<p class="news-item__more">
+					<a class="arrow-link" href={paths.bodyNews(body.slug)}>
+						More news from {body.displayName}
+					</a>
+				</p>
+			</div>
+		</div>
+	</article>
+</Base>
+
+<style>
+	.page {
+		padding-block: var(--spacing-12) var(--spacing-16);
+	}
+
+	.page__layout {
+		display: grid;
+		gap: var(--spacing-8);
+		max-width: var(--content-width);
+	}
+
+	.page__title {
+		font-size: var(--font-size-display);
+		line-height: 1.05;
+	}
+
+	.news-item__body {
+		display: grid;
+		gap: var(--spacing-6);
+	}
+
+	:global(.news-item__image) {
+		width: 100%;
+		height: auto;
+		border-radius: var(--radius-lg);
+	}
+</style>

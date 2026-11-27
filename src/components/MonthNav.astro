@@ -1,0 +1,40 @@
+---
+import { formatMonth } from "@core/time";
+import type { Temporal } from "temporal-polyfill";
+
+interface Props {
+	month: Temporal.PlainYearMonth;
+	/** The link to another month of the same calendar, filters kept. */
+	href: (month: Temporal.PlainYearMonth) => string;
+}
+
+const { month, href } = Astro.props;
+const previous = month.subtract({ months: 1 });
+const next = month.add({ months: 1 });
+---
+
+<nav class="month-nav" aria-label="Months" data-testid="month-nav">
+	<ul>
+		<li>
+			<a class="btn btn--ghost" href={href(previous)} rel="prev">
+				<span class="arrow arrow--back" aria-hidden="true"></span> Previous: {formatMonth(previous)}
+			</a>
+		</li>
+		<li>
+			<a class="btn btn--ghost" href={href(next)} rel="next">
+				Next: {formatMonth(next)} <span class="arrow" aria-hidden="true"></span>
+			</a>
+		</li>
+	</ul>
+</nav>
+
+<style>
+	.month-nav ul {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-3);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+</style>

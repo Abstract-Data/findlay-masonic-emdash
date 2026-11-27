@@ -1,0 +1,141 @@
+---
+import { loadBodies } from "@adapters/site/content";
+import { ownEntry } from "@core/lookup";
+import type { SubscribeOutcome } from "@plugins/newsletter/subscribe";
+import Turnstile from "./Turnstile.astro";
+
+// FR-7.1. A plain form post: the subscribe route answers with a redirect to the archive's copy
+// of this form, so the page needs no script of its own. The home page's copy asks only for the
+// address; the archive's also offers each body's news.
+interface Props {
+	chooseBodies?: boolean;
+}
+
+const { chooseBodies = true } = Astro.props;
+const { value: bodies } = await loadBodies();
+
+const MESSAGES: Readonly<Record<string, string>> = {
+	ok: "Thank you. You are subscribed to the newsletter.",
+	"previously-unsubscribed":
+		"This address unsubscribed from the Temple's email before, so it was not added. To get the newsletter again, use the “choose which bodies you hear from” link at the bottom of a past newsletter, or contact the Temple.",
+	invalid: "Enter a valid email address and choose only the bodies listed.",
+	"verification-failed": "We could not confirm you are a person. Please try again.",
+	"rate-limited": "Too many signups have come in the last hour. Please try again later.",
+	"test-site":
+		"This is a test copy of the Temple's website, so it cannot sign you up. Please sign up on the Temple's own website.",
+	unavailable: "Signups are not working right now. Please try again later.",
+} satisfies Record<SubscribeOutcome, string>;
+const message = ownEntry(MESSAGES, Astro.url.searchParams.get("subscribe"));
+---
+
+<section id="signup" class="card signup" aria-labelledby="signup-title">
+	<h2 id="signup-title" class="signup__title">
+		Get the quarterly newsletter
+	</h2>
+	<p class="signup__lead">
+		One email each season with news from every body at the Temple.
+		{!chooseBodies && (
+			<>
+				{" "}
+				Past issues are <a href="/newsletters">in the archive</a>.
+			</>
+		)}
+	</p>
+	{message && (
+		<p class="signup__status" role="status" data-testid="signup-message">
+			{message}
+		</p>
+	)}
+	<form
+		class="signup__form"
+		method="post"
+		action="/_emdash/api/plugins/newsletter/subscribe"
+		data-testid="signup"
+	>
+		<p class="field">
+			<label for="signup-email">Email address</label>
+			<input
+				id="signup-email"
+				class="input"
+				name="email"
+				type="email"
+				required
+				autocomplete="email"
+			/>
+		</p>
+		{chooseBodies && bodies.length > 0 && (
+			<fieldset class="field signup__bodies">
+				<legend>Also tell me about these bodies (optional)</legend>
+				{bodies.map((body) => (
+					<label class="signup__body">
+						<input type="checkbox" name="body" value={body.id} /> {body.displayName}
+					</label>
+				))}
+			</fieldset>
+		)}
+		<Turnstile action="subscribe" />
+		<p>
+			<button type="submit" class="btn signup__submit">
+				Subscribe
+			</button>
+		</p>
+	</form>
+</section>
+
+<style>
+	.signup {
+		display: grid;
+		gap: var(--spacing-4);
+		align-content: start;
+		padding: var(--spacing-8);
+	}
+
+	.signup__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.signup__lead {
+		color: var(--color-text-secondary);
+	}
+
+	.signup__status {
+		padding: var(--spacing-3) var(--spacing-4);
+		border-inline-start: 4px solid var(--color-brand);
+		border-radius: var(--radius-sm);
+		background: var(--color-fill);
+		font-weight: 700;
+	}
+
+	.signup__form {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.signup__bodies {
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.signup__bodies legend {
+		margin-bottom: var(--spacing-2);
+		padding: 0;
+	}
+
+	.signup__body {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		min-height: 2.75rem;
+	}
+
+	.signup__submit {
+		width: 100%;
+	}
+
+	@media (max-width: 640px) {
+		.signup {
+			padding: var(--spacing-5);
+		}
+	}
+</style>

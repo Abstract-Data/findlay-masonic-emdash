@@ -1,0 +1,2 @@
+# ICS golden files carry RFC 5545 CRLF line endings byte for byte.
+*.ics -text

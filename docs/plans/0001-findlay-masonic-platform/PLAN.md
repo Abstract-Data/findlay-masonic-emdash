@@ -1,10 +1,11 @@
 # PLAN — Findlay Masonic Platform
 **Plan:** 0001-findlay-masonic-platform
-**SDD phase:** 2 (PLAN) — awaiting human approval
+**SDD phase:** 3 (TASKS) — plan approved by human 2026-11-23
 **Date:** 2026-11-23
 **Spec:** [../../spec/findlay-masonic-platform/spec.md](../../spec/findlay-masonic-platform/spec.md) (v0.2.0)
 **Constitution:** [../../spec/findlay-masonic-platform/project-constitution.md](../../spec/findlay-masonic-platform/project-constitution.md)
-**ADR draft:** [../../spec/findlay-masonic-platform/adr/adr-draft-stack-selection.md](../../spec/findlay-masonic-platform/adr/adr-draft-stack-selection.md) (Proposed; promote when this plan is approved)
+**ADR:** [../../adr/ADR-001-stack-selection.md](../../adr/ADR-001-stack-selection.md) (Accepted 2026-11-23 on plan approval)
+**Tasks:** [TASK.md](TASK.md) (M0, M1)
 
 ## 1. Approach
 The work is sequenced into nine milestones. Each ends in a state a reviewer can verify by running something. Milestones run in order; work inside a milestone may run in parallel. Dependencies flow strictly downward: foundation → content model → pure core → access → public site → newsletter → migration → hardening → launch.
@@ -66,7 +67,7 @@ docs/ spec/ plans/ adr/ runbooks/
 - Project `AGENTS.md` built from the JS/TS Base + Astro overlay, carrying the Agent Scope from Phase 3.
 - Verify Astro 7 against the overlay (the Phase 1 override). Record the outcome in STATUS.md.
 
-**Exit check:** CI green on a PR. A human runs `wrangler deploy --env staging` and the template renders at the staging URL.
+**Exit check:** CI green on a PR. A human runs `pnpm run deploy:staging` (`CLOUDFLARE_ENV=staging astro build && wrangler deploy`) and the template renders at the staging URL.
 
 ### M1 — Content model and seed
 **Goal:** every collection in the spec exists with correct fields, and the six bodies load.
@@ -143,8 +144,8 @@ docs/ spec/ plans/ adr/ runbooks/
 ### M8 — Launch
 **Goal:** findlaymason.org is served by the new platform.
 - Lodge UAT on staging with real body editors. **Lodge signs off on the accepted residual risks** (Q14).
-- Human tasks: Resend sending-domain DNS verification; production secrets in 1Password → Wrangler; `wrangler deploy --env production`; move the findlaymason.org DNS to Cloudflare; enable the redirects.
-- Promote the ADR draft to `docs/adr/ADR-001-…` (if not done at plan approval).
+- Human tasks: Resend sending-domain DNS verification; production secrets in 1Password → Wrangler; `pnpm run deploy:production`; move the findlaymason.org DNS to Cloudflare; enable the redirects.
+- ~~Promote the ADR draft to `docs/adr/ADR-001-…`~~ Done at plan approval (2026-11-23).
 
 **Exit check:** production Checkly is green. The old URLs redirect. The first newsletter test send from production reaches the allowlist.
 
@@ -180,7 +181,7 @@ docs/ spec/ plans/ adr/ runbooks/
 | No design direction yet | High | Med | Explicit design gate at the start of M4 |
 
 ## 7. Human gates in this plan
-1. **This plan** (SDD Phase 2 → 3).
+1. ~~**This plan** (SDD Phase 2 → 3).~~ Approved 2026-11-23.
 2. M1 schema PR (PATH_ASK) and the lodge's officer-title confirmation.
 3. M4 design direction.
 4. M6 archive/photos decision.

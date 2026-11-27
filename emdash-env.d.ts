@@ -5,6 +5,88 @@
 
 import type { BylineSummary, ContentBylineCredit, TaxonomyTerm, PortableTextBlock } from "emdash";
 
+export interface Body {
+  id: string;
+  slug: string | null;
+  status: string;
+  name: string;
+  number?: number;
+  body_type: "Blue Lodge" | "Chapter" | "Council" | "Commandery" | "Order of the Eastern Star" | "Temple Board";
+  colour?: "Blue" | "Red" | "Purple" | "Slate" | "Green" | "Brown";
+  emblem?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  description?: PortableTextBlock[];
+  schedule_note?: string;
+  contact_recipients?: { "email": string }[];
+  tag_vocabulary?: { "slug": string; "label": string }[];
+  resend_topic_id?: string;
+  display_order?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
+export interface Event {
+  id: string;
+  slug: string | null;
+  status: string;
+  body: string;
+  title: string;
+  start: string;
+  end: string;
+  all_day?: boolean;
+  rrule?: string;
+  exdates?: unknown;
+  location?: string;
+  description?: PortableTextBlock[];
+  is_stated_meeting?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
+export interface New {
+  id: string;
+  slug: string | null;
+  status: string;
+  body: string;
+  title: string;
+  content: PortableTextBlock[];
+  publish_date: string;
+  featured_image?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  tags?: { "tag": string }[];
+  include_in_newsletter?: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
+export interface Officer {
+  id: string;
+  slug: string | null;
+  status: string;
+  body: string;
+  title: "Worshipful Master" | "Senior Warden" | "Junior Warden" | "Treasurer" | "Secretary" | "Senior Deacon" | "Junior Deacon" | "Senior Steward" | "Junior Steward" | "Chaplain" | "Tyler" | "High Priest" | "King" | "Scribe" | "Captain of the Host" | "Principal Sojourner" | "Royal Arch Captain" | "Master of the Third Veil" | "Master of the Second Veil" | "Master of the First Veil" | "Sentinel" | "Illustrious Master" | "Deputy Master" | "Principal Conductor of the Work" | "Recorder" | "Captain of the Guard" | "Conductor of the Council" | "Steward" | "Eminent Commander" | "Generalissimo" | "Captain General" | "Prelate" | "Standard Bearer" | "Sword Bearer" | "Warder" | "Worthy Matron" | "Worthy Patron" | "Associate Matron" | "Associate Patron" | "Conductress" | "Associate Conductress" | "Marshal" | "Organist" | "Adah" | "Ruth" | "Esther" | "Martha" | "Electa" | "President" | "Vice President" | "Trustee";
+  name: string;
+  photo?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
+  term_year: number;
+  display_order?: number;
+  createdAt: Date;
+  updatedAt: Date;
+  publishedAt: Date | null;
+  byline?: BylineSummary | null;
+  bylines?: ContentBylineCredit[];
+  terms?: Record<string, TaxonomyTerm[]>;
+}
+
 export interface Page {
   id: string;
   slug: string | null;
@@ -19,25 +101,12 @@ export interface Page {
   terms?: Record<string, TaxonomyTerm[]>;
 }
 
-export interface Post {
-  id: string;
-  slug: string | null;
-  status: string;
-  title: string;
-  featured_image?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown>; darkVariant?: { id: string; src?: string; alt?: string; caption?: string; width?: number; height?: number; filename?: string; mimeType?: string; blurhash?: string; dominantColor?: string; focalX?: number; focalY?: number; provider?: string; previewUrl?: string; meta?: Record<string, unknown> } };
-  content?: PortableTextBlock[];
-  excerpt?: string;
-  createdAt: Date;
-  updatedAt: Date;
-  publishedAt: Date | null;
-  byline?: BylineSummary | null;
-  bylines?: ContentBylineCredit[];
-  terms?: Record<string, TaxonomyTerm[]>;
-}
-
 declare module "emdash" {
   interface EmDashCollections {
+    bodies: Body;
+    events: Event;
+    news: New;
+    officers: Officer;
     pages: Page;
-    posts: Post;
   }
 }

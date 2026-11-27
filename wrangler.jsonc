@@ -1,3 +1,7 @@
+// Top level is local dev only (astro dev, wrangler --local); its IDs never
+// reach Cloudflare. Deploy with an env: CLOUDFLARE_ENV=staging pnpm astro build
+// && pnpm wrangler deploy. Environments never share D1, R2 or KV (constitution
+// amendment 1). Resource IDs are not secrets.
 {
 	"$schema": "node_modules/wrangler/config-schema.json",
 	"name": "findlay-masonic-emdash",
@@ -5,17 +9,12 @@
 	"compatibility_date": "2026-02-24",
 	"compatibility_flags": ["nodejs_compat"],
 	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "findlay-masonic-site","database_id": "e973aaf5-ee02-44d0-b8e9-ca291cbd35f9",
-		},
+		{ "binding": "DB", "database_name": "findlay-masonic-local", "database_id": "local" },
 	],
-	"r2_buckets": [
-		{
-			"binding": "MEDIA",
-			"bucket_name": "findlay-masonic-media","preview_bucket_name": "findlay-masonic-media",
-		},
-	],
+	"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-local" }],
+	// Astro sessions (EmDash stores signed-in users here). The Cloudflare adapter
+	// expects the SESSION binding name.
+	"kv_namespaces": [{ "binding": "SESSION", "id": "local" }],
 	// Co-editing rooms, one Durable Object per entry being edited
 	"durable_objects": {
 		"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
@@ -28,5 +27,100 @@
 	// General maintenance cron trigger
 	"triggers": {
 		"crons": ["* * * * *"],
+	},
+	"env": {
+		"staging": {
+			// Same name as the Worker that Workers Builds is attached to: it deploys
+			// staging on every merge to main (docs/runbooks/deploy.md).
+			"name": "findlay-masonic-emdash",
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "findlay-masonic-staging",
+					"database_id": "0d0aa21a-7d94-4fd4-8113-96bdb8158ec3",
+				},
+			],
+			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-staging" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "dcb11ba409c54932a39fc79d04b81d6c" }],
+			"durable_objects": {
+				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+			},
+			"triggers": {
+				"crons": ["* * * * *"],
+			},
+			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
+			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
+			// SITE_ENV keeps every email, signup and Broadcast inside NEWSLETTER_TEST_ALLOWLIST
+			// (src/lib/adapters/send-gate.ts), so staging's Segment holds allowlisted addresses only.
+			"vars": {
+				"SITE_ENV": "staging",
+				"RESEND_FROM": "",
+				"RESEND_SEGMENT_ID": "",
+				"RESEND_NEWSLETTER_TOPIC_ID": "",
+				"NEWSLETTER_TEST_ALLOWLIST": "",
+				"TURNSTILE_SITE_KEY": "",
+			},
+			"observability": {
+				"enabled": true,
+				// Invocation logs and traces record each request's URL, and EmDash carries preview,
+				// magic-link, invite and sign-up tokens in the query string (M7 review S4).
+				"redact_query_string": true,
+				"logs": {
+					"enabled": true,
+					"invocation_logs": true,
+					"destinations": ["axiom-staging-logs"],
+				},
+				"traces": {
+					"enabled": true,
+					"destinations": ["axiom-staging-traces"],
+				},
+			},
+		},
+		"production": {
+			"name": "findlay-masonic-emdash-production",
+			// Open human decision (T0.11): reuse the existing D1 findlay-masonic-site
+			// (e973aaf5-ee02-44d0-b8e9-ca291cbd35f9) here, or retire it.
+			"d1_databases": [
+				{
+					"binding": "DB",
+					"database_name": "findlay-masonic-production",
+					"database_id": "59d5191c-9979-4645-ae22-896c529aed97",
+				},
+			],
+			"r2_buckets": [{ "binding": "MEDIA", "bucket_name": "findlay-masonic-media-production" }],
+			"kv_namespaces": [{ "binding": "SESSION", "id": "d0f2f9dcc1c74d1696ab89a563fdc512" }],
+			"durable_objects": {
+				"bindings": [{ "name": "EMDASH_ROOMS", "class_name": "EmDashRoom" }],
+			},
+			"triggers": {
+				"crons": ["* * * * *"],
+			},
+			// Newsletter and form settings the Worker reads at runtime (docs/runbooks/newsletter-send.md).
+			// Not secrets; a deploy replaces dashboard values with these. Empty means "not set".
+			// SITE_ENV "production" is the only value that lets email reach any address.
+			"vars": {
+				"SITE_ENV": "production",
+				"RESEND_FROM": "",
+				"RESEND_SEGMENT_ID": "",
+				"RESEND_NEWSLETTER_TOPIC_ID": "",
+				"NEWSLETTER_TEST_ALLOWLIST": "",
+				"TURNSTILE_SITE_KEY": "",
+			},
+			"observability": {
+				"enabled": true,
+				// Invocation logs and traces record each request's URL, and EmDash carries preview,
+				// magic-link, invite and sign-up tokens in the query string (M7 review S4).
+				"redact_query_string": true,
+				"logs": {
+					"enabled": true,
+					"invocation_logs": true,
+					"destinations": ["axiom-production-logs"],
+				},
+				"traces": {
+					"enabled": true,
+					"destinations": ["axiom-production-traces"],
+				},
+			},
+		},
 	},
 }

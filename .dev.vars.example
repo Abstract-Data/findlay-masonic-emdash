@@ -1,0 +1,28 @@
+# Copy to .dev.vars for local dev. Names only: never commit values.
+# Real secrets live in 1Password and reach Workers via `wrangler secret put`.
+# Schema: env.schema in astro.config.mjs. All are optional until their milestone.
+
+# Server secrets (context: server, access: secret)
+RESEND_API_KEY=
+TURNSTILE_SECRET=
+GOOGLE_CLIENT_SECRET=
+MICROSOFT_CLIENT_SECRET=
+
+# Server values read at runtime (context: server, access: secret). Not secrets: deployed
+# Workers get them from the `vars` of their environment in wrangler.jsonc.
+RESEND_SEGMENT_ID=
+RESEND_NEWSLETTER_TOPIC_ID=
+NEWSLETTER_TEST_ALLOWLIST=
+RESEND_FROM=
+TURNSTILE_SITE_KEY=
+# "production" or "staging". Unset (local dev) counts as non-production: real email goes only to
+# NEWSLETTER_TEST_ALLOWLIST and Resend test addresses.
+SITE_ENV=
+
+# Server values (context: server, access: public)
+GOOGLE_CLIENT_ID=
+MICROSOFT_CLIENT_ID=
+MICROSOFT_TENANT_ID=
+# Dev server only: keeps the in-memory Resend fake even with RESEND_API_KEY set.
+# Leave it commented out otherwise; an empty value is not a boolean.
+# RESEND_FAKE=true

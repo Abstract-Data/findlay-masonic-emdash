@@ -69,5 +69,5 @@ These four are a baseline; more scope is expected.
 **Agent scope:** Reads src/, plugins/, seed/, tests/, docs/, astro.config.mjs, wrangler.jsonc, reference/ (read-only). Writes src/, plugins/, tests/, docs/. Executes pnpm, astro dev|check|build, vitest, playwright (local), oxlint, oxfmt, `wrangler d1 execute --local`. Off-limits/ASK: wrangler deploy, any `--remote` D1 command, Cloudflare account changes; seed/seed.json schema and astro.config.* (human confirm); live Resend broadcasts or sends to non-allowlisted addresses; secret values; editing reference/.
 **Design Principles Gates:** Astro Design Principles Gate (A1–A12) on `*.astro`, `src/pages/**/*.ts`, `src/middleware.ts`, `astro.config.*`; TypeScript Design Principles Gate on `src/lib/**` and plugin `.ts/.tsx`. They are never run on the same files.
 **Context7 receipts (architecture-level):** none new (covered by the emdash 1.6 receipt).
-**ADR draft:** adr/adr-draft-stack-selection.md (Status: Proposed).
+**ADR:** promoted to ../../adr/ADR-001-stack-selection.md (Accepted 2026-11-23).
 **Critique pass result:** PASS (self-run). The Option A requirement gap was surfaced to the human and accepted. Human: APPROVE.

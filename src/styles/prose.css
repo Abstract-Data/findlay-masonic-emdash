@@ -31,7 +31,6 @@
 		font-size: var(--font-size-lg);
 		line-height: 1.75;
 		color: var(--prose-color);
-		overflow-wrap: break-word;
 	}
 
 	/* Vertical rhythm */
@@ -121,8 +120,6 @@
 		color: var(--color-text);
 		font-family: var(--font-mono);
 		font-size: 0.85em;
-		box-decoration-break: clone;
-		-webkit-box-decoration-break: clone;
 	}
 
 	/* Lists */

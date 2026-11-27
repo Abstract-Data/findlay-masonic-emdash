@@ -1,0 +1,137 @@
+---
+import { paths } from "@adapters/site/paths";
+import type { BodyView } from "@adapters/site/views";
+import { formatOccurrence } from "@core/recurrence/describe";
+import type { Meetings } from "@core/recurrence/meetings";
+import { Image } from "emdash/ui";
+import type { Temporal } from "temporal-polyfill";
+import DateTile from "./DateTile.astro";
+
+// FR-1.2: a body with its emblem, its schedule and its next meeting as a date tile in its
+// colour. The whole card is the link to its page.
+interface Props {
+	body: BodyView;
+	meetings: Meetings;
+	today: Temporal.PlainDate;
+	headingLevel?: 2 | 3;
+}
+
+const { body, meetings, today, headingLevel = 2 } = Astro.props;
+const Title = `h${headingLevel}` as const;
+const next = meetings.next[0] ?? null;
+const { schedule } = meetings;
+const line =
+	schedule.kind === "rule"
+		? schedule.text
+		: schedule.kind === "note"
+			? schedule.note
+			: next === null
+				? "Contact the secretary for meeting times."
+				: `Next meeting: ${formatOccurrence(next)}`;
+---
+
+<article
+	class="body-card card"
+	data-body={body.slug}
+	data-colour={body.colour ?? undefined}
+	data-testid="body-card"
+>
+	{body.emblem && <Image image={body.emblem} alt="" class="body-card__emblem" />}
+	<div class="body-card__text">
+		<Title class="body-card__name">
+			<a href={paths.body(body.slug)}>{body.displayName}</a>
+		</Title>
+		<p class="body-card__schedule">{line}</p>
+	</div>
+	<DateTile occurrence={next} today={today} label="Next meeting:" />
+</article>
+
+<style>
+	.body-card {
+		--emblem-width: 4rem;
+
+		position: relative;
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-4);
+		height: 100%;
+		padding: var(--spacing-4);
+		border-top: 4px solid var(--body-colour, var(--color-border-strong));
+		transition: box-shadow var(--transition-fast);
+	}
+
+	.body-card:hover {
+		box-shadow: var(--shadow-card-hover);
+	}
+
+	.body-card:has(a:focus-visible) {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	/* One slot for any emblem's shape, so a wide or a tall one keeps a legible size. */
+	:global(.body-card__emblem) {
+		flex: none;
+		width: var(--emblem-width);
+		height: 3rem;
+		object-fit: contain;
+	}
+
+	/*
+	  Once any card has an emblem, a card without one keeps its name in line with theirs, except
+	  on the narrowest phones, where the name needs the room more.
+	*/
+	@media (min-width: 361px) {
+		:global(.body-cards:has(.body-card__emblem)) .body-card:not(:has(:global(.body-card__emblem))) {
+			padding-inline-start: calc(var(--spacing-4) * 2 + var(--emblem-width));
+		}
+	}
+
+	/*
+	  Below the room for a body's name and schedule in whole words (about a 360px phone), the
+	  date tile moves to a row of its own instead of squeezing the text.
+	*/
+	.body-card__text {
+		flex: 1 1 9rem;
+	}
+
+	.body-card > :global(.tile) {
+		margin-inline-start: auto;
+	}
+
+	.body-card__name {
+		font-size: var(--font-size-lg);
+	}
+
+	.body-card__name a {
+		color: var(--color-text);
+		text-decoration: none;
+	}
+
+	.body-card__name a::after {
+		content: "";
+		position: absolute;
+		inset: 0;
+	}
+
+	.body-card__name a:focus-visible {
+		outline: none;
+	}
+
+	.body-card:hover .body-card__name a {
+		text-decoration: underline;
+	}
+
+	.body-card__schedule {
+		margin-top: var(--spacing-1);
+		font-size: var(--font-size-sm);
+		color: var(--color-text-secondary);
+	}
+
+	@media (max-width: 400px) {
+		.body-card {
+			--emblem-width: 3rem;
+		}
+	}
+</style>

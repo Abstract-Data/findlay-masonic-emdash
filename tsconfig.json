@@ -1,7 +1,23 @@
 {
-	"extends": "astro/tsconfigs/base",
+	"extends": "astro/tsconfigs/strict",
 	"compilerOptions": {
-		"types": ["node"]
+		"types": ["node"],
+		"noUncheckedIndexedAccess": true,
+		"noImplicitOverride": true,
+		"noFallthroughCasesInSwitch": true,
+		"paths": {
+			"@core/*": ["./src/lib/core/*"],
+			"@adapters/*": ["./src/lib/adapters/*"],
+			"@plugins/*": ["./src/plugins/*"]
+		}
 	},
-	"include": ["src", ".astro/types.d.ts", "emdash-env.d.ts", "worker-configuration.d.ts"]
+	"include": [
+		"src",
+		"tests",
+		"checkly",
+		"*.config.ts",
+		".astro/types.d.ts",
+		"emdash-env.d.ts",
+		"worker-configuration.d.ts"
+	]
 }

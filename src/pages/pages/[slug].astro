@@ -1,16 +1,20 @@
 ---
-import {
-	getEmDashEntry,
-	getSeoMeta,
-	decodeSlug,
-	getSiteSettings,
-} from "emdash";
-import { PortableText } from "emdash/ui";
+import { cacheRoute } from "@adapters/site/cache";
+import { loadBodies } from "@adapters/site/content";
+import { slugParam } from "@adapters/site/paths";
+import { pageSeo } from "@adapters/site/seo";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import RichText from "../../components/RichText.astro";
+import ContactForm from "../../components/ContactForm.astro";
 import Base from "../../layouts/Base.astro";
-import { resolveBlogSiteIdentity } from "../../utils/site-identity";
+import { resolveSiteIdentity } from "../../utils/site-identity";
 import "../../styles/prose.css";
 
-const slug = decodeSlug(Astro.params.slug);
+// FR-9.1: About, Scholarships, Contact and the rest of the pages collection. The Contact page
+// also carries the form that writes to any body (spec Q12).
+const CONTACT_PAGE = "contact";
+
+const slug = slugParam(Astro.params.slug);
 
 if (!slug) {
 	return Astro.rewrite("/404");
@@ -22,12 +26,19 @@ if (!page) {
 	return Astro.rewrite("/404");
 }
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
-const { siteTitle } = resolveBlogSiteIdentity(await getSiteSettings());
-const seo = getSeoMeta(page, {
+const [settings, bodies] = await Promise.all([
+	getSiteSettingsWithCacheHint(),
+	slug === CONTACT_PAGE ? loadBodies() : null,
+]);
+cacheRoute(Astro.cache, [cacheHint, settings.cacheHint, ...(bodies ? [bodies.hint] : [])]);
+const { siteTitle } = resolveSiteIdentity(settings.data);
+const seo = pageSeo(page, {
 	siteTitle,
-	siteUrl: Astro.url.origin,
+	origin: Astro.url.origin,
 	path: Astro.url.pathname.replace(/\/$/, ""),
+	title: page.data.title,
+	text: page.data.content ?? [],
+	fallback: `${page.data.title} at the ${siteTitle}.`,
 });
 ---
 
@@ -42,14 +53,17 @@ const seo = getSeoMeta(page, {
 	<article class="band page">
 		<div class="frame page__layout">
 			<header class="page__header">
-				<h1 class="page__title" {...page.edit.title}>{page.data.title}</h1>
+				<h1 class="page__title" {...page.edit.title}>
+					{page.data.title}
+				</h1>
 			</header>
 
 			<div class="prose page__body" {...page.edit.content}>
-				<PortableText value={page.data.content} />
+				<RichText value={page.data.content} />
 			</div>
 		</div>
 	</article>
+	{bodies && <ContactForm bodies={bodies.value.filter((body) => body.acceptsMessages)} />}
 </Base>
 
 <style>
@@ -59,7 +73,7 @@ const seo = getSeoMeta(page, {
 
 	.page__layout {
 		display: grid;
-		grid-template-columns: minmax(0, 1fr);
+		grid-template-columns: 1fr;
 		gap: var(--spacing-8);
 	}
 
@@ -79,6 +93,12 @@ const seo = getSeoMeta(page, {
 			position: sticky;
 			top: calc(var(--nav-height) + var(--spacing-8));
 			align-self: start;
+			container-type: inline-size;
+		}
+
+		/* Beside the body the title's column is narrow, so a title such as "Scholarships" scales to it. */
+		.page__title {
+			font-size: min(var(--font-size-display), 12cqi);
 		}
 	}
 </style>

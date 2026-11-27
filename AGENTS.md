@@ -1,114 +1,125 @@
-This is an EmDash site -- a CMS built on Astro with a full admin UI.
+This is the Findlay Masonic platform: an EmDash CMS site on Astro 7 and Cloudflare Workers that replaces findlaymason.org. Six Masonic bodies each maintain their own page, calendar and news, and an admin builds the newsletter.
+
+The public pages follow design direction C, "Noticeboard" (`docs/design/direction-c/`): calendar first, Atkinson Hyperlegible Next, one ink brand colour and six body identity colours. A restyle belongs in `src/styles/theme.css` and the components in `src/components/`, not in the page data flow.
+
+## Where decisions live
+
+| Document                                                                                                                   | What it holds                                                            |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| [`docs/spec/findlay-masonic-platform/project-constitution.md`](docs/spec/findlay-masonic-platform/project-constitution.md) | Non-negotiable constraints and the Definition of Done. Read it first.    |
+| [`docs/spec/findlay-masonic-platform/spec.md`](docs/spec/findlay-masonic-platform/spec.md)                                 | Requirements (FR/NFR numbers cited in tasks and tests)                   |
+| [`docs/adr/ADR-001-stack-selection.md`](docs/adr/ADR-001-stack-selection.md)                                               | Stack decision                                                           |
+| [`docs/plans/0001-findlay-masonic-platform/PLAN.md`](docs/plans/0001-findlay-masonic-platform/PLAN.md)                     | Milestones M0 to M8                                                      |
+| [`docs/plans/0001-findlay-masonic-platform/TASK.md`](docs/plans/0001-findlay-masonic-platform/TASK.md)                     | Task checkboxes for the current milestones; tick only when Verify passes |
+| [`docs/plans/0001-findlay-masonic-platform/STATUS.md`](docs/plans/0001-findlay-masonic-platform/STATUS.md)                 | Milestone state, open human actions, log                                 |
+| [`docs/spec/findlay-masonic-platform/context7-receipts.md`](docs/spec/findlay-masonic-platform/context7-receipts.md)       | Library version receipts (append-only)                                   |
 
 ## Commands
 
+pnpm only. Never `npm install`, `bun install` or another package manager.
+
 ```bash
-pnpm dev              # Start the Astro dev server
-npx emdash types      # Regenerate TypeScript types from a running site
+pnpm install --frozen-lockfile   # install from the committed lockfile
+pnpm dev                         # astro dev through portless at https://findlay-masonic.localhost
+pnpm exec portless get findlay-masonic   # print the dev URL (a git worktree adds a branch label)
+pnpm astro check                 # type-check .astro and .ts (0 errors required)
+pnpm lint                        # oxlint (type-aware) + ESLint's two Astro rules
+pnpm format                      # oxfmt for JS/TS/JSON/YAML/MD, Prettier for *.astro
+pnpm format:check                # the same, check only
+pnpm test                        # vitest run (tests/unit); add --coverage for a report in coverage/
+pnpm e2e                         # Playwright; starts pnpm dev itself. CI: pnpm e2e --trace off
+pnpm astro build                 # production build into dist/
+node tests/build/check-cache-headers.mjs   # after a build: cache headers per route class, under wrangler dev
+pnpm e2e --grep @monitor         # the synthetic monitors Checkly runs (checkly.config.ts)
+pnpm wrangler d1 execute DB --local --command "select 1"   # local D1 only
+pnpm wrangler types              # regenerate worker-configuration.d.ts after editing wrangler.jsonc
 ```
 
-The admin UI is at `http://localhost:4321/_emdash/admin`.
+The admin UI is at `/_emdash/admin` on the dev URL. Never document or hardcode a numeric localhost port.
 
-## Key Files
+Under a coding agent, Astro 7 runs `astro dev` in the background (`pnpm astro dev status`, `pnpm astro dev stop`). Playwright starts its own foreground server with `--ignore-lock`.
 
-| File                     | Purpose                                                                            |
-| ------------------------ | ---------------------------------------------------------------------------------- |
-| `astro.config.mjs`       | Astro config with `emdash()` integration, database, and storage                    |
-| `src/live.config.ts`     | EmDash loader registration (boilerplate -- don't modify)                           |
-| `seed/seed.json`         | Schema definition + demo content (collections, fields, taxonomies, menus, widgets) |
-| `emdash-env.d.ts`        | Generated types for collections (auto-regenerated on dev server start)             |
-| `src/layouts/Base.astro` | Base layout with EmDash wiring (menus, search, page contributions)                 |
-| `src/pages/`             | Astro pages -- all server-rendered                                                 |
+## Agent scope
 
-## Skills
+| Access   | Paths and commands                                                                                                                                                          |
+| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Reads    | `src/`, `plugins/`, `seed/`, `tests/`, `docs/`, `astro.config.mjs`, `wrangler.jsonc`, `reference/` (read-only)                                                              |
+| Writes   | `src/`, `plugins/`, `tests/`, `docs/`                                                                                                                                       |
+| Executes | `pnpm`, `astro dev`/`check`/`build`, `vitest`, `playwright` (local), `oxlint`, `oxfmt`, `wrangler d1 execute --local`                                                       |
+| Ask      | `wrangler deploy`, any `--remote` D1 command, Cloudflare account changes, live Resend broadcasts or sends to non-allowlisted addresses, secret values, editing `reference/` |
 
-Agent skills are in `.agents/skills/`. Load them when working on specific tasks:
+### PATH_ASK
 
-- **building-emdash-site** -- Querying content, rendering Portable Text, schema design, seed files, site features (menus, widgets, search, SEO, comments, bylines). Start here.
-- **creating-plugins** -- Building EmDash plugins with hooks, storage, admin UI, API routes, and Portable Text block types.
-- **emdash-cli** -- CLI commands for content management, seeding, type generation, and visual editing flow.
+Changes to `seed/seed.json` collection schemas or to `astro.config.*` need human confirmation. Propose the change in a PR, list it under "Open human actions" in STATUS.md, and let the human approve it by landing the PR. Never merge a PATH_ASK change yourself.
 
-## Documentation
-
-The EmDash docs are available as an MCP server at `https://docs.emdashcms.com/mcp`. When you need to verify an API, hook, config option, field type, or pattern, call `search_docs` against the live documentation rather than relying on training-data recall. The docs reflect current behaviour; assumptions may not.
-
-This template ships with `.mcp.json`, `.cursor/mcp.json`, and `.vscode/mcp.json` so Claude Code, Cursor, and VS Code auto-discover the docs server. Other tools (OpenCode, Windsurf, etc.) need a manual one-time setup -- see [docs.emdashcms.com/docs-mcp](https://docs.emdashcms.com/docs-mcp).
+Deploys are human-only, through `pnpm run deploy:staging` or `pnpm run deploy:production`. The Cloudflare adapter picks the Wrangler environment at build time from `CLOUDFLARE_ENV`; `wrangler deploy --env staging` after a plain build deploys the local top-level bindings.
 
 ## Rules
 
-- All content pages must be server-rendered (`output: "server"`). No `getStaticPaths()` for CMS content.
+### TypeScript and modules
+
+- `tsconfig.json` extends `astro/tsconfigs/strict` with `noUncheckedIndexedAccess`. Keep `pnpm astro check` at 0 errors.
+- Extensionless imports. Use the aliases `@core/*` (`src/lib/core`), `@adapters/*` (`src/lib/adapters`) and `@plugins/*` (`src/plugins`), never NodeNext `.js` suffixes.
+- Pure domain logic (acl, recurrence, newsletter, ics) lives in `src/lib/core` with no I/O. Adapters (EmDash repo, Resend, clock) live in `src/lib/adapters`. Plugin hooks and routes stay thin callers.
+- Runtime code uses Web-standard and Workers APIs only. Read bindings with `import { env } from "cloudflare:workers"`; `Astro.locals.runtime` was removed in Astro 6 and throws.
+- Read configuration through `astro:env` (`astro:env/server`, `astro:env/client`). The schema is in `astro.config.mjs`; `.dev.vars.example` lists the names. Never commit a value, and never declare a field both `secret` and `client`.
+
+### Astro and EmDash
+
+- All content pages are server-rendered (`output: "server"`). No `getStaticPaths()` for CMS content.
+- Never use `set:html` or an inline `<script>` without `src`; ESLint fails on both. Render rich text with EmDash's Portable Text components. Put client code in `src/scripts/*.ts` and load it with `<script src>`.
+- Hydrate only interactive widgets, with `client:visible` or `client:idle`. No `client:load` page islands.
+- Astro 7 strips whitespace with JSX rules (`compressHTML: 'jsx'`). A line break between two inline elements renders as nothing; write `{" "}` where a space matters.
+- `src/fetch.ts` is a reserved file name in Astro 7 (advanced routing).
 - Image fields are objects (`{ src, alt }`), not strings. Use `<Image image={...} />` from `"emdash/ui"`.
 - `entry.id` is the slug (for URLs). `entry.data.id` is the database ULID (for API calls like `getEntryTerms`).
-- When Astro's cache is enabled, pass content-query hints to `Astro.cache.set(cacheHint)`. Use the `WithCacheHint` variants for site settings, menus, taxonomies, and widget areas rendered by cached routes.
-- Taxonomy names in queries must match the seed's `"name"` field exactly (e.g., `"category"` not `"categories"`).
+- When Astro's cache is enabled, pass content-query hints to `Astro.cache.set(cacheHint)`. Use the `WithCacheHint` variants for site settings, menus, taxonomies and widget areas rendered by cached routes.
+- Taxonomy names in queries must match the seed's `"name"` field exactly.
+- `src/live.config.ts` is EmDash loader boilerplate. Don't modify it.
 
-## This Template
+### Public pages
 
-A blog with posts, pages, categories, tags, full-text search, and RSS. Designed for personal writing, technical writing, indie newsletters, and anything where the writing is the product. Neutral editorial aesthetic: a framed layout with hairline rails, white cards on an off-white canvas, Inter with JetBrains Mono labels, and real article structure with bylines and reading time.
+- Public pages read content only through EmDash's query functions (`getEmDashCollection`, `getEmDashEntry`), via the loaders in `src/lib/adapters/site/content.ts`. Never read `Astro.locals.emdash.db` on a public page: EmDash gives anonymous visitors a reduced `locals.emdash` with no `db`, so the page is empty for them while it works for a signed-in Admin.
+- Loaders parse entries into views (`src/lib/adapters/site/views.ts`); schedules, officer terms, month grids and paging are pure functions in `src/lib/core`. Links come from `paths` in `src/lib/adapters/site/paths.ts`.
+- `bodies.contact_recipients` never reaches a page: views carry only `acceptsMessages`. The contact form posts to the newsletter plugin's `contact` route, which sends through EmDash's email pipeline (`email:deliver`).
+- Each route registers its content hints with `cacheRoute`, which also sets how long the edge may keep the page: an hour by default, `clockBound(now)` for pages that show what comes next or what is on today (meetings, upcoming events, "Today", "Tonight"), which is fifteen minutes and never past local midnight in America/New_York, and `UNTAGGED` for pages whose data carries no cache tags. A route that calls nothing is never cached. `src/middleware.ts` takes any response for a signed-in user, or that sets a cookie, back out of the cache; never cache per-visitor output another way.
+- Log through `log()` in `src/lib/adapters/log.ts`, adding an event type for a new event; never `console.log` a request body, an email address or a secret.
 
-## Pages
+### Visual character (direction C)
 
-| Page        | Path               | What it shows                                                                                                                  |
-| ----------- | ------------------ | ------------------------------------------------------------------------------------------------------------------------------ |
-| Home        | `/`                | Site title and tagline, featured post card (first post with an image), latest posts grid                                       |
-| All posts   | `/posts`           | Post rows with thumbnails, excerpts, bylines, and tag chips; cursor pagination                                                 |
-| Post detail | `/posts/[slug]`    | Tags, title, excerpt, featured image, then a three-column reading view: meta rail, body, table of contents and sidebar widgets |
-| Search      | `/search`          | Full-text search over posts; matching title terms are highlighted                                                              |
-| Page        | `/pages/[slug]`    | Static page content (Portable Text)                                                                                            |
-| Category    | `/category/[slug]` | Card grid of posts in a category                                                                                               |
-| Tag         | `/tag/[slug]`      | Card grid of posts with a tag                                                                                                  |
-| RSS         | `/rss.xml`         | Generated feed                                                                                                                 |
+- Tokens and the shared pieces (`.card`, `.body-label`, `.field`, `.input`, `.chip`, `.eyebrow`) live in `src/styles/theme.css`; component layout lives in each component's scoped style. Don't edit `tokens.css`; Base.astro holds the layout's own styles.
+- One brand colour, the navy ink `--color-brand`, for buttons, links and focus rings. Never add a second accent.
+- Body identity colours (FR-4.4) appear only as a bar, a swatch, a 12% tint or a date tile, and always beside the body's name. Put `data-colour={body.colour}` on the body's element; theme.css turns it into `--body-colour`. A new colour needs a light and dark value in theme.css, an entry in `BODY_COLOURS` (`src/lib/core/bodies/colour.ts`) and the seed's `colour` options (PATH_ASK), and `tests/unit/styles/contrast.test.ts` must stay green.
+- Sentence-case labels in the body face; no mono capitals. Buttons and form fields are at least 44px tall.
+- The font is committed (`src/assets/fonts/`) and loaded by the local provider in `astro.config.mjs`.
 
-## Schema
+### Tests
 
-- `posts` collection: `title`, `featured_image`, `content` (Portable Text), `excerpt` (text).
-- `pages` collection: `title`, `content` (Portable Text). Used for `/about` etc.
-- Taxonomies: `category`, `tag`.
-- Single `primary` menu (Home, About, Posts by default).
+- Unit tests: Vitest 5 through Astro's `getViteConfig()`, in `tests/unit/**/*.test.ts`. The Cloudflare adapter is skipped under Vitest, so unit tests cover the pure core, not Workers bindings. Fake timers also mock `Temporal`.
+- End-to-end: Playwright in `tests/e2e`. The `setup` project signs each role in through EmDash's dev-only bypass and writes its `storageState` to `tests/e2e/.auth/` (git-ignored); the accounts and their body grants are in `tests/e2e/roles.ts`. The per-role body-access suites are in `tests/e2e/body-access/`, the public pages in `tests/e2e/public/` (seeded as Admin, visited as an anonymous visitor) axe in `tests/e2e/a11y/` and the read-only synthetic monitors in `tests/e2e/monitor/` (tag `@monitor`; Checkly runs them against production). Tag smoke tests `@smoke`.
+- The `visual` project (`tests/e2e/visual/`) runs last: it seeds a busy week, scans it with axe and screenshots home, a body page and the calendar at 1280 and 390 px in both schemes. `VISUAL_OUT=docs/design/direction-c/built pnpm e2e --project visual` refreshes the committed set.
+- Lighthouse runs against a production build under `wrangler dev`: `CHROME_PATH=<chromium> node tests/perf/lighthouse.mjs <base URL> [runs per page]`.
+- Assert what a user or caller can observe, not internals.
 
-Site settings have `title` and `tagline`. The title renders in the header, the home page intro, and the footer; the tagline renders under the title in the home page intro and in the footer.
+## Key files
 
-## Visual character
+| File                        | Purpose                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------- |
+| `astro.config.mjs`          | Astro config: adapter, `emdash()` with D1 and R2, `astro:env` schema (PATH_ASK) |
+| `wrangler.jsonc`            | Local top level plus `env.staging` and `env.production` (separate D1, R2, KV)   |
+| `seed/seed.json`            | Schema definition and demo content (PATH_ASK; reworked in M1)                   |
+| `src/worker.ts`             | Worker entry: EmDash handler, Durable Objects, scheduled handler                |
+| `src/layouts/Base.astro`    | Base layout with EmDash wiring (menus, search, page contributions)              |
+| `emdash-env.d.ts`           | Generated collection types (regenerated on dev server start)                    |
+| `worker-configuration.d.ts` | Generated binding types (`pnpm wrangler types`)                                 |
+| `.github/workflows/ci.yml`  | CI: install, astro check, lint, format:check, vitest, build, e2e                |
 
-The palette is neutral: an off-white canvas (`--color-bg`), white surfaces (`--color-surface`), and near-black ink. `--color-brand` is ink too -- it drives buttons, links, focus rings, and the site monogram. Dark mode inverts the same scale.
+## EmDash reference
 
-Every page sits in a frame: two hairline rails run the full height of the page, and each full-width section (`.band`) is ruled off with a hairline that meets the rails at a small crosshair. Cards are white with a 1px ring and a soft shadow, and their images are inset so the corners stay concentric (`--radius-xl` card = `--radius-lg` image + `--card-padding`).
+Agent skills are in `.agents/skills/`. Load them for specific tasks:
 
-Type is **Inter** on `--font-body` for everything, with weight and size carrying the hierarchy. **JetBrains Mono** on `--font-mono` sets code and the small uppercase labels (`.eyebrow`) used for section names and meta. Page titles use `--font-size-display` with tight tracking; the home intro pairs the site title with the tagline as a muted second line.
+- **building-emdash-site**: querying content, Portable Text, schema design, seed files, menus, widgets, search, SEO, bylines. Start here.
+- **creating-plugins**: native plugins with hooks, storage, admin UI, API routes and Portable Text block types (`body-access` and `newsletter` are native, never sandboxed).
+- **emdash-cli**: content management, seeding, type generation.
 
-The article layout is the standout feature: a meta rail (authors, date, reading time), a 680px body column, and a rail with the table of contents and sidebar widgets. Below 1100px it collapses to one column, the table of contents is hidden, and the widgets move under the article. Don't flatten it on desktop -- the layout signals "this is something to read".
-
-## Customisation
-
-Design tokens live in `src/styles/tokens.css` with their default values. To restyle the site, override tokens in `src/styles/theme.css` -- declarations there are unlayered, so they always beat the `@layer base` defaults. Don't edit `tokens.css` or `Base.astro` for visual changes.
-
-Colours are defined with `light-dark(<light>, <dark>)`, so each token carries both modes. Overriding with a plain colour changes light and dark at once; use `light-dark()` in the override to keep them distinct. There is no separate dark palette to maintain. To give the site a colour, set `--color-brand`, `--color-brand-hover`, and `--color-on-brand` together: `--color-on-brand` defaults to near-black in dark mode, to sit on the light ink brand.
-
-Webfonts are configured in `astro.config.mjs` under `fonts:`. To swap the body face, change the `name:` for the entry bound to `cssVariable: "--font-body"`. Good alternatives: Geist, IBM Plex Sans, Söhne (if you have a licence), Public Sans. If you want a serif-bodied blog, swap to a humanist serif like Source Serif, Crimson Pro, or Lora -- but then also raise `--font-size-base` to `1.0625rem` for readability. To give headings their own face (or use a system font) without touching the font pipeline, override `--font-heading` or `--font-body` in `theme.css`.
-
-`Base.astro` defines the shared building blocks every page uses: `.frame` (content width, aligned with the rails), `.band` and `.section` (full-width sections), `.intro`, `.eyebrow`, `.chip`, `.btn`, and `.post-grid`. Posts render through `src/components/PostCard.astro` (`card`, `feature`, and `row` variants) and bylines through `src/components/Byline.astro`.
-
-CSS variables worth knowing (see `tokens.css` for the full list):
-
-- `--color-brand`, `--color-brand-hover`, `--color-on-brand`, `--color-brand-ring`
-- `--color-bg`, `--color-surface`, `--color-fill`, `--color-text`, `--color-text-secondary`, `--color-muted`, `--color-border`, `--color-ring`
-- `--font-body`, `--font-heading`, `--font-mono`
-- `--font-weight-heading` / `--font-weight-display` (both 600) -- heading weights; lower them if you switch to a serif
-- `--font-size-display` -- page titles
-- `--radius-sm` / `--radius` / `--radius-lg` / `--radius-xl` / `--radius-full`, `--card-padding`
-- `--shadow-card`, `--shadow-card-hover`
-- `--content-width` (680px) -- article body column
-- `--wide-width` (1200px) -- the frame, rails included
-- `--frame-margin` / `--frame-padding` -- space outside and inside the rails
-- `--meta-col-width` (180px) / `--gutter-width` (200px) -- the article rails
-- `--avatar-size-{xs,sm,md,lg}` -- byline avatar sizes
-
-## What not to do
-
-- Don't add a second accent colour or coloured section backgrounds. If the site needs a colour, it goes in `--color-brand`.
-- Don't replace Inter with a display sans (Bebas, Anton, etc.). Headings rely on weight and size, not novelty faces.
-- Don't break the frame: new sections should be `.band` elements with their content in a `.frame`, so the rails and rules line up.
-- Don't collapse the article rails on desktop -- they're part of the reading experience.
-- Don't use stock blog copy ("Welcome to my blog", "Stay tuned for more"). Write a real tagline that says what this blog is about.
-- Don't seed the home page with three identical placeholder posts. If you only have one real post, show one real post.
-- Comments are enabled on posts and rendered on the post detail page. Configure moderation before publishing the site, or remove `commentsEnabled` and the comments UI together.
+The EmDash docs MCP server (`https://docs.emdashcms.com/mcp`, configured in `.mcp.json`) is blocked from cloud sessions. There, read `node_modules/emdash` (README, types, dist) and the skills instead.

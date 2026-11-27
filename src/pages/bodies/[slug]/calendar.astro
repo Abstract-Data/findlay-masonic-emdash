@@ -1,0 +1,123 @@
+---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
+import { loadBody, loadCalendar } from "@adapters/site/content";
+import { paths, slugParam } from "@adapters/site/paths";
+import { agenda, monthGrid, parseMonth } from "@core/calendar/month";
+import { expand, monthWindow } from "@core/recurrence/expand";
+import { formatMonth, SITE_TZ } from "@core/time";
+import type { Temporal } from "temporal-polyfill";
+import Agenda from "../../../components/Agenda.astro";
+import FeedLinks from "../../../components/FeedLinks.astro";
+import MonthGrid from "../../../components/MonthGrid.astro";
+import MonthNav from "../../../components/MonthNav.astro";
+import Base from "../../../layouts/Base.astro";
+
+// FR-4.3: one body's occurrences for a month, recurring events expanded and EXDATEs left out.
+const slug = slugParam(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+const { value: body, hint } = await loadBody(slug);
+if (body === null) return Astro.rewrite("/404");
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const month = parseMonth(Astro.url.searchParams.get("month"), today);
+const calendar = await loadCalendar([body]);
+cacheRoute(Astro.cache, [hint, calendar.hint], clockBound(now));
+
+const { series, byId } = calendar.value;
+const occurrences = expand(series, monthWindow(month));
+const grid = monthGrid(month, occurrences, today);
+const days = agenda(
+	occurrences,
+	month.toPlainDate({ day: 1 }),
+	month.add({ months: 1 }).toPlainDate({ day: 1 }),
+);
+const bodies = new Map([[body.id, body]]);
+const base = paths.bodyCalendar(body.slug);
+const href = (target: Temporal.PlainYearMonth) => `${base}?month=${target.toString()}`;
+const monthName = formatMonth(month);
+---
+
+<Base
+	title={`${body.displayName} calendar, ${monthName}`}
+	description={`Meetings and events of ${body.displayName}.`}
+>
+	<section class="band calendar-lead" aria-labelledby="calendar-title">
+		<div class="frame calendar-month">
+			<div>
+				<p class="calendar-head__body" data-colour={body.colour ?? undefined}>
+					<a class="body-label" href={paths.body(body.slug)}>
+						{body.displayName}
+					</a>
+				</p>
+				<h1 id="calendar-title" class="calendar-lead__title">
+					{body.label} calendar
+				</h1>
+			</div>
+			<div class="calendar-head">
+				<h2 class="calendar-head__title">{monthName}</h2>
+				<MonthNav month={month} href={href} />
+			</div>
+			<MonthGrid grid={grid} bodies={bodies} showBody={false} />
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="agenda-title">
+		<div class="frame">
+			<h2 id="agenda-title" class="section-head__title calendar-section-title">
+				Events in {monthName}
+			</h2>
+			<Agenda
+				days={days}
+				bodies={bodies}
+				series={byId}
+				showBody={false}
+				empty={`Nothing is on the calendar in ${monthName}.`}
+			/>
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="feed-title">
+		<div class="frame">
+			<h2 id="feed-title" class="section-head__title calendar-section-title">
+				{body.label}'s events on your phone
+			</h2>
+			<FeedLinks path={paths.bodyFeed(body.slug)} label={`Add ${body.label} to my calendar`} />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.calendar-lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
+	.calendar-month {
+		display: grid;
+		gap: var(--spacing-6);
+	}
+
+	.calendar-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.calendar-head__body .body-label {
+		font-size: var(--font-size-sm);
+	}
+
+	.calendar-lead__title {
+		margin-top: var(--spacing-1);
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.calendar-head__title {
+		font-size: var(--font-size-3xl);
+	}
+
+	.calendar-section-title {
+		margin-bottom: var(--spacing-6);
+	}
+</style>

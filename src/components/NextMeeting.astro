@@ -1,0 +1,164 @@
+---
+import { datetimeOf } from "@core/calendar/month";
+import { formatOccurrence } from "@core/recurrence/describe";
+import type { Meetings } from "@core/recurrence/meetings";
+import type { Temporal } from "temporal-polyfill";
+import DateTile from "./DateTile.astro";
+
+// FR-1.1, 1.3, 1.4: what a body page opens on. The next stated meeting as a date tile in the
+// body's colour, the schedule from its rule and the next three dates; with none, the note or
+// the secretary message (FR-1.4).
+interface Props {
+	meetings: Meetings;
+	today: Temporal.PlainDate;
+	/** The body's calendar feed (webcal:). */
+	feedHref: string;
+	/** Where to write to the body, when its contact form is set up. */
+	contactHref: string | null;
+}
+
+const { meetings, today, feedHref, contactHref } = Astro.props;
+const { schedule, next } = meetings;
+const first = next[0] ?? null;
+const note = schedule.kind === "contact-secretary" ? null : schedule.note;
+// describeSchedule sentence-cases its text, so a leading "Every" or "Last" is lowered after "Meets".
+const inSentence = (text: string) =>
+	/^(?:Every|Last)\b/.test(text) ? `${text.charAt(0).toLowerCase()}${text.slice(1)}` : text;
+const rule = schedule.kind === "rule" ? `Meets ${inSentence(schedule.text)}` : null;
+---
+
+{first === null ? (
+	<div class="next next--none" data-testid="next-meeting">
+		<h2 id="meetings-title" class="sr-only">
+			Meetings
+		</h2>
+		<DateTile occurrence={null} today={today} />
+		<div class="next__text">
+			<p class="next__rule" data-testid="schedule">
+				{note ?? "Contact the secretary for meeting times."}
+			</p>
+			{contactHref && <a href={contactHref}>Write to the secretary</a>}
+		</div>
+	</div>
+) : (
+	<div class="next card" data-testid="next-meeting">
+		<DateTile occurrence={first} today={today} large={true} label="Next stated meeting:" />
+		<div class="next__text">
+			<p class="eyebrow">Next stated meeting</p>
+			<h2 id="meetings-title" class="next__title">
+				{first.title}
+			</h2>
+			<div class="next__schedule" data-testid="schedule">
+				{rule && <p class="next__rule">{rule}</p>}
+				{note && <p class="next__note">{note}</p>}
+			</div>
+			<div class="next__dates">
+				<h3 class="next__dates-title">Next meetings</h3>
+				<ol data-testid="next-meetings">
+					{next.map((o) => (
+						<li>
+							<time datetime={datetimeOf(o)}>{formatOccurrence(o)}</time>
+						</li>
+					))}
+				</ol>
+			</div>
+			<p class="btn-row next__actions">
+				<a class="btn" href={feedHref}>
+					Add to my calendar
+				</a>
+				{contactHref && (
+					<a class="btn btn--ghost" href={contactHref}>
+						Contact the secretary
+					</a>
+				)}
+			</p>
+		</div>
+	</div>
+)}
+
+<style>
+	.next {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: var(--spacing-6);
+		align-items: center;
+		padding: var(--spacing-6);
+		border-radius: var(--radius-lg);
+	}
+
+	.next--none {
+		border: 2px dashed var(--color-border-strong);
+	}
+
+	.next__text {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--spacing-2);
+		justify-items: start;
+	}
+
+	.next__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.next__rule {
+		margin-top: var(--spacing-2);
+		font-size: var(--font-size-lg);
+		font-weight: 700;
+	}
+
+	.next--none .next__rule {
+		margin-top: 0;
+	}
+
+	.next__note {
+		color: var(--color-text-secondary);
+	}
+
+	.next__dates {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: baseline;
+		gap: var(--spacing-1) var(--spacing-3);
+		color: var(--color-text-secondary);
+	}
+
+	.next__dates-title {
+		font-size: var(--font-size-sm);
+		font-weight: 700;
+	}
+
+	.next__dates ol {
+		display: flex;
+		flex-wrap: wrap;
+		gap: var(--spacing-1) var(--spacing-3);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+		font-variant-numeric: tabular-nums;
+	}
+
+	.next__dates li + li::before {
+		content: "·" / "";
+		margin-inline-end: var(--spacing-3);
+	}
+
+	.next__actions {
+		margin-top: var(--spacing-3);
+	}
+
+	@media (max-width: 640px) {
+		.next {
+			grid-template-columns: 1fr;
+			justify-items: start;
+		}
+
+		.next__dates ol {
+			flex-direction: column;
+		}
+
+		.next__dates li + li::before {
+			content: none;
+		}
+	}
+</style>

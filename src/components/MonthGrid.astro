@@ -1,0 +1,147 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import type { MonthGrid } from "@core/calendar/month";
+import type { BodyId } from "@core/ids";
+import { formatMonth } from "@core/time";
+import Entry from "./Entry.astro";
+
+// FR-4.3, 4.4: a server-rendered month. The agenda beside it carries the same entries, so the
+// grid steps aside wherever its days are too narrow for a title's words whole: 1240px and below.
+interface Props {
+	grid: MonthGrid;
+	bodies: ReadonlyMap<BodyId, BodyView>;
+	showBody: boolean;
+}
+
+const { grid, bodies, showBody } = Astro.props;
+const WEEKDAYS = [
+	["Sun", "Sunday"],
+	["Mon", "Monday"],
+	["Tue", "Tuesday"],
+	["Wed", "Wednesday"],
+	["Thu", "Thursday"],
+	["Fri", "Friday"],
+	["Sat", "Saturday"],
+] as const;
+---
+
+<table class="month-grid" data-testid="month-grid">
+	<caption class="sr-only">{formatMonth(grid.month)}</caption>
+	<thead>
+		<tr>
+			{WEEKDAYS.map(([short, long]) => (
+				<th scope="col">
+					<abbr title={long}>{short}</abbr>
+				</th>
+			))}
+		</tr>
+	</thead>
+	<tbody>
+		{grid.weeks.map((week) => (
+			<tr>
+				{week.map((day) =>
+					day === null ? (
+						<td class="month-grid__pad" />
+					) : (
+						<td data-date={day.date.toString()} aria-current={day.isToday ? "date" : undefined}>
+							<span class="month-grid__head">
+								<time class="month-grid__day" datetime={day.date.toString()}>
+									{day.date.day}
+								</time>
+								{day.isToday && <span class="month-grid__today">Today</span>}
+							</span>
+							{day.occurrences.length > 0 && (
+								<ul class="month-grid__entries">
+									{day.occurrences.map((o) => (
+										<Entry
+											occurrence={o}
+											body={bodies.get(o.body)}
+											showBody={showBody}
+											compact={true}
+										/>
+									))}
+								</ul>
+							)}
+						</td>
+					),
+				)}
+			</tr>
+		))}
+	</tbody>
+</table>
+
+<style>
+	.month-grid {
+		width: 100%;
+		border-collapse: separate;
+		border-spacing: 4px;
+		table-layout: fixed;
+	}
+
+	.month-grid th {
+		padding: 0 var(--spacing-2) var(--spacing-1);
+		font-size: var(--font-size-xs);
+		font-weight: 700;
+		text-align: start;
+		color: var(--color-text-secondary);
+	}
+
+	.month-grid abbr {
+		text-decoration: none;
+	}
+
+	.month-grid td {
+		height: 7rem;
+		padding: var(--spacing-2);
+		vertical-align: top;
+		border-radius: var(--radius-sm);
+		background: var(--color-surface);
+		box-shadow: inset 0 0 0 1px var(--color-border);
+	}
+
+	.month-grid td[aria-current="date"] {
+		box-shadow: inset 0 0 0 2px var(--color-brand);
+	}
+
+	.month-grid .month-grid__pad {
+		background: transparent;
+		box-shadow: none;
+	}
+
+	.month-grid__head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: var(--spacing-1);
+		margin-bottom: var(--spacing-1);
+	}
+
+	.month-grid__day {
+		font-weight: 700;
+	}
+
+	.month-grid__today {
+		padding: 0 6px;
+		border-radius: var(--radius-full);
+		background: var(--color-brand);
+		color: var(--color-on-brand);
+		font-size: var(--font-size-label);
+		font-weight: 700;
+	}
+
+	.month-grid__entries {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--spacing-1);
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+
+	@media (max-width: 1240px) {
+		.month-grid {
+			display: none;
+		}
+	}
+</style>

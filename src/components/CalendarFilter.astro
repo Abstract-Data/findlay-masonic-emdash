@@ -1,0 +1,98 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import type { BodyId } from "@core/ids";
+
+// FR-4.4: a plain GET form, so the filter is a link that needs no script. With nothing chosen,
+// every body is shown and every box ticked. `keep` carries the month or week being shown.
+interface Props {
+	bodies: readonly BodyView[];
+	selected: ReadonlySet<BodyId>;
+	action: string;
+	keep: Readonly<Record<string, string>>;
+}
+
+const { bodies, selected, action, keep } = Astro.props;
+const kept = new URLSearchParams(keep).toString();
+const showAll = kept === "" ? action : `${action}?${kept}`;
+---
+
+<form method="get" action={action} class="calendar-filter" data-testid="calendar-filter">
+	<fieldset class="calendar-filter__bodies">
+		<legend class="calendar-filter__legend">Show</legend>
+		{bodies.map((body) => (
+			<label class="calendar-filter__body" data-colour={body.colour ?? undefined}>
+				<input
+					type="checkbox"
+					name="body"
+					value={body.slug}
+					checked={selected.size === 0 || selected.has(body.id)}
+				/>{" "}
+				<span class="body-label">{body.label}</span>
+			</label>
+		))}
+	</fieldset>
+	{Object.entries(keep).map(([name, value]) => (
+		<input type="hidden" name={name} value={value} />
+	))}
+	<p class="calendar-filter__actions">
+		<button type="submit" class="btn btn--ghost">
+			Update
+		</button>
+		{selected.size > 0 && <a href={showAll}>Show all bodies</a>}
+	</p>
+</form>
+
+<style>
+	.calendar-filter {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-3) var(--spacing-4);
+	}
+
+	.calendar-filter__bodies {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-2);
+		margin: 0;
+		padding: 0;
+		border: 0;
+	}
+
+	.calendar-filter__legend {
+		float: inline-start;
+		margin-inline-end: var(--spacing-2);
+		padding: 0;
+		font-size: var(--font-size-sm);
+		font-weight: 700;
+	}
+
+	.calendar-filter__body {
+		display: inline-flex;
+		align-items: center;
+		gap: var(--spacing-2);
+		min-height: 2.75rem;
+		padding: 0 var(--spacing-4) 0 var(--spacing-3);
+		border-radius: var(--radius-full);
+		background: var(--color-surface);
+		box-shadow: inset 0 0 0 1px var(--color-border-strong);
+		cursor: pointer;
+	}
+
+	.calendar-filter__body:has(:focus-visible) {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	.calendar-filter__body .body-label {
+		font-size: var(--font-size-sm);
+	}
+
+	.calendar-filter__actions {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: var(--spacing-4);
+	}
+</style>

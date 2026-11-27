@@ -1,0 +1,121 @@
+---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
+import { loadBodies, loadCalendar } from "@adapters/site/content";
+import { paths } from "@adapters/site/paths";
+import { chosenBodies } from "@adapters/site/views";
+import { agenda, monthGrid, parseMonth } from "@core/calendar/month";
+import { expand, monthWindow } from "@core/recurrence/expand";
+import { formatMonth, SITE_TZ } from "@core/time";
+import type { Temporal } from "temporal-polyfill";
+import Agenda from "../components/Agenda.astro";
+import CalendarFilter from "../components/CalendarFilter.astro";
+import FeedLinks from "../components/FeedLinks.astro";
+import MonthGrid from "../components/MonthGrid.astro";
+import MonthNav from "../components/MonthNav.astro";
+import Base from "../layouts/Base.astro";
+
+// FR-4.4: every body's occurrences for a month, labelled and coloured by body, narrowed by
+// `?body=` slugs.
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const month = parseMonth(Astro.url.searchParams.get("month"), today);
+const bodies = await loadBodies();
+const chosen = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
+const calendar = await loadCalendar(chosen.length === 0 ? bodies.value : chosen);
+cacheRoute(Astro.cache, [bodies.hint, calendar.hint], clockBound(now));
+
+const { series, byId } = calendar.value;
+const occurrences = expand(series, monthWindow(month));
+const grid = monthGrid(month, occurrences, today);
+const days = agenda(
+	occurrences,
+	month.toPlainDate({ day: 1 }),
+	month.add({ months: 1 }).toPlainDate({ day: 1 }),
+);
+const byBody = new Map(bodies.value.map((body) => [body.id, body]));
+const href = (target: Temporal.PlainYearMonth) => {
+	const query = new URLSearchParams({ month: target.toString() });
+	for (const body of chosen) query.append("body", body.slug);
+	return `${paths.calendar}?${query}`;
+};
+const monthName = formatMonth(month);
+---
+
+<Base
+	title={`Temple calendar, ${monthName}`}
+	description="Meetings and events at the Findlay Masonic Temple."
+>
+	<section class="band calendar-lead" aria-labelledby="calendar-title">
+		<div class="frame calendar-month">
+			<h1 id="calendar-title" class="calendar-lead__title">
+				Temple calendar
+			</h1>
+			<div class="calendar-head">
+				<h2 class="calendar-head__title">{monthName}</h2>
+				<MonthNav month={month} href={href} />
+			</div>
+			<CalendarFilter
+				bodies={bodies.value}
+				selected={new Set(chosen.map((body) => body.id))}
+				action={paths.calendar}
+				keep={{ month: month.toString() }}
+			/>
+			<MonthGrid grid={grid} bodies={byBody} showBody={true} />
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="agenda-title">
+		<div class="frame">
+			<h2 id="agenda-title" class="section-head__title calendar-section-title">
+				Events in {monthName}
+			</h2>
+			<Agenda
+				days={days}
+				bodies={byBody}
+				series={byId}
+				showBody={true}
+				empty={`Nothing is on the calendar in ${monthName}.`}
+			/>
+		</div>
+	</section>
+	<section class="band section" aria-labelledby="feed-title">
+		<div class="frame">
+			<h2 id="feed-title" class="section-head__title calendar-section-title">
+				Every body's events on your phone
+			</h2>
+			<FeedLinks path={paths.feed} label="Add the Temple calendar to my phone" />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.calendar-lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
+	.calendar-month {
+		display: grid;
+		gap: var(--spacing-6);
+	}
+
+	.calendar-head {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: end;
+		justify-content: space-between;
+		gap: var(--spacing-4);
+	}
+
+	.calendar-lead__title {
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.calendar-head__title {
+		font-size: var(--font-size-3xl);
+	}
+
+	.calendar-section-title {
+		margin-bottom: var(--spacing-6);
+	}
+</style>

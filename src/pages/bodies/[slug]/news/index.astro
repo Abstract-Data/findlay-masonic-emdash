@@ -1,0 +1,93 @@
+---
+import { cacheRoute } from "@adapters/site/cache";
+import { loadBody, loadBodyNews } from "@adapters/site/content";
+import { paths, slugParam } from "@adapters/site/paths";
+import { chosenTag } from "@adapters/site/views";
+import { pageOf, parsePage } from "@core/news/paging";
+import NewsList from "../../../../components/NewsList.astro";
+import Pager from "../../../../components/Pager.astro";
+import Base from "../../../../layouts/Base.astro";
+
+// FR-3.3: one body's news, newest first, ten to a page, filtered by one of its tags.
+const slug = slugParam(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+const { value: body, hint } = await loadBody(slug);
+if (body === null) return Astro.rewrite("/404");
+const news = await loadBodyNews(body.id);
+cacheRoute(Astro.cache, [hint, news.hint]);
+
+const tag = chosenTag(Astro.url.searchParams.get("tag"), body);
+const matching = tag === null ? news.value : news.value.filter((n) => n.tags.includes(tag.slug));
+const page = pageOf(matching, parsePage(Astro.url.searchParams.get("page")));
+if (page.page > 1 && page.items.length === 0) return Astro.rewrite("/404");
+
+const base = paths.bodyNews(body.slug);
+const href = (n: number) => {
+	const query = new URLSearchParams();
+	if (tag !== null) query.set("tag", tag.slug);
+	if (n > 1) query.set("page", String(n));
+	const search = query.toString();
+	return search === "" ? base : `${base}?${search}`;
+};
+const title = tag === null ? `News from ${body.displayName}` : `${tag.label}: ${body.displayName}`;
+---
+
+<Base title={title} description={`News from ${body.displayName}.`}>
+	<header class="band intro">
+		<div class="frame">
+			<p class="eyebrow" data-colour={body.colour ?? undefined}>
+				<a class="body-label" href={paths.body(body.slug)}>
+					{body.displayName}
+				</a>
+			</p>
+			<h1 class="intro__title">News</h1>
+		</div>
+	</header>
+	<section class="band section" aria-labelledby="news-title">
+		<div class="frame">
+			<h2 id="news-title" class="sr-only">
+				{title}
+			</h2>
+			{body.tags.length > 0 && (
+				<nav aria-label="Filter by tag" class="news-tags" data-testid="tag-filter">
+					<ul class="chips">
+						<li>
+							<a class="chip" href={base} aria-current={tag === null ? "page" : undefined}>
+								All news
+							</a>
+						</li>
+						{body.tags.map((option) => (
+							<li>
+								<a
+									class="chip"
+									href={`${base}?tag=${encodeURIComponent(option.slug)}`}
+									aria-current={tag?.slug === option.slug ? "page" : undefined}
+								>
+									{option.label}
+								</a>
+							</li>
+						))}
+					</ul>
+				</nav>
+			)}
+			<NewsList
+				items={page.items}
+				bodies={new Map([[body.id, body]])}
+				showBody={false}
+				headingLevel={3}
+				empty={
+					tag === null
+						? `No news from ${body.displayName} yet.`
+						: `No news tagged ${tag.label} yet.`
+				}
+			/>
+			<Pager page={page} href={href} />
+		</div>
+	</section>
+</Base>
+
+<style>
+	.news-tags {
+		margin-bottom: var(--spacing-6);
+	}
+</style>

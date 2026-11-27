@@ -1,0 +1,36 @@
+---
+import { emdashComponents } from "emdash/ui";
+
+// EmDash's table, in a region a keyboard can scroll when the table is wider than the screen
+// (WCAG 2.1.1; axe's scrollable-region-focusable).
+interface Props {
+	node: unknown;
+}
+
+const EmDashTable = emdashComponents.type.table;
+---
+
+<div class="table-region" role="region" aria-label="Table" tabindex="0">
+	<EmDashTable node={Astro.props.node} />
+</div>
+
+<style>
+	.table-region {
+		max-inline-size: 100%;
+		margin-block: 1.5rem;
+		overflow-x: auto;
+		overscroll-behavior-inline: contain;
+		/* The region scrolls, so a column widens to its longest word instead of splitting words. */
+		overflow-wrap: normal;
+	}
+
+	.table-region:focus-visible {
+		outline: 2px solid var(--color-brand);
+		outline-offset: 2px;
+	}
+
+	/* The region scrolls instead, so EmDash's own wrapper is not a second, unreachable scroller. */
+	.table-region > :global(.emdash-table-wrapper) {
+		display: contents;
+	}
+</style>

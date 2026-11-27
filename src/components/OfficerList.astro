@@ -1,0 +1,70 @@
+---
+import type { OfficerView } from "@adapters/site/views";
+import type { Roster } from "@core/bodies/officers";
+import { Image } from "emdash/ui";
+
+// FR-2.2: the current term's officers, in display order.
+interface Props {
+	roster: Roster<OfficerView>;
+}
+
+const { roster } = Astro.props;
+---
+
+{roster.officers.length === 0 ? (
+	<p class="officers__empty" data-testid="officers-empty">
+		No officers have been posted yet.
+	</p>
+) : (
+	<dl class="officers" data-testid="officers">
+		{roster.officers.map((officer) => (
+			<div class="officers__row">
+				<dt>{officer.title}</dt>
+				<dd>
+					{officer.photo && <Image image={officer.photo} alt="" class="officers__photo" />}
+					<span class="officers__name">{officer.name}</span>
+				</dd>
+			</div>
+		))}
+	</dl>
+)}
+
+<style>
+	.officers {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--spacing-4) var(--spacing-5);
+		margin: 0;
+	}
+
+	.officers__row dt {
+		font-size: var(--font-size-xs);
+		color: var(--color-text-secondary);
+	}
+
+	.officers__row dd {
+		display: flex;
+		align-items: center;
+		gap: var(--spacing-3);
+		margin: 0;
+		font-weight: 700;
+	}
+
+	:global(.officers__photo) {
+		flex: none;
+		width: 3rem;
+		height: 3rem;
+		border-radius: var(--radius-full);
+		object-fit: cover;
+	}
+
+	.officers__empty {
+		color: var(--color-text-secondary);
+	}
+
+	@media (max-width: 400px) {
+		.officers {
+			grid-template-columns: 1fr;
+		}
+	}
+</style>

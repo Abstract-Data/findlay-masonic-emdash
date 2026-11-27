@@ -1,194 +1,283 @@
 ---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
+import { loadBodies, loadCalendar, loadNewsPage } from "@adapters/site/content";
+import { paths } from "@adapters/site/paths";
+import { chosenBodies } from "@adapters/site/views";
 import {
-	getEmDashCollection,
-	getTermsForEntries,
-	getSiteSettings,
-} from "emdash";
+	formatWeek,
+	nextAfter,
+	parseWeek,
+	weekDays,
+	weekStart,
+	weekTitle,
+	weekWindow,
+} from "@core/calendar/week";
+import { expand } from "@core/recurrence/expand";
+import { meetingsByBody } from "@core/recurrence/meetings";
+import { SITE_TZ } from "@core/time";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import RichText from "../components/RichText.astro";
+import type { Temporal } from "temporal-polyfill";
+import BodyCards from "../components/BodyCards.astro";
+import CalendarFilter from "../components/CalendarFilter.astro";
+import NewsList from "../components/NewsList.astro";
+import NewsletterSignup from "../components/NewsletterSignup.astro";
+import WeekStrip from "../components/WeekStrip.astro";
 import Base from "../layouts/Base.astro";
-import PostCard from "../components/PostCard.astro";
-import { resolveBlogSiteIdentity } from "../utils/site-identity";
+import { resolveSiteIdentity } from "../utils/site-identity";
+import "../styles/prose.css";
 
-// Limit to what we render (1 featured + 6 grid). The DB does the slicing
-// instead of fetching every post and discarding the tail in JS.
-const POSTS_PER_PAGE = 7;
+// The home page opens on this week at the Temple (`?week=`, `?body=`), then each
+// body's next stated meeting, the latest notices and the signup. The `home` entry in the pages
+// collection (FR-9.1) is the introduction further down, when an editor has written one.
+const LATEST_NEWS = 3;
+// The "Thinking of joining?" card writes to this body (a default the operator can change).
+const JOINING_BODY = "blue-lodge";
 
-const [{ entries: posts, cacheHint }, settings] = await Promise.all([
-	getEmDashCollection("posts", {
-		orderBy: { published_at: "desc" },
-		limit: POSTS_PER_PAGE + 1, // +1 to detect "view all" need
-	}),
-	getSiteSettings(),
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const week = parseWeek(Astro.url.searchParams.get("week"), today);
+const [bodies, settings, home] = await Promise.all([
+	loadBodies(),
+	getSiteSettingsWithCacheHint(),
+	getEmDashEntry("pages", "home"),
 ]);
-const { siteTitle, siteTagline } = resolveBlogSiteIdentity(settings);
+if (home.error !== undefined) throw home.error;
+const [calendar, news] = await Promise.all([
+	loadCalendar(bodies.value),
+	loadNewsPage(bodies.value, 1, LATEST_NEWS),
+]);
+cacheRoute(
+	Astro.cache,
+	[bodies.hint, settings.cacheHint, home.cacheHint, calendar.hint, news.hint],
+	clockBound(now),
+);
 
-if (Astro.cache?.enabled) Astro.cache.set(cacheHint);
+const { siteTitle, siteTagline } = resolveSiteIdentity(settings.data);
+const byBody = new Map(bodies.value.map((body) => [body.id, body]));
+const chosen = chosenBodies(Astro.url.searchParams.getAll("body"), bodies.value);
+const chosenIds = new Set(chosen.map((body) => body.id));
+const { series } = calendar.value;
+const shown = chosen.length === 0 ? series : series.filter((s) => chosenIds.has(s.body));
 
-// Trim the lookahead post used to detect overflow
-const visiblePosts = posts.slice(0, POSTS_PER_PAGE);
-const hasMorePosts = posts.length > POSTS_PER_PAGE;
+const window = weekWindow(week);
+const days = weekDays(week, expand(shown, window), today);
+const weekHref = (start: Temporal.PlainDate) => {
+	const query = new URLSearchParams();
+	if (!start.equals(weekStart(today))) query.set("week", start.toString());
+	for (const body of chosen) query.append("body", body.slug);
+	const search = query.toString();
+	return search === "" ? paths.home : `${paths.home}?${search}`;
+};
+const following = nextAfter(shown, window.to);
+const next =
+	following === null
+		? null
+		: { occurrence: following, href: weekHref(weekStart(following.start.toPlainDate())) };
+const monthQuery = new URLSearchParams({
+	month: week.add({ days: 3 }).toPlainYearMonth().toString(),
+});
+for (const body of chosen) monthQuery.append("body", body.slug);
+const feed = new URL(paths.feed, Astro.url).href.replace(/^https?:/, "webcal:");
 
-// Find the first post with a featured image for the hero
-const featuredPost = visiblePosts.find((p) => p.data.featured_image);
-const featuredIndex = featuredPost ? visiblePosts.indexOf(featuredPost) : -1;
-
-// Get remaining posts (exclude featured if found, limit to 6 for grid)
-const gridPosts = visiblePosts
-	.filter((_, i) => i !== featuredIndex)
-	.slice(0, 6);
-
-// Single batched query for tags across the featured post + grid posts.
-// Avoids the N+1 pattern of calling getEntryTerms() per entry.
-// Bylines are already hydrated on entry.data.bylines by getEmDashCollection.
-const tagEntryIds = [
-	...(featuredPost ? [featuredPost.data.id] : []),
-	...gridPosts.map((p) => p.data.id),
-];
-const tagsByEntry = await getTermsForEntries("posts", tagEntryIds, "tag");
-
-const featuredTags = featuredPost
-	? (tagsByEntry.get(featuredPost.data.id) ?? []).map((t) => ({
-			slug: t.slug,
-			label: t.label,
-		}))
-	: [];
-
-const gridPostsWithTags = gridPosts.map((post) => ({
-	post,
-	tags: (tagsByEntry.get(post.data.id) ?? []).map((t) => ({
-		slug: t.slug,
-		label: t.label,
-	})),
-}));
+const cards = meetingsByBody(bodies.value, series, now, 1);
+const joining = bodies.value.find((body) => body.slug === JOINING_BODY);
 ---
 
 <Base title={siteTitle} description={siteTagline}>
-	<header class="band intro">
-		<div class="frame home-intro">
-			<div>
-				<p class="eyebrow">Blog</p>
-				<h1 class="intro__title">{siteTitle}</h1>
-				{siteTagline && <p class="intro__subtitle">{siteTagline}</p>}
-			</div>
-			<a
-				href="/rss.xml"
-				type="application/rss+xml"
-				class="btn btn--ghost btn--sm home-intro__rss"
-			>
-				<svg
-					viewBox="0 0 24 24"
-					fill="none"
-					stroke="currentColor"
-					stroke-width="1.75"
-					stroke-linecap="round"
-					stroke-linejoin="round"
-					aria-hidden="true"
-				>
-					<path d="M4 11a9 9 0 0 1 9 9"></path>
-					<path d="M4 4a16 16 0 0 1 16 16"></path>
-					<circle cx="5" cy="19" r="1"></circle>
-				</svg>
-				RSS feed
-			</a>
-		</div>
-	</header>
-
-	{
-		posts.length === 0 ? (
-			<section class="band section">
-				<div class="frame">
-					<div class="empty-state">
-						<h2 class="empty-state__title">No posts yet</h2>
-						<p class="empty-state__text">
-							Create your first post in the admin panel.
-						</p>
-						<div class="empty-state__actions">
-							<a href="/_emdash/admin/content/posts/new" class="btn">
-								Create a post
-							</a>
-						</div>
-					</div>
+	<section class="band lead" aria-labelledby="week-title">
+		<div class="frame">
+			<div class="lead__head">
+				<div>
+					<h1 id="week-title" class="lead__title">
+						{weekTitle(week, today)}
+					</h1>
+					<p class="lead__dates">{formatWeek(week)}</p>
 				</div>
-			</section>
-		) : (
-			<>
-				{featuredPost && (
-					<section class="band section">
-						<div class="frame">
-							<PostCard
-								post={featuredPost}
-								tags={featuredTags}
-								variant="feature"
-								headingLevel={2}
-								priority
-							/>
-						</div>
-					</section>
-				)}
+				<nav class="btn-row" aria-label="Weeks" data-testid="week-nav">
+					<a class="btn btn--ghost" href={weekHref(week.subtract({ days: 7 }))} rel="prev">
+						<span class="arrow arrow--back" aria-hidden="true"></span> Previous week
+					</a>
+					{!week.equals(weekStart(today)) && (
+						<a class="btn btn--ghost" href={weekHref(weekStart(today))}>
+							This week
+						</a>
+					)}
+					<a class="btn btn--ghost" href={weekHref(week.add({ days: 7 }))} rel="next">
+						Next week <span class="arrow" aria-hidden="true"></span>
+					</a>
+				</nav>
+			</div>
+			<div class="lead__filter">
+				<CalendarFilter
+					bodies={bodies.value}
+					selected={chosenIds}
+					action={paths.home}
+					keep={week.equals(weekStart(today)) ? {} : { week: week.toString() }}
+				/>
+			</div>
+			<WeekStrip
+				days={days}
+				bodies={byBody}
+				today={today}
+				filtered={chosen.length > 0}
+				next={next}
+			/>
+			<p class="btn-row lead__links">
+				<a class="btn" href={`${paths.calendar}?${monthQuery}`}>
+					Month view
+				</a>
+				<a class="btn btn--ghost" href={feed}>
+					Add the Temple calendar to my phone
+				</a>
+			</p>
+		</div>
+	</section>
 
-				{gridPostsWithTags.length > 0 && (
-					<section class="band section" aria-labelledby="latest-posts">
-						<div class="frame">
-							<div class="section-head">
-								<h2 id="latest-posts" class="section-head__title">
-									Latest posts
-								</h2>
-								{hasMorePosts && (
-									<a href="/posts" class="arrow-link">
-										View all<span class="sr-only"> posts</span>
-										<svg
-											viewBox="0 0 24 24"
-											fill="none"
-											stroke="currentColor"
-											stroke-width="1.75"
-											stroke-linecap="round"
-											stroke-linejoin="round"
-											aria-hidden="true"
-										>
-											<path d="M5 12h14" />
-											<path d="m12 5 7 7-7 7" />
-										</svg>
-									</a>
-								)}
-							</div>
-							<div class="post-grid">
-								{gridPostsWithTags.map(({ post, tags }) => (
-									<PostCard
-										post={post}
-										tags={tags}
-										variant="card"
-										headingLevel={3}
-									/>
-								))}
-							</div>
-						</div>
-					</section>
-				)}
-			</>
-		)
-	}
+	<section class="band section" aria-labelledby="meetings-title">
+		<div class="frame">
+			<div class="section-head">
+				<h2 id="meetings-title" class="section-head__title">
+					Next stated meetings
+				</h2>
+				<a class="arrow-link" href={paths.bodies}>
+					All bodies
+				</a>
+			</div>
+			<BodyCards cards={cards} today={today} headingLevel={3} />
+		</div>
+	</section>
+
+	<section class="band section" aria-labelledby="news-title">
+		<div class="frame">
+			<div class="section-head">
+				<h2 id="news-title" class="section-head__title">
+					Notices
+				</h2>
+				<a class="arrow-link" href={paths.news}>
+					All news
+				</a>
+			</div>
+			<NewsList items={news.value.items} bodies={byBody} showBody={true} empty="No news yet." />
+		</div>
+	</section>
+
+	<section class="band section" aria-label="Newsletter and joining">
+		<div class="frame split">
+			<NewsletterSignup chooseBodies={false} />
+			{joining && (
+				<section class="card join" aria-labelledby="join-title" data-testid="joining">
+					<h2 id="join-title" class="join__title">
+						Thinking of joining?
+					</h2>
+					<p class="join__text">
+						Every Mason in this building started by asking. Write to {joining.displayName} and the
+						secretary will arrange a time to meet.
+					</p>
+					<p>
+						<a
+							class="btn btn--ghost"
+							href={
+								joining.acceptsMessages
+									? `${paths.body(joining.slug)}#contact`
+									: paths.body(joining.slug)
+							}
+						>
+							Write to {joining.label}
+						</a>
+					</p>
+				</section>
+			)}
+		</div>
+	</section>
+
+	{home.entry?.data.content && (
+		<section class="band section" aria-labelledby="about-title">
+			<div class="frame about">
+				<h2 id="about-title" class="section-head__title">
+					{siteTitle}
+				</h2>
+				<div class="prose" {...home.entry.edit.content}>
+					<RichText value={home.entry.data.content} />
+				</div>
+			</div>
+		</section>
+	)}
 </Base>
 
 <style>
-	.home-intro {
-		display: grid;
-		grid-template-columns: minmax(0, 1fr) auto;
+	.lead {
+		padding-block: var(--spacing-10) var(--spacing-12);
+	}
+
+	.lead__head {
+		display: flex;
+		flex-wrap: wrap;
 		align-items: end;
-		gap: var(--spacing-6) var(--spacing-8);
+		justify-content: space-between;
+		gap: var(--spacing-4);
+		margin-bottom: var(--spacing-6);
 	}
 
-	/* Lifts the pill from the line box's bottom onto the last line's baseline */
-	.home-intro__rss {
-		margin-block-end: var(--spacing-2);
+	.lead__title {
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
 	}
 
-	@media (max-width: 720px) {
-		.home-intro {
-			grid-template-columns: minmax(0, 1fr);
+	.lead__dates {
+		margin-top: var(--spacing-2);
+		font-size: var(--font-size-lg);
+		color: var(--color-text-secondary);
+	}
+
+	.lead__filter {
+		margin-bottom: var(--spacing-5);
+	}
+
+	.lead__links {
+		margin-top: var(--spacing-6);
+	}
+
+	.split {
+		display: grid;
+		grid-template-columns: repeat(2, 1fr);
+		gap: var(--spacing-6);
+		align-items: start;
+	}
+
+	.join {
+		display: grid;
+		gap: var(--spacing-4);
+		padding: var(--spacing-8);
+	}
+
+	.join__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.join__text {
+		color: var(--color-text-secondary);
+	}
+
+	.about {
+		display: grid;
+		gap: var(--spacing-4);
+	}
+
+	.about .prose {
+		max-width: var(--content-width);
+	}
+
+	@media (max-width: 860px) {
+		.split {
+			grid-template-columns: 1fr;
 		}
+	}
 
-		.home-intro__rss {
-			justify-self: start;
-			margin-block-end: 0;
+	@media (max-width: 640px) {
+		.join {
+			padding: var(--spacing-5);
 		}
 	}
 </style>

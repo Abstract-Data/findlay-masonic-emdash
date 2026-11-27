@@ -1,0 +1,154 @@
+---
+import type { BodyView } from "@adapters/site/views";
+import { ownEntry } from "@core/lookup";
+import type { ContactOutcome } from "@plugins/newsletter/contact";
+import Turnstile from "./Turnstile.astro";
+
+// Spec Q12: a plain form post to the newsletter plugin's contact route, which emails the body's
+// private recipients and redirects back here with ?contact=<outcome>. No address is shown.
+interface Props {
+	/** The bodies a visitor can write to: those with recipients set. */
+	bodies: readonly BodyView[];
+	/** On a body's own page, the body the message is for. */
+	body?: BodyView;
+}
+
+const { bodies, body } = Astro.props;
+// The limit counts one network's messages and everyone's, so the text blames neither.
+const MESSAGES: Readonly<Record<string, string>> = {
+	sent: "Thank you. Your message has been sent.",
+	invalid: "Please fill in your name, a valid email address and a message.",
+	"verification-failed": "We could not confirm you are a person. Please try again.",
+	"rate-limited":
+		"Too many messages have come in for this body in the last hour. Please try again later.",
+	unavailable: "Messages are not working right now. Please try again later.",
+} satisfies Record<ContactOutcome, string>;
+const message = ownEntry(MESSAGES, Astro.url.searchParams.get("contact"));
+const reachable = body === undefined ? bodies.length > 0 : body.acceptsMessages;
+const title = body === undefined ? "Write to a body" : `Write to ${body.displayName}`;
+---
+
+<section id="contact" class="band section contact" aria-labelledby="contact-title">
+	<div class="frame">
+		<div class="card contact__card">
+			<h2 id="contact-title" class="contact__title">
+				{title}
+			</h2>
+			{message && (
+				<p class="contact__status" role="status" data-testid="contact-message">
+					{message}
+				</p>
+			)}
+			{reachable ? (
+				<form
+					class="contact__form"
+					method="post"
+					action="/_emdash/api/plugins/newsletter/contact"
+					data-testid="contact-form"
+				>
+					<p class="contact__lead">
+						{body === undefined
+							? "Your message goes to the secretary of the body you choose, who will write back to you."
+							: "Your message goes to the secretary, who will write back to you."}
+					</p>
+					<input type="hidden" name="from" value={Astro.url.pathname} />
+					{body ? (
+						<input type="hidden" name="body" value={body.id} />
+					) : (
+						<p class="field">
+							<label for="contact-body">Body</label>
+							<select id="contact-body" class="input" name="body" required>
+								<option value="">Choose a body</option>
+								{bodies.map((option) => (
+									<option value={option.id}>{option.displayName}</option>
+								))}
+							</select>
+						</p>
+					)}
+					<p class="field">
+						<label for="contact-name">Your name</label>
+						<input
+							id="contact-name"
+							class="input"
+							name="name"
+							required
+							maxlength="100"
+							autocomplete="name"
+						/>
+					</p>
+					<p class="field">
+						<label for="contact-email">Your email address</label>
+						<input
+							id="contact-email"
+							class="input"
+							name="email"
+							type="email"
+							required
+							maxlength="254"
+							autocomplete="email"
+						/>
+					</p>
+					<p class="field">
+						<label for="contact-message">Message</label>
+						<textarea
+							id="contact-message"
+							class="input"
+							name="message"
+							rows="6"
+							required
+							maxlength="5000"
+						></textarea>
+					</p>
+					<Turnstile action="contact" />
+					<p>
+						<button type="submit" class="btn">
+							Send message
+						</button>
+					</p>
+				</form>
+			) : (
+				<p class="contact__lead" data-testid="contact-unavailable">
+					{body === undefined
+						? "No body has set up its contact form yet."
+						: `${body.displayName} has not set up its contact form yet.`}
+				</p>
+			)}
+		</div>
+	</div>
+</section>
+
+<style>
+	.contact__card {
+		display: grid;
+		gap: var(--spacing-4);
+		max-width: var(--content-width);
+		padding: var(--spacing-8);
+	}
+
+	.contact__title {
+		font-size: var(--font-size-2xl);
+	}
+
+	.contact__lead {
+		color: var(--color-text-secondary);
+	}
+
+	.contact__status {
+		padding: var(--spacing-3) var(--spacing-4);
+		border-inline-start: 4px solid var(--color-brand);
+		border-radius: var(--radius-sm);
+		background: var(--color-fill);
+		font-weight: 700;
+	}
+
+	.contact__form {
+		display: grid;
+		gap: var(--spacing-5);
+	}
+
+	@media (max-width: 640px) {
+		.contact__card {
+			padding: var(--spacing-5);
+		}
+	}
+</style>

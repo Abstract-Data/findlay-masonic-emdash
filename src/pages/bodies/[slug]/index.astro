@@ -1,0 +1,263 @@
+---
+import { systemClock } from "@adapters/clock";
+import { cacheRoute, clockBound } from "@adapters/site/cache";
+import { loadBodyNews, loadCalendar, loadOfficers } from "@adapters/site/content";
+import { paths, slugParam } from "@adapters/site/paths";
+import { pageSeo } from "@adapters/site/seo";
+import { parseBodyView } from "@adapters/site/views";
+import { currentRoster } from "@core/bodies/officers";
+import { agenda } from "@core/calendar/month";
+import { daysAhead, expand } from "@core/recurrence/expand";
+import { meetings } from "@core/recurrence/meetings";
+import { SITE_TZ } from "@core/time";
+import { getEmDashEntry, getSiteSettingsWithCacheHint } from "emdash";
+import { Image } from "emdash/ui";
+import RichText from "../../../components/RichText.astro";
+import Agenda from "../../../components/Agenda.astro";
+import ContactForm from "../../../components/ContactForm.astro";
+import FeedLinks from "../../../components/FeedLinks.astro";
+import NewsList from "../../../components/NewsList.astro";
+import NextMeeting from "../../../components/NextMeeting.astro";
+import OfficerList from "../../../components/OfficerList.astro";
+import Base from "../../../layouts/Base.astro";
+import { resolveSiteIdentity } from "../../../utils/site-identity";
+import "../../../styles/prose.css";
+
+// FR-1.1, 1.3, 1.4, 2.2: everything about one body on one page, opening on its next meeting.
+const NEXT_MEETINGS = 3;
+const LATEST_NEWS = 5;
+const UPCOMING_DAYS = 60;
+
+const slug = slugParam(Astro.params.slug);
+if (!slug) return Astro.rewrite("/404");
+const { entry, cacheHint, error } = await getEmDashEntry("bodies", slug);
+if (error !== undefined) throw error;
+const body = entry === null ? null : parseBodyView(entry);
+if (entry === null || body === null) return Astro.rewrite("/404");
+
+const now = systemClock.now();
+const today = now.toZonedDateTimeISO(SITE_TZ).toPlainDate();
+const [calendar, officers, news, settings] = await Promise.all([
+	loadCalendar([body]),
+	loadOfficers(body.id),
+	loadBodyNews(body.id),
+	getSiteSettingsWithCacheHint(),
+]);
+cacheRoute(
+	Astro.cache,
+	[cacheHint, calendar.hint, officers.hint, news.hint, settings.cacheHint],
+	clockBound(now),
+);
+
+const { series, byId } = calendar.value;
+const schedule = meetings(series, body.scheduleNote, now, NEXT_MEETINGS);
+const roster = currentRoster(officers.value, today.year, body.bodyType);
+const upcoming = agenda(
+	expand(series, daysAhead(now, UPCOMING_DAYS)),
+	today,
+	today.add({ days: UPCOMING_DAYS + 1 }),
+);
+const bodies = new Map([[body.id, body]]);
+const feed = new URL(paths.bodyFeed(body.slug), Astro.url).href.replace(/^https?:/, "webcal:");
+const { siteTitle } = resolveSiteIdentity(settings.data);
+const seo = pageSeo(entry, {
+	siteTitle,
+	origin: Astro.url.origin,
+	path: paths.body(body.slug),
+	title: body.displayName,
+	text: body.description,
+	fallback: `${body.displayName} at the ${siteTitle}: meeting schedule, officers, news and events.`,
+});
+---
+
+<Base
+	title={seo.title}
+	pageTitle={seo.ogTitle}
+	description={seo.description}
+	canonical={seo.canonical}
+	robots={seo.robots}
+	content={{ collection: "bodies", id: body.id, slug: body.slug }}
+>
+	<header class="band" data-colour={body.colour ?? undefined}>
+		<div class="frame">
+			<div class="body-head">
+				{body.emblem && (
+					<div {...entry.edit.emblem}>
+						<Image image={body.emblem} alt="" class="body-head__emblem" />
+					</div>
+				)}
+				<div>
+					{body.bodyType && <p class="body-label body-head__type">{body.bodyType}</p>}
+					<h1 class="body-head__title" {...entry.edit.name}>
+						{body.displayName}
+					</h1>
+				</div>
+			</div>
+		</div>
+	</header>
+
+	<section
+		class="band section"
+		aria-labelledby="meetings-title"
+		data-colour={body.colour ?? undefined}
+	>
+		<div class="frame">
+			<NextMeeting
+				meetings={schedule}
+				today={today}
+				feedHref={feed}
+				contactHref={body.acceptsMessages ? "#contact" : null}
+			/>
+		</div>
+	</section>
+
+	<div class="band section">
+		<div class="frame body-layout">
+			<div class="body-main">
+				<section aria-labelledby="events-title">
+					<div class="section-head">
+						<h2 id="events-title" class="section-head__title">
+							Coming up
+						</h2>
+						<a class="arrow-link" href={paths.bodyCalendar(body.slug)}>
+							{body.label} calendar
+						</a>
+					</div>
+					<Agenda
+						days={upcoming}
+						bodies={bodies}
+						series={byId}
+						showBody={false}
+						empty={`Nothing is on the calendar for the next ${UPCOMING_DAYS} days.`}
+					/>
+					<div class="body-feed">
+						<FeedLinks
+							path={paths.bodyFeed(body.slug)}
+							label={`Add ${body.label} to my calendar`}
+						/>
+					</div>
+				</section>
+				{body.description.length > 0 && (
+					<section aria-labelledby="about-title">
+						<h2 id="about-title" class="section-head__title">
+							About {body.label}
+						</h2>
+						<div class="prose body-about" {...entry.edit.description}>
+							<RichText value={body.description} />
+						</div>
+					</section>
+				)}
+			</div>
+			<aside class="body-side" aria-label={`${body.label} officers and news`}>
+				<section aria-labelledby="officers-title">
+					<h2 id="officers-title" class="section-head__title">
+						{roster.term === null ? "Officers" : `Officers for ${roster.term}`}
+					</h2>
+					<OfficerList roster={roster} />
+				</section>
+				<section aria-labelledby="news-title">
+					<h2 id="news-title" class="section-head__title">
+						{body.label} news
+					</h2>
+					<NewsList
+						items={news.value.slice(0, LATEST_NEWS)}
+						bodies={bodies}
+						showBody={false}
+						layout="list"
+						empty={`No news from ${body.displayName} yet.`}
+					/>
+					{news.value.length > 0 && (
+						<p class="body-side__more">
+							<a class="arrow-link" href={paths.bodyNews(body.slug)}>
+								All news from {body.label}
+							</a>
+						</p>
+					)}
+				</section>
+			</aside>
+		</div>
+	</div>
+
+	<ContactForm bodies={[]} body={body} />
+</Base>
+
+<style>
+	.body-head {
+		display: grid;
+		grid-template-columns: auto 1fr;
+		gap: var(--spacing-6);
+		align-items: center;
+		padding-block: var(--spacing-10);
+		border-top: 8px solid var(--body-colour, var(--color-border-strong));
+	}
+
+	:global(.body-head__emblem) {
+		width: 6rem;
+		height: 6rem;
+		object-fit: contain;
+	}
+
+	.body-head__type {
+		font-size: var(--font-size-sm);
+	}
+
+	.body-head__title {
+		margin-top: var(--spacing-2);
+		font-size: clamp(2rem, 1.5rem + 2vw, 3rem);
+		line-height: 1.1;
+	}
+
+	.body-layout {
+		display: grid;
+		grid-template-columns: 1.7fr 1fr;
+		gap: var(--spacing-10);
+		align-items: start;
+	}
+
+	.body-main,
+	.body-side {
+		display: grid;
+		grid-template-columns: 1fr;
+		gap: var(--spacing-12);
+	}
+
+	.body-main .section-head__title,
+	.body-side .section-head__title {
+		margin-bottom: var(--spacing-4);
+	}
+
+	.body-main .section-head .section-head__title {
+		margin-bottom: 0;
+	}
+
+	.body-feed {
+		margin-top: var(--spacing-6);
+	}
+
+	.body-about {
+		font-size: var(--font-size-lg);
+	}
+
+	.body-side__more {
+		margin-top: var(--spacing-5);
+	}
+
+	@media (max-width: 1000px) {
+		.body-layout {
+			grid-template-columns: 1fr;
+		}
+	}
+
+	@media (max-width: 640px) {
+		.body-head {
+			grid-template-columns: 1fr;
+			gap: var(--spacing-4);
+			padding-block: var(--spacing-8);
+		}
+
+		:global(.body-head__emblem) {
+			width: 4.5rem;
+			height: 4.5rem;
+		}
+	}
+</style>
